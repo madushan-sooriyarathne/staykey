@@ -166,7 +166,7 @@ export function progressFor(steps: StepDef[], index: number): number {
 }
 
 export type PublishResult =
-  | { ok: true; slug: string; bookingPageUrl: string }
+  | { ok: true; id: string; slug: string; bookingPageUrl: string }
   | { ok: false; field?: "slug"; message: string };
 
 /** Creates the property, which also reserves its booking page address. */
@@ -182,7 +182,8 @@ export async function publish(d: Draft): Promise<PublishResult> {
         baseRate: baseRateMinor(d),
       },
     });
-    if (data) return { ok: true, slug: data.slug, bookingPageUrl: data.bookingPageUrl };
+    if (data)
+      return { ok: true, id: data.id, slug: data.slug, bookingPageUrl: data.bookingPageUrl };
     if (response.status === 409) {
       return { ok: false, field: "slug", message: "That address is taken. Try another." };
     }

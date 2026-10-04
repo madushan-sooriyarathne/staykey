@@ -72,6 +72,8 @@ type ButtonProps = {
   variant?: "primary" | "ghost" | "light";
   icon?: SymbolViewProps["name"];
   testID?: string;
+  /** Smaller button for cards and two-up rows. */
+  compact?: boolean;
 };
 
 /** Primary call to action. Obsidian fill per the brand; label changes crossfade. */
@@ -83,6 +85,7 @@ export function Button({
   variant = "primary",
   icon,
   testID,
+  compact,
 }: ButtonProps) {
   const inactive = disabled || loading;
   const fg = variant === "primary" ? colors.snow : colors.obsidian;
@@ -101,6 +104,7 @@ export function Button({
         variant === "primary" && styles.primary,
         variant === "ghost" && styles.ghost,
         variant === "light" && styles.light,
+        compact && styles.compact,
         disabled && styles.disabled,
       ]}
     >
@@ -108,8 +112,15 @@ export function Button({
         <ActivityIndicator color={fg} />
       ) : (
         <Animated.View key={title} entering={FadeIn.duration(180)} style={styles.buttonInner}>
-          {icon ? <SymbolView name={icon} tintColor={fg} size={18} /> : null}
-          <Text style={[styles.buttonText, { color: variant === "ghost" ? colors.iron : fg }]}>
+          {icon ? <SymbolView name={icon} tintColor={fg} size={compact ? 16 : 18} /> : null}
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.buttonText,
+              compact && { fontSize: 15 },
+              { color: variant === "ghost" ? colors.iron : fg },
+            ]}
+          >
             {title}
           </Text>
         </Animated.View>
@@ -515,6 +526,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   primary: { backgroundColor: colors.obsidian },
+  compact: { height: 44, paddingHorizontal: 14 },
   ghost: { backgroundColor: colors.snow, borderWidth: 1, borderColor: colors.cloud },
   light: { backgroundColor: colors.snow },
   disabled: { opacity: 0.35 },

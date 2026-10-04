@@ -8,6 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { IconBox, Tag } from "@/components/brand";
 import { Button } from "@/components/controls";
 import { font } from "@/components/ui";
+import { useData } from "@/data/store";
 import { haptics } from "@/lib/haptics";
 import { type Role, useSession } from "@/lib/session";
 
@@ -109,6 +110,7 @@ export default function Join() {
               setAccepting(true);
               await new Promise((r) => setTimeout(r, 500));
               haptics.success();
+              useData.getState().startAsTeamMember();
               joinTeam({ role: INVITE.role, propertyName: INVITE.property });
             }}
           />

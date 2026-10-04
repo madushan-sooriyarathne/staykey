@@ -29,6 +29,8 @@ type SessionState = {
   bookingPageUrl: string;
   setup: Setup;
   subscription: Subscription;
+  /** When the owner published, which starts the free period. */
+  startedAt: string;
   /** Set when the persisted state has loaded, so the router doesn't flash the wrong stack. */
   hydrated: boolean;
 
@@ -42,6 +44,8 @@ type SessionState = {
   completeOnboarding: () => void;
   joinTeam: (p: { role: Role; propertyName: string }) => void;
   subscribe: (plan: PlanId, period: Period) => void;
+  /** Prototype only: preview the app as another role. */
+  setRole: (role: Role) => void;
   reset: () => void;
 };
 
@@ -54,6 +58,7 @@ const initial = {
   bookingPageUrl: "",
   setup: { units: 1, currency: "USD", nightlyRate: 0, photoCount: 0, otas: [] } as Setup,
   subscription: { status: "trial" } as Subscription,
+  startedAt: "",
 };
 
 export const useSession = create<SessionState>()(
@@ -61,10 +66,11 @@ export const useSession = create<SessionState>()(
     (set) => ({
       ...initial,
       hydrated: false,
-      publish: (p) => set({ ...p }),
+      publish: (p) => set({ ...p, startedAt: new Date().toISOString() }),
       completeOnboarding: () => set({ onboarded: true }),
       joinTeam: ({ role, propertyName }) => set({ onboarded: true, role, propertyName }),
       subscribe: (plan, period) => set({ subscription: { status: "active", plan, period } }),
+      setRole: (role) => set({ role }),
       reset: () => set({ ...initial }),
     }),
     {

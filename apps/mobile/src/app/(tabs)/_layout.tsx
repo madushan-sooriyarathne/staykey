@@ -3,6 +3,7 @@ import { Tabs } from "expo-router";
 import { SymbolView, type SymbolViewProps } from "expo-symbols";
 import type { ColorValue } from "react-native";
 import { font } from "@/components/ui";
+import { useSession } from "@/lib/session";
 
 type IconName = SymbolViewProps["name"];
 
@@ -13,6 +14,7 @@ function icon(name: IconName) {
 }
 
 export default function TabLayout() {
+  const role = useSession((s) => s.role);
   return (
     <Tabs
       screenOptions={{
@@ -48,6 +50,7 @@ export default function TabLayout() {
         name="properties"
         options={{
           title: "Properties",
+          href: role === "caretaker" ? null : undefined,
           tabBarIcon: icon({ ios: "house", android: "home", web: "home" }),
         }}
       />
