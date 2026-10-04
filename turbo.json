@@ -13,7 +13,8 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": [],
+      "passThroughEnv": ["CI", "DATABASE_URL", "STAYKEY_TEST_DATABASE_URL"]
     },
     "generate": {
       "inputs": [
@@ -25,15 +26,27 @@
       "outputs": ["src/schema.ts", "internal/oapi/**", "internal/store/queries/**"]
     },
     "migrate": {
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["APP_ENV", "DATABASE_URL"]
     },
     "seed": {
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["APP_ENV", "DATABASE_URL"]
     },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": [
+        "APP_ENV",
+        "PORT",
+        "DATABASE_URL",
+        "STAYKEY_AUTH_SECRET",
+        "STAYKEY_SMS_PROVIDER",
+        "STAYKEY_CLIENT_IP_HEADER",
+        "STAYKEY_BOOKING_DOMAIN",
+        "STAYKEY_BOOKING_SCHEME"
+      ]
     }
   }
 }
