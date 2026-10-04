@@ -6,7 +6,7 @@ Paste the prompt below into a new chat and attach `staykey.zip` (the full repo w
 
 ## Prompt for the new chat
 
-I'm building StayKey (staykey.direct), a direct booking SaaS for small Sri Lankan villa and guesthouse owners. The attached `staykey.zip` is the monorepo with full git history. Unzip it, read `docs/HANDOVER.md`, `docs/backend-plan.md`, `CLAUDE.md` and `apps/mobile/AGENTS.md`, then start **phase 1 Foundations** from the plan. Ask me the open questions listed in the handover first if any of them block phase 1; otherwise use the defaults given there and flag them.
+I'm building StayKey (staykey.direct), a direct booking SaaS for small Sri Lankan villa and guesthouse owners. The attached `staykey.zip` is the monorepo with full git history. Unzip it, read `docs/HANDOVER.md`, `docs/backend-plan.md`, `CLAUDE.md` and `apps/mobile/AGENTS.md`, then start **phase 2 Properties and setup** from the plan. Ask me the open questions listed in the handover first if any of them block phase 2; otherwise use the defaults given there and flag them.
 
 Working style: no em dashes, smooth sentence flow, concise and direct, understated professional tone. Commit after each meaningful step.
 
@@ -45,9 +45,14 @@ Commits so far:
 | `6076a5f` | Monorepo scaffold: Go API, Expo app, Next booking and marketing, OpenAPI spec, tokens, widget |
 | `06289b4` | Owner onboarding: animated direction-aware steps, haptics, paywall |
 | `bc43945` | Every owner app screen, running on an on-device store |
-| latest | This handover, the backend plan and design references in `docs/` |
+| `6596d58` | This handover, the backend plan and design references in `docs/` |
+| `6b1acfc` | Phase 1 migrations: accounts, people, auth tables, `account_id` on properties |
+| `fe48a21` | Phase 1 API: sqlc store, phone sign-in, accounts, tenant scoping, tests |
+| `9ed2b20` | `cmd/seed` for the sample account |
+| `94efd69` | Phase 1 app: real sign-in, secure tokens, TanStack Query, authenticated client |
+| `f1f9861` | Turborepo passes API settings through to tasks |
 
-**Important:** the app is a complete, clickable prototype, but only **property creation** hits the API. Everything else reads and writes a zustand store persisted to AsyncStorage (`apps/mobile/src/data/store.ts`). Phase 1 onward replaces that store with the API, screen by screen, without changing the screens.
+**Phase 1 is done.** Sign-in, accounts and property creation run on the API. Everything else still reads and writes the zustand store persisted to AsyncStorage (`apps/mobile/src/data/store.ts`). Phase 2 onward replaces that store with the API, screen by screen, without changing the screens. Until then, signing in copies the account's properties into the store (`src/data/from-api.ts`, `src/features/auth/enter.ts`), one unit per property at its base rate.
 
 ### Stack
 
@@ -59,9 +64,14 @@ Commits so far:
 
 ### API today
 
-- `apps/api/cmd/api`, `cmd/migrate`; `internal/config`, `internal/domain` (property, slug), `internal/store/postgres.go`, `internal/oapi`, `internal/server`.
-- One migration: `db/migrations/00001_create_properties.sql`.
-- Endpoints: health, create property, list properties, public property by slug.
+- `apps/api/cmd/api`, `cmd/migrate`, `cmd/seed`.
+- `internal/auth`: codes (HMAC-hashed, 5 min, 5 attempts; 1 per 30 s and 5 per hour per number, 20 per hour per IP), 15 min HS256 access tokens checked against their session, refresh tokens `<session id>.<secret>` stored as SHA-256 and rotated on every use. A stale refresh token revokes the session, except within 30 s of a rotation (a retried, lost response). `SMSSender` with `LogSender` only; dev servers return `devCode`.
+- `internal/tenant`: `Tenant` (account, user, membership, role, property scope) and `Resolve` for `X-Account-Id`. Unknown account or no membership is 404.
+- `internal/server`: each route's security comes from the embedded spec (`bearerAuth`, plus `accountHeader` for owner routes) and is checked by router-level middleware before the body is read. A route missing from the spec is refused.
+- `internal/store`: sqlc queries in `internal/db/queries` generate `internal/store/queries`; `store.Postgres` wraps them with the transaction carried in the context. Owner methods take a `tenant.Tenant`. `storetest.New(t)` gives each test its own migrated schema.
+- Migrations `00001` to `00004` in `internal/db/migrations`.
+- Endpoints: health; `POST /v1/auth/otp`, `/verify`, `/refresh`, `/logout`; `GET` and `PATCH /v1/me`; `GET` and `POST /v1/accounts`; `GET` and `POST /v1/properties` (owner routes; only owners create); public property by slug.
+- Tests: sign-in flow, code limits and expiry, refresh rotation and reuse, caretaker scope, owner-only creation, and `TestTenantIsolation`, which walks every owner route in the spec. Routes with path parameters need an entry in its `aliceIDs` fixture or the test fails.
 
 ### Mobile app map
 
@@ -75,7 +85,9 @@ Commits so far:
 | More | `insights`, `team`, `templates`, `template/[id]`, `notifications`, `subscription`, `profile`, `help` |
 | Components | `controls.tsx` (Button, Radio, inputs), `brand.tsx` (Tag, IconBox, Tick, Row, PulseDot), `kit.tsx` (AppBar, Page, SheetPage, List rows, Card, Segmented, Menu, StatusTag, PropertySwitcher and more), `calendar.tsx`, `icons.ts` |
 | Data | `data/types.ts` (the model the schema maps from), `pricing.ts` (quote, conflicts, relatedUnits, refunds), `dates.ts`, `defaults.ts`, `labels.ts`, `seed.ts` (sample villa, guesthouse, team), `store.ts`, `hooks.ts` (useFilter, useProperty, useBooking, useCan), `__tests__/pricing.test.ts` |
-| Lib | `session.ts` (role, subscription, free period), `auth.ts` (mock OTP), `api.ts`, `purchases.ts`, `contact.ts` (WhatsApp, call, email, templates), `haptics.ts`, `motion.ts`, `prototype.ts`, `storage.ts` |
+| API | `src/api/client.ts` (authenticated openapi-fetch client: token, `X-Account-Id`, refresh ahead of expiry, single-flight refresh and retry on 401), `query-client.ts`, `errors.ts` (`unwrap`, `ApiError`), one file per area: `me.ts`, `accounts.ts`, `properties.ts` |
+| Auth | `src/lib/auth.ts` (request, verify, sign out), `src/lib/tokens.ts` (expo-secure-store, AsyncStorage on web), `src/features/auth/enter.ts` (after a verified code: app or setup), `session-check.tsx` (confirms the session on launch) |
+| Lib | `session.ts` (user, active account, role, subscription, free period), `purchases.ts`, `contact.ts` (WhatsApp, call, email, templates), `haptics.ts`, `motion.ts`, `prototype.ts`, `storage.ts` |
 
 ## 4. Running it
 
@@ -83,11 +95,12 @@ Commits so far:
 bun install
 bun run db:up          # Postgres 17 in Docker (or point DATABASE_URL at any Postgres 16+)
 bun run db:migrate
+bun run db:seed        # sample owner +94770000001, manager +94772223344, caretaker +94713338899
 bun run dev            # API :8080, booking :3001, marketing :3000, Expo :8081
 ```
 
 - App env (`apps/mobile/.env`): `EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:8080`, `EXPO_PUBLIC_PROTOTYPE_TOOLS=true` to show prototype tools outside dev builds.
-- Mock OTP accepts any 6 digits except `000000`.
+- Sign-in codes go to the API log, and development builds show the code the dev server returns. Tap "I have an account" with a seeded number to land in that account.
 - More tab → Prototype tools: switch owner and caretaker, add a sample guesthouse, preview the paywall, restart onboarding.
 
 ### Verification
@@ -95,11 +108,12 @@ bun run dev            # API :8080, booking :3001, marketing :3000, Expo :8081
 ```sh
 cd apps/mobile && bunx tsc --noEmit && bun test src && bunx expo export --platform ios
 bunx biome check .                       # from the repo root
-cd apps/api && go vet ./... && go test ./...
+cd apps/api && go vet ./... && go test ./...   # needs Postgres; CI=true fails instead of skipping
 bun run typecheck                        # turbo, all workspaces
+bun run generate && git diff --exit-code # generated code is up to date
 ```
 
-All of these pass at the latest commit (10 pricing tests).
+All of these pass at the latest commit (17 app tests, 14 Go integration tests against Postgres plus domain tests).
 
 ## 5. Known gotchas
 
@@ -107,37 +121,40 @@ All of these pass at the latest commit (10 pricing tests).
 - Reanimated custom entering and exiting worklets don't run on web; web falls back to predefined `FadeInRight`, `FadeInLeft` and `FadeOut`.
 - The calendar tab and a folder called `calendar/` would collide in expo-router, so date-range sheets live in `range/`.
 - Add mobile packages with `bunx expo install`, never plain `bun add`.
+- Turborepo runs in strict environment mode. A new environment variable an API task reads must be added to that task's `passThroughEnv` in `turbo.json`.
+- sqlc runs through `go run ...@v1.31.1` from `bun run generate`; the first run compiles it (about a minute).
+- `afterSignIn` resets the on-device store when a different person signs in, and keeps it for the same person.
 
-## 6. Next step: phase 1 Foundations
+## 6. Next step: phase 2 Properties and setup
 
 Full plan: `docs/backend-plan.md` (live copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d). PRD: https://claude.ai/code/artifact/5bc88e13-3f9b-41f5-8aa9-db852d6bd55d
 
-Tasks, in order:
+Backend: extend `properties` and add `property_photos`, `units`, `unit_links`, `payment_settings`, `seasons`, `season_prices`, `rate_overrides`, `length_discounts`, `charges`, `extras`, `promos`, all with `account_id`. Photos go to R2 with presigned uploads. `POST /v1/onboarding/publish` takes the whole draft in one transaction. App: onboarding publish, the Properties tab and all 14 settings screens move from the on-device store to `src/api/`, and `src/data/from-api.ts` goes away. Add each new owner route's path parameters to `TestTenantIsolation`. Extend `cmd/seed` with units, seasons and settings from `data/seed.ts`.
 
-1. **Migrations 00002+:** `accounts`, `users`, `memberships`, `membership_properties`, `invites`, `otp_challenges`, `sessions`, `push_tokens`, `notification_prefs`; add `account_id` (not null, indexed) to `properties`. UUIDv7 keys generated in Go.
-2. **sqlc:** add `sqlc.yaml`, queries under `apps/api/db/queries`, and move `store/postgres.go` onto the generated code.
-3. **`internal/auth`:** OTP request and verify (6 digits, 5 min expiry, 5 attempts, rate limit per phone and IP, codes stored hashed), 15 min JWT access token, rotating refresh token stored hashed. An `SMSSender` interface with a log sender for development.
-4. **Tenant middleware:** reads `X-Account-Id`, checks membership and role, puts a `Tenant` in the request context. Every store query takes it.
-5. **OpenAPI:** `POST /auth/otp`, `POST /auth/verify`, `POST /auth/refresh`, `POST /auth/logout`, `GET /me`, `POST /accounts`, `GET /accounts`. Then `bun run generate` and implement handlers.
-6. **App:** real `src/lib/auth.ts`; tokens in `expo-secure-store`; openapi-fetch middleware that adds the token and account header and refreshes once on 401; a TanStack Query provider in the root layout; a `src/api/` folder with one file per area. Property creation moves onto the authenticated client.
-7. **`cmd/seed`:** recreates the sample villa, guesthouse and team from `data/seed.ts` on the server.
-8. **Tests:** auth flow, refresh rotation and reuse detection, and tenant isolation (another account's token gets 404 on every owner route).
+**Gate:** publish from onboarding and edit every setting against the API.
 
-**Gate:** sign in on a real phone against the local API, and the isolation tests pass.
-
-Phases 2 to 6 follow the table in the plan: properties and setup, bookings core with the `unit_nights` ledger, team and activity, iCal and the booking page, then billing and hardening.
+Phase 1 gate status: the isolation tests pass. Sign-in was checked end to end in a browser against the local API (seeded owner, and a new owner through setup and publish); signing in on a real phone is still to be done.
 
 ## 7. Open questions (defaults if unanswered)
 
 | Question | Default for now |
 | --- | --- |
-| SMS provider for OTP | Log sender in dev; interface ready for a Sri Lankan gateway or Twilio |
-| Hosting region | Fly.io in Singapore with managed Postgres alongside |
+| SMS provider for OTP | Log sender only; production refuses to start without `STAYKEY_SMS_PROVIDER` |
+| Hosting region | Fly.io in Singapore with managed Postgres alongside (`STAYKEY_CLIENT_IP_HEADER=Fly-Client-IP`) |
 | File storage | Cloudflare R2 (S3 API, so swappable) |
 | WhatsApp Business number | Deep links only until a number is registered |
 | OTA stays | Bookings with an OTA source, as the app does today |
 | Row-level security | Phase 6, with `account_id` on every table from the start |
-| Demo data | Development builds only |
+| Demo data | Development only: `cmd/seed` refuses production |
+
+Phase 1 calls made without asking, to confirm or change:
+
+- Account creation happens at publish, named after the first property. There is no account rename yet.
+- Owners land in their first owned account, team members in the first account they joined. An account switcher waits for phase 4.
+- Only owners can add properties, since a property counts towards the plan. Managers get 403.
+- `PATCH /v1/me` was added in phase 1 so onboarding can save the owner's name.
+- The 30 second refresh grace period exists for retries on flaky mobile networks.
+- The mock "I was invited to a team" flow is unchanged until invites land in phase 4.
 
 ## 8. Git attribution
 
@@ -145,7 +162,7 @@ End commit messages with:
 
 ```
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_019RYduPj9tnoC9yKXKS5gnR
+Claude-Session: <link to the session making the commit>
 ```
 
 End pull request descriptions with:
@@ -153,5 +170,5 @@ End pull request descriptions with:
 ```
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
-https://claude.ai/code/session_019RYduPj9tnoC9yKXKS5gnR
+<link to the session making the pull request>
 ```

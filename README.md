@@ -45,18 +45,28 @@ Slugs such as `www`, `api`, `app` and `cdn` are reserved. The list lives in `app
 bun install
 bun run db:up        # start PostgreSQL in Docker
 bun run db:migrate   # apply migrations
+bun run db:seed      # optional: the sample account below
 bun run dev          # API on :8080, booking on :3001, marketing on :3000, Expo on :8081
 ```
 
-Create a property, then open its booking page:
+The seed creates an owner (+94 77 000 0001, or `-owner-phone` for your own number) with Kingfisher Villa and Coral Bay House, a manager (+94 77 222 3344) and a caretaker for the villa (+94 71 333 8899). Open a booking page at http://kingfisher.localhost:3001.
+
+### Signing in
+
+Owners sign in with a 6-digit code sent to their phone. No SMS provider is connected yet, so in development the code is written to the API log and returned by the API, and development builds of the app show it under the code boxes. To sign in on a phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your computer's LAN address, tap "I have an account" and use one of the seeded numbers.
+
+From the command line:
 
 ```sh
-curl -X POST localhost:8080/v1/properties \
-  -H 'content-type: application/json' \
-  -d '{"name":"Kingfisher Villa","slug":"kingfisher","bookingType":"entire","currency":"USD","baseRate":18000}'
-
-open http://kingfisher.localhost:3001
+curl -s -X POST localhost:8080/v1/auth/otp -H 'content-type: application/json' \
+  -d '{"phone":"+94770000001"}'                  # returns devCode in development
+curl -s -X POST localhost:8080/v1/auth/verify -H 'content-type: application/json' \
+  -d '{"phone":"+94770000001","code":"<devCode>"}' # returns tokens and accounts
+curl -s localhost:8080/v1/properties \
+  -H "Authorization: Bearer <accessToken>" -H "X-Account-Id: <account id>"
 ```
+
+Owner routes need the access token (15 minutes, renewed with `POST /v1/auth/refresh`) and an `X-Account-Id` the caller is a member of. Anyone else gets 404.
 
 Browsers resolve `*.localhost` to your machine, so subdomain routing works locally without editing hosts files.
 
@@ -86,8 +96,9 @@ Generated files are committed, so a fresh checkout builds without running genera
 | `bun run format` | Biome format and safe fixes |
 | `bun run generate` | Regenerates code from the OpenAPI contract |
 | `bun run db:migrate` | Applies database migrations |
+| `bun run db:seed` | Creates the sample account (development only) |
 
-New migrations go in `apps/api/internal/db/migrations` with goose's `-- +goose Up` and `-- +goose Down` markers.
+New migrations go in `apps/api/internal/db/migrations` with goose's `-- +goose Up` and `-- +goose Down` markers. SQL queries live in `apps/api/internal/db/queries`; `bun run generate` also runs sqlc, which writes typed Go to `apps/api/internal/store/queries`. Owner queries take the request's tenant, so they always filter by account.
 
 ## Embedding the widget
 
@@ -102,18 +113,18 @@ The loader mounts `kingfisher.staykey.direct/embed` in an iFrame that resizes to
 
 Built:
 - Monorepo with Bun workspaces, Turborepo, Biome and a Go workspace
-- Go API with health, create and list properties, and public property lookup, backed by PostgreSQL with tests
+- Go API with phone sign-in (codes, rotating refresh tokens), accounts with owner, manager and caretaker roles, tenant scoping on every owner query, properties and public property lookup, backed by PostgreSQL with sqlc and tested against a real database, including tenant isolation for every owner route
 - Booking app with subdomain routing, a property page and the embed bridge
 - Widget loader with auto-resize and analytics events
 - Expo owner app with every V1 screen from the designs: Today (owner and caretaker), month and timeline Calendar with range actions, Bookings, Properties, booking detail, new and edit booking, record payment with bank slips, cancel with policy refunds, contact sheet, Activity, block dates and edit rates sheets, all property settings (details, photos, units, rates and seasons, stay rules, policies, taxes and charges, payment methods, booking settings, branding, share and embed with QR, iCal sync, extras, promo codes), Insights, Team, message templates, notifications, subscription, profile and help
-- Owner onboarding in the app: Welcome, 10 or 11 steps across four stages (depending on whole place or rooms), You're live, team invites, the setup checklist on Today and the subscription paywall. Steps slide in from the direction of travel with subtle haptics, and progress autosaves so "Finish later" resumes in place. Phone codes and purchases are stubbed (any 6 digits except 000000 verify)
+- Owner onboarding in the app: Welcome, 10 or 11 steps across four stages (depending on whole place or rooms), You're live, team invites, the setup checklist on Today and the subscription paywall. Steps slide in from the direction of travel with subtle haptics, and progress autosaves so "Finish later" resumes in place. Phone sign-in is real; purchases and team invites are still stubbed
 - Marketing site landing page
 
-How the app gets its data today: property creation goes through the API, and everything else runs on an on-device store (`apps/mobile/src/data`) with typed domain models, pricing and availability rules covered by tests, and sample bookings generated around today's date. Screens read the store through small hooks, so moving each area to the API means swapping the store actions for API calls. In development (or with `EXPO_PUBLIC_PROTOTYPE_TOOLS=true`) More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
+How the app gets its data today: sign-in, accounts and property creation go through the API, with tokens in the secure store and server data through TanStack Query (`apps/mobile/src/api`). Everything else runs on an on-device store (`apps/mobile/src/data`) with typed domain models, pricing and availability rules covered by tests, and sample bookings generated around today's date. Screens read the store through small hooks, so moving each area to the API means swapping the store actions for API calls. In development (or with `EXPO_PUBLIC_PROTOTYPE_TOOLS=true`) More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
 
-Next:
-- Owner auth with phone OTP, plus accounts and tenant scoping on every table
-- API endpoints for units, rates, bookings, blocks, payments and team, replacing the on-device store
+Next (see `docs/backend-plan.md`):
+- Phase 2: properties, units, photos, rates and every setting on the API, and onboarding publish in one call
+- API endpoints for bookings, blocks, payments and team, replacing the on-device store
 - The night inventory ledger, holds and the booking state machine on the server
 - iCal import and export workers
-- Real OTP endpoints, photo upload, and RevenueCat for in-app subscriptions
+- An SMS provider for codes, photo upload, and RevenueCat for in-app subscriptions
