@@ -141,8 +141,13 @@ export default function Onboarding() {
 
     if (step.id === "phone") {
       setBusy(true);
-      await requestCode(`${draft.country.dial}${draft.phone}`);
+      const sent = await requestCode(`${draft.country.dial}${draft.phone}`);
       setBusy(false);
+      if (!sent.ok) {
+        haptics.error();
+        setNotice(sent.message);
+        return;
+      }
       next();
       return;
     }
@@ -180,6 +185,8 @@ export default function Onboarding() {
         router.replace("/live");
       } else {
         haptics.error();
+        // The session ended while setting up: confirm the number again, then publish.
+        if (result.reauth) goTo("phone");
         if (result.field === "slug") setFieldError(result.message);
         else setNotice(result.message);
       }

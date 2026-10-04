@@ -11,6 +11,7 @@ import { Avatar, Card, Page, Segmented, Two, ui } from "@/components/kit";
 import { font } from "@/components/ui";
 import { useData } from "@/data/store";
 import { useOnboarding } from "@/features/onboarding/store";
+import { signOut as endSession } from "@/lib/auth";
 import { haptics } from "@/lib/haptics";
 import { useSession } from "@/lib/session";
 
@@ -35,6 +36,7 @@ export default function Profile() {
 
   function signOut() {
     haptics.warning();
+    endSession();
     clearDraft();
     resetData();
     resetSession();

@@ -1,6 +1,10 @@
 import { SLUG_PATTERN } from "@staykey/api-client";
 import type { ComponentType } from "react";
-import { api } from "@/lib/api";
+import { createAccount } from "@/api/accounts";
+import { ApiError } from "@/api/errors";
+import { updateMe } from "@/api/me";
+import { createProperty } from "@/api/properties";
+import { useSession } from "@/lib/session";
 import { ChannelsStep, ReviewStep } from "./steps/live";
 import { PaymentStep, PolicyStep, PriceStep } from "./steps/paid";
 import { BasicsStep, PhotosStep, RoomsStep, SpaceStep } from "./steps/property";
@@ -167,32 +171,55 @@ export function progressFor(steps: StepDef[], index: number): number {
 
 export type PublishResult =
   | { ok: true; id: string; slug: string; bookingPageUrl: string }
-  | { ok: false; field?: "slug"; message: string };
+  | { ok: false; field?: "slug"; reauth?: boolean; message: string };
 
-/** Creates the property, which also reserves its booking page address. */
+/**
+ * Publishes the owner's setup: creates their account the first time, saves their name, then
+ * creates the property, which reserves its booking page address. A retry after a failure reuses
+ * the account.
+ */
 export async function publish(d: Draft): Promise<PublishResult> {
+  const session = useSession.getState();
   try {
-    const { data, error, response } = await api.POST("/v1/properties", {
-      body: {
-        name: d.propertyName.trim(),
-        slug: d.slug,
-        bookingType: d.bookingType,
-        location: d.location.trim() || undefined,
-        currency: d.currency,
-        baseRate: baseRateMinor(d),
-      },
+    if (!session.accountId) {
+      const account = await createAccount(d.propertyName.trim());
+      session.setAccount(account.id, account.role);
+    }
+
+    const name = `${d.firstName} ${d.lastName}`.trim();
+    if (name) await updateMe({ name }).catch(() => undefined);
+
+    const created = await createProperty({
+      name: d.propertyName.trim(),
+      slug: d.slug,
+      bookingType: d.bookingType,
+      location: d.location.trim() || undefined,
+      currency: d.currency,
+      baseRate: baseRateMinor(d),
     });
-    if (data)
-      return { ok: true, id: data.id, slug: data.slug, bookingPageUrl: data.bookingPageUrl };
-    if (response.status === 409) {
+    return { ok: true, id: created.id, slug: created.slug, bookingPageUrl: created.bookingPageUrl };
+  } catch (e) {
+    if (!(e instanceof ApiError)) {
+      return {
+        ok: false,
+        message: "Can't reach StayKey right now. Check your connection and try again.",
+      };
+    }
+    if (e.status === 401) {
+      return {
+        ok: false,
+        reauth: true,
+        message: "Your sign-in expired. Confirm your number again to publish.",
+      };
+    }
+    if (e.code === "account_not_found") {
+      // The saved account is gone: make a new one on the next try.
+      session.setAccount("", "owner");
+    }
+    if (e.code === "slug_taken") {
       return { ok: false, field: "slug", message: "That address is taken. Try another." };
     }
-    if (error?.code === "invalid_slug") return { ok: false, field: "slug", message: error.message };
-    return { ok: false, message: error?.message ?? "Publishing didn't work. Please try again." };
-  } catch {
-    return {
-      ok: false,
-      message: "Can't reach StayKey right now. Check your connection and try again.",
-    };
+    if (e.code === "invalid_slug") return { ok: false, field: "slug", message: e.message };
+    return { ok: false, message: e.message };
   }
 }

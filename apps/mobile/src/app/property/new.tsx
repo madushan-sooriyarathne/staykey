@@ -2,14 +2,15 @@ import { suggestSlug } from "@staykey/api-client";
 import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
+import { ApiError, messageFor } from "@/api/errors";
+import { useCreateProperty } from "@/api/properties";
 import { Button, ChoiceCard, Field, InfoNote, Pill } from "@/components/controls";
 import { I } from "@/components/icons";
 import { Hint, Page, SectionHeader } from "@/components/kit";
-import { makeProperty } from "@/data/defaults";
+import { localProperty } from "@/data/from-api";
 import { useData } from "@/data/store";
 import type { Currency } from "@/data/types";
 import { MoneyField } from "@/features/property/settings";
-import { api } from "@/lib/api";
 import { haptics } from "@/lib/haptics";
 
 /** A second property in a minute: the basics, then everything else lives in its settings. */
@@ -20,59 +21,38 @@ export default function NewProperty() {
   const [bookingType, setBookingType] = useState<"entire" | "rooms">("entire");
   const [currency, setCurrency] = useState<Currency>("USD");
   const [rate, setRate] = useState(0);
-  const [saving, setSaving] = useState(false);
+  const create = useCreateProperty();
   const [error, setError] = useState<string | null>(null);
+  const saving = create.isPending;
   const ready = name.trim().length >= 2 && rate > 0 && !saving;
 
   async function save() {
-    setSaving(true);
     setError(null);
     const base = suggestSlug(name) || "property";
-    try {
-      for (let attempt = 0; attempt < 4; attempt++) {
-        const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
-        const { data, response } = await api.POST("/v1/properties", {
-          body: {
-            name: name.trim(),
-            slug,
-            bookingType,
-            location: location.trim() || undefined,
-            currency,
-            baseRate: rate,
-          },
+    // Try the name's address, then numbered ones if it's taken.
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
+      try {
+        const created = await create.mutateAsync({
+          name: name.trim(),
+          slug,
+          bookingType,
+          location: location.trim() || undefined,
+          currency,
+          baseRate: rate,
         });
-        if (data) {
-          const property = makeProperty({
-            id: data.id,
-            name: data.name,
-            slug: data.slug,
-            bookingPageUrl: data.bookingPageUrl,
-            bookingType,
-            currency,
-            location: location.trim(),
-            units: [
-              {
-                id: `${data.id}_u1`,
-                name: bookingType === "entire" ? data.name : "Room 1",
-                sleeps: bookingType === "entire" ? 4 : 2,
-                beds: "",
-                rate,
-              },
-            ],
-          });
-          addProperty(property);
-          haptics.success();
-          router.replace({ pathname: "/property/[id]", params: { id: property.id } });
-          return;
-        }
-        if (response.status !== 409) break;
+        const property = localProperty(created, { location: location.trim() });
+        addProperty(property);
+        haptics.success();
+        router.replace({ pathname: "/property/[id]", params: { id: property.id } });
+        return;
+      } catch (e) {
+        if (e instanceof ApiError && e.code === "slug_taken") continue;
+        setError(messageFor(e));
+        return;
       }
-      setError("We couldn't create the property. Please try again.");
-    } catch {
-      setError("Can't reach StayKey right now. Check your connection and try again.");
-    } finally {
-      setSaving(false);
     }
+    setError("We couldn't find a free booking page address. Try a different name.");
   }
 
   return (

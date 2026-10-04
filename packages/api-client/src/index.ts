@@ -1,6 +1,7 @@
 import createClient, { type ClientOptions } from "openapi-fetch";
 import type { components, paths } from "./schema";
 
+export type { Middleware } from "openapi-fetch";
 export type { components, paths } from "./schema";
 
 type Schemas = components["schemas"];

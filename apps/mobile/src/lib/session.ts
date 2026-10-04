@@ -22,6 +22,13 @@ export type Subscription = { status: "trial" } | { status: "active"; plan: PlanI
 type SessionState = {
   /** True once the owner has finished onboarding (or joined a team) and lands on the tabs. */
   onboarded: boolean;
+  /**
+   * The last user who signed in on this device, set by a verified code. It survives an expired
+   * session so signing back in as the same person keeps their local data.
+   */
+  userId: string;
+  /** The account owner routes act on, sent as X-Account-Id. */
+  accountId: string;
   role: Role;
   ownerName: string;
   propertyName: string;
@@ -42,6 +49,12 @@ type SessionState = {
     setup: Setup;
   }) => void;
   completeOnboarding: () => void;
+  /** After a verified code: who signed in. */
+  setUser: (userId: string) => void;
+  /** Acts on this account from now on, with the caller's role in it. */
+  setAccount: (accountId: string, role: Role) => void;
+  /** The server ended the session (the refresh token was refused): back to Welcome to sign in. */
+  signedOut: () => void;
   joinTeam: (p: { role: Role; propertyName: string }) => void;
   subscribe: (plan: PlanId, period: Period) => void;
   /** Prototype only: preview the app as another role. */
@@ -51,6 +64,8 @@ type SessionState = {
 
 const initial = {
   onboarded: false,
+  userId: "",
+  accountId: "",
   role: "owner" as Role,
   ownerName: "",
   propertyName: "",
@@ -68,6 +83,9 @@ export const useSession = create<SessionState>()(
       hydrated: false,
       publish: (p) => set({ ...p, startedAt: new Date().toISOString() }),
       completeOnboarding: () => set({ onboarded: true }),
+      setUser: (userId) => set({ userId }),
+      setAccount: (accountId, role) => set({ accountId, role }),
+      signedOut: () => set({ onboarded: false }),
       joinTeam: ({ role, propertyName }) => set({ onboarded: true, role, propertyName }),
       subscribe: (plan, period) => set({ subscription: { status: "active", plan, period } }),
       setRole: (role) => set({ role }),
