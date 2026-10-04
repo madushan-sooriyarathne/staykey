@@ -35,6 +35,12 @@
           "resizeMode": "contain",
           "backgroundColor": "#F4F4F5"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "StayKey uses your photos to show guests your property."
+        }
       ]
     ],
     "experiments": {
