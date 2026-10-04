@@ -145,9 +145,61 @@ export interface paths {
         put?: never;
         /**
          * Create a property and its booking page address
-         * @description Owners only, since a property counts towards the plan.
+         * @description Owners only, since a property counts towards the plan. Send baseRate for a
+         *     quick start with one unit, or setup with the full setup as onboarding publishes
+         *     it, all in one transaction.
          */
         post: operations["createProperty"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/properties/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** A property with its full setup */
+        get: operations["getProperty"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change some of a property's setup
+         * @description Send only the sections that changed. Lists (units, seasons, charges and so on)
+         *     replace the whole list: items that carry the id of an existing item are updated,
+         *     items with any other id are added, and items left out are removed. Units are
+         *     archived rather than deleted. New units can be referred to by the id they were
+         *     sent with from linkedUnitIds and season prices in the same request. Everything
+         *     applies in one transaction. Owners and managers only.
+         */
+        patch: operations["updateProperty"];
+        trace?: never;
+    };
+    "/v1/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Get a link to upload a photo or logo
+         * @description Returns a short-lived URL that accepts one file of exactly this type and size.
+         *     PUT the file there with the returned headers, then send the key in a property's
+         *     photos or branding.logoKey. Owners and managers only.
+         */
+        post: operations["createUpload"];
         delete?: never;
         options?: never;
         head?: never;
@@ -298,11 +350,18 @@ export interface components {
             currency: components["schemas"]["Currency"];
             /**
              * Format: int64
-             * @description Nightly base rate in minor units.
+             * @description Nightly rate in minor units for the one unit a quick start gets. Required without setup.units.
              * @example 18000
              */
-            baseRate: number;
+            baseRate?: number;
+            setup?: components["schemas"]["PropertyPatch"];
         };
+        /**
+         * Format: int64
+         * @description An amount in minor units of the property's currency.
+         */
+        Money: number;
+        /** @description A property with its full setup, as owners and managers see it. */
         Property: {
             /** Format: uuid */
             id: string;
@@ -311,7 +370,10 @@ export interface components {
             bookingType: components["schemas"]["BookingType"];
             location?: string;
             currency: components["schemas"]["Currency"];
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description The lowest unit rate, in minor units.
+             */
             baseRate: number;
             /**
              * Format: uri
@@ -320,6 +382,312 @@ export interface components {
             bookingPageUrl: string;
             /** Format: date-time */
             createdAt: string;
+            description: string;
+            amenities: string[];
+            checkIn: components["schemas"]["Clock"];
+            checkOut: components["schemas"]["Clock"];
+            /** @example Asia/Colombo */
+            timeZone: string;
+            /** @description In display order; the first is the cover. */
+            photos: components["schemas"]["Photo"][];
+            units: components["schemas"]["Unit"][];
+            extraGuest: components["schemas"]["ExtraGuest"];
+            seasons: components["schemas"]["Season"][];
+            lengthDiscounts: components["schemas"]["LengthDiscount"][];
+            rules: components["schemas"]["StayRules"];
+            policy: components["schemas"]["Policy"];
+            depositPercent: number;
+            balanceDueDays: number;
+            houseRules: string[];
+            charges: components["schemas"]["Charge"][];
+            extras: components["schemas"]["Extra"][];
+            promos: components["schemas"]["Promo"][];
+            payments: components["schemas"]["PaymentSettings"];
+            booking: components["schemas"]["BookingSettings"];
+            branding: components["schemas"]["Branding"];
+            icalFeeds: components["schemas"]["IcalFeed"][];
+            /** @description Secret part of the calendar export link for OTAs. */
+            icalExportToken: string;
+        };
+        /** @description Sections to change. Absent sections stay as they are; lists replace the whole list. */
+        PropertyPatch: {
+            name?: string;
+            bookingType?: components["schemas"]["BookingType"];
+            description?: string;
+            location?: string;
+            checkIn?: components["schemas"]["Clock"];
+            checkOut?: components["schemas"]["Clock"];
+            amenities?: string[];
+            policy?: components["schemas"]["Policy"];
+            depositPercent?: number;
+            balanceDueDays?: number;
+            houseRules?: string[];
+            rules?: components["schemas"]["StayRules"];
+            booking?: components["schemas"]["BookingSettings"];
+            branding?: components["schemas"]["BrandingInput"];
+            payments?: components["schemas"]["PaymentSettings"];
+            extraGuest?: components["schemas"]["ExtraGuest"];
+            units?: components["schemas"]["UnitInput"][];
+            seasons?: components["schemas"]["SeasonInput"][];
+            lengthDiscounts?: components["schemas"]["LengthDiscount"][];
+            charges?: components["schemas"]["ChargeInput"][];
+            extras?: components["schemas"]["ExtraInput"][];
+            promos?: components["schemas"]["PromoInput"][];
+            photos?: components["schemas"]["PhotoInput"][];
+            icalFeeds?: components["schemas"]["IcalFeedInput"][];
+        };
+        /** @example 14:00 */
+        Clock: string;
+        /**
+         * Format: date
+         * @example 2026-12-01
+         */
+        Day: string;
+        /**
+         * @description Month and day, repeating every year.
+         * @example 12-15
+         */
+        MonthDay: string;
+        /** @enum {string} */
+        Policy: "flexible" | "moderate" | "strict";
+        Photo: {
+            /** Format: uuid */
+            id: string;
+            key: string;
+            /** Format: uri */
+            url: string;
+            caption: string;
+        };
+        PhotoInput: {
+            /** @description The key from /v1/uploads, or of a photo the property already has. */
+            key: string;
+            caption?: string;
+        };
+        Unit: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            sleeps: number;
+            beds: string;
+            rate: components["schemas"]["Money"];
+            weekendRate?: components["schemas"]["Money"];
+            /** @description Rooms a whole-house unit books together. */
+            linkedUnitIds: string[];
+        };
+        UnitInput: {
+            /** @description An existing unit's id, or any text unique in the request for a new unit. */
+            id: string;
+            name: string;
+            sleeps: number;
+            beds?: string;
+            rate: components["schemas"]["Money"];
+            weekendRate?: components["schemas"]["Money"];
+            linkedUnitIds?: string[];
+        };
+        /** @description A charge per guest per night above the included guests. Amount 0 is off. */
+        ExtraGuest: {
+            above: number;
+            amount: components["schemas"]["Money"];
+        };
+        Season: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            start: components["schemas"]["MonthDay"];
+            end: components["schemas"]["MonthDay"];
+            minNights?: number;
+            /** @description Nightly price per unit id. */
+            prices: {
+                [key: string]: number;
+            };
+        };
+        SeasonInput: {
+            id?: string;
+            name: string;
+            start: components["schemas"]["MonthDay"];
+            end: components["schemas"]["MonthDay"];
+            minNights?: number;
+            /** @description Nightly price per unit id, or per new unit's id from the same request. */
+            prices: {
+                [key: string]: number;
+            };
+        };
+        LengthDiscount: {
+            nights: number;
+            percent: number;
+        };
+        StayRules: {
+            minNights: number;
+            maxNights: number;
+            /** @description Hour until which same-day arrivals can book. Null turns them off. */
+            sameDayCutoff: number | null;
+            windowMonths: number;
+            /** @description Weekdays guests can't arrive on, 0 for Sunday. */
+            closedArrival: number[];
+        };
+        /** @enum {string} */
+        ChargeKind: "percent" | "fixed";
+        Charge: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: components["schemas"]["ChargeKind"];
+            /**
+             * Format: int64
+             * @description A whole percent, or minor units for fixed charges.
+             */
+            amount: number;
+            /** @enum {string} */
+            per: "stay" | "night" | "guest";
+            enabled: boolean;
+            note?: string;
+        };
+        ChargeInput: {
+            id?: string;
+            name: string;
+            kind: components["schemas"]["ChargeKind"];
+            /** Format: int64 */
+            amount: number;
+            /** @enum {string} */
+            per: "stay" | "night" | "guest";
+            enabled: boolean;
+            note?: string;
+        };
+        /** @enum {string} */
+        ExtraPer: "stay" | "night" | "guest" | "trip" | "guestNight";
+        Extra: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            price: components["schemas"]["Money"];
+            per: components["schemas"]["ExtraPer"];
+            onRequest: boolean;
+            enabled: boolean;
+        };
+        ExtraInput: {
+            id?: string;
+            name: string;
+            price: components["schemas"]["Money"];
+            per: components["schemas"]["ExtraPer"];
+            onRequest: boolean;
+            enabled: boolean;
+        };
+        Promo: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            kind: components["schemas"]["ChargeKind"];
+            /** Format: int64 */
+            amount: number;
+            from?: components["schemas"]["Day"];
+            to?: components["schemas"]["Day"];
+            limit?: number;
+            /** @description Bookings that used the code. Kept by the server. */
+            used: number;
+            minNights?: number;
+            note?: string;
+        };
+        PromoInput: {
+            id?: string;
+            /** @example MONSOON10 */
+            code: string;
+            kind: components["schemas"]["ChargeKind"];
+            /** Format: int64 */
+            amount: number;
+            from?: components["schemas"]["Day"];
+            to?: components["schemas"]["Day"];
+            limit?: number;
+            minNights?: number;
+            note?: string;
+        };
+        BankDetails: {
+            enabled: boolean;
+            bankName: string;
+            accountName: string;
+            /** @description Encrypted at rest. Hidden from caretakers. */
+            accountNumber: string;
+            payWithinHours: number;
+            cancelIfUnpaid: boolean;
+        };
+        PaymentSettings: {
+            bank: components["schemas"]["BankDetails"];
+            atProperty: boolean;
+            /**
+             * @description The app can apply (pending) or withdraw (off); "on" comes from PayHere's approval.
+             * @enum {string}
+             */
+            cards: "off" | "pending" | "on";
+        };
+        BookingSettings: {
+            /** @enum {string} */
+            mode: "instant" | "request";
+            replyHours: number;
+            holdMinutes: number;
+            displayCurrencies: ("USD" | "EUR" | "GBP" | "AUD" | "INR" | "LKR")[];
+        };
+        Branding: {
+            /** @example #09090b */
+            color: string;
+            logoKey?: string;
+            /** Format: uri */
+            logoUrl?: string;
+        };
+        BrandingInput: {
+            color: string;
+            /** @description A key from /v1/uploads, or the current logo's. Leave out to remove the logo. */
+            logoKey?: string;
+        };
+        /** @enum {string} */
+        IcalChannel: "airbnb" | "booking" | "agoda" | "expedia" | "other";
+        IcalFeed: {
+            /** Format: uuid */
+            id: string;
+            channel: components["schemas"]["IcalChannel"];
+            url: string;
+            /**
+             * @description Pending until the import worker has read the link.
+             * @enum {string}
+             */
+            status: "pending" | "ok" | "error";
+            /** Format: date-time */
+            lastSync?: string;
+            error?: string;
+            /** @description Imported stays from today on. */
+            upcoming: number;
+        };
+        IcalFeedInput: {
+            id?: string;
+            channel: components["schemas"]["IcalChannel"];
+            url: string;
+        };
+        UploadRequest: {
+            /** @enum {string} */
+            kind: "photo" | "logo";
+            /** @enum {string} */
+            contentType: "image/jpeg" | "image/png" | "image/webp" | "image/heic";
+            /**
+             * Format: int64
+             * @description Exact size in bytes. Photos up to 15 MB, logos up to 5 MB.
+             */
+            size: number;
+        };
+        UploadTicket: {
+            key: string;
+            /** Format: uri */
+            uploadUrl: string;
+            /** @enum {string} */
+            method: "PUT";
+            /** @description Headers to send with the upload, exactly as given. */
+            headers: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            expiresAt: string;
+            /**
+             * Format: uri
+             * @description Where the file is served once uploaded.
+             */
+            url: string;
         };
         PropertyList: {
             items: components["schemas"]["Property"][];
@@ -683,6 +1051,88 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    getProperty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The property */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Property"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateProperty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PropertyPatch"];
+            };
+        };
+        responses: {
+            /** @description The updated property */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Property"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Where to upload */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadTicket"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getPublicProperty: {

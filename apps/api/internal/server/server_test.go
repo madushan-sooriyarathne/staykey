@@ -157,7 +157,7 @@ func TestHealthReportsDatabaseDown(t *testing.T) {
 	e := newEnvWithStore(t, st, downStore{st})
 
 	health := decode[oapi.Health](t, e.do(call{method: http.MethodGet, path: "/healthz"}))
-	if health.Status != oapi.Degraded || health.Database != oapi.Down {
+	if health.Status != oapi.HealthStatusDegraded || health.Database != oapi.Down {
 		t.Errorf("health = %+v, want degraded/down", health)
 	}
 }

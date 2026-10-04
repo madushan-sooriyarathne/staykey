@@ -21,6 +21,7 @@ tags:
   - name: auth
   - name: accounts
   - name: properties
+  - name: uploads
   - name: public
 
 paths:
@@ -233,7 +234,10 @@ paths:
       tags: [properties]
       operationId: createProperty
       summary: Create a property and its booking page address
-      description: Owners only, since a property counts towards the plan.
+      description: |
+        Owners only, since a property counts towards the plan. Send baseRate for a
+        quick start with one unit, or setup with the full setup as onboarding publishes
+        it, all in one transaction.
       security:
         - bearerAuth: []
           accountHeader: []
@@ -264,6 +268,102 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /v1/properties/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [properties]
+      operationId: getProperty
+      summary: A property with its full setup
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The property
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [properties]
+      operationId: updateProperty
+      summary: Change some of a property's setup
+      description: |
+        Send only the sections that changed. Lists (units, seasons, charges and so on)
+        replace the whole list: items that carry the id of an existing item are updated,
+        items with any other id are added, and items left out are removed. Units are
+        archived rather than deleted. New units can be referred to by the id they were
+        sent with from linkedUnitIds and season prices in the same request. Everything
+        applies in one transaction. Owners and managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PropertyPatch"
+      responses:
+        "200":
+          description: The updated property
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/uploads:
+    post:
+      tags: [uploads]
+      operationId: createUpload
+      summary: Get a link to upload a photo or logo
+      description: |
+        Returns a short-lived URL that accepts one file of exactly this type and size.
+        PUT the file there with the returned headers, then send the key in a property's
+        photos or branding.logoKey. Owners and managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadRequest"
+      responses:
+        "201":
+          description: Where to upload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadTicket"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /v1/public/properties/{slug}:
     get:
@@ -548,7 +648,7 @@ components:
 
     NewProperty:
       type: object
-      required: [name, bookingType, currency, baseRate]
+      required: [name, bookingType, currency]
       properties:
         name:
           type: string
@@ -569,12 +669,25 @@ components:
           type: integer
           format: int64
           minimum: 1
-          description: Nightly base rate in minor units.
+          description: Nightly rate in minor units for the one unit a quick start gets. Required without setup.units.
           example: 18000
+        setup:
+          $ref: "#/components/schemas/PropertyPatch"
+
+    Money:
+      type: integer
+      format: int64
+      minimum: 0
+      description: An amount in minor units of the property's currency.
 
     Property:
       type: object
-      required: [id, slug, name, bookingType, currency, baseRate, bookingPageUrl, createdAt]
+      description: A property with its full setup, as owners and managers see it.
+      required: [id, slug, name, bookingType, currency, baseRate, bookingPageUrl, createdAt,
+                 description, amenities, checkIn, checkOut, timeZone, photos, units, extraGuest,
+                 seasons, lengthDiscounts, rules, policy, depositPercent, balanceDueDays,
+                 houseRules, charges, extras, promos, payments, booking, branding, icalFeeds,
+                 icalExportToken]
       properties:
         id:
           type: string
@@ -592,6 +705,7 @@ components:
         baseRate:
           type: integer
           format: int64
+          description: The lowest unit rate, in minor units.
         bookingPageUrl:
           type: string
           format: uri
@@ -599,6 +713,649 @@ components:
         createdAt:
           type: string
           format: date-time
+        description:
+          type: string
+        amenities:
+          type: array
+          items:
+            type: string
+        checkIn:
+          $ref: "#/components/schemas/Clock"
+        checkOut:
+          $ref: "#/components/schemas/Clock"
+        timeZone:
+          type: string
+          example: Asia/Colombo
+        photos:
+          type: array
+          description: In display order; the first is the cover.
+          items:
+            $ref: "#/components/schemas/Photo"
+        units:
+          type: array
+          items:
+            $ref: "#/components/schemas/Unit"
+        extraGuest:
+          $ref: "#/components/schemas/ExtraGuest"
+        seasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/Season"
+        lengthDiscounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/LengthDiscount"
+        rules:
+          $ref: "#/components/schemas/StayRules"
+        policy:
+          $ref: "#/components/schemas/Policy"
+        depositPercent:
+          type: integer
+        balanceDueDays:
+          type: integer
+        houseRules:
+          type: array
+          items:
+            type: string
+        charges:
+          type: array
+          items:
+            $ref: "#/components/schemas/Charge"
+        extras:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extra"
+        promos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Promo"
+        payments:
+          $ref: "#/components/schemas/PaymentSettings"
+        booking:
+          $ref: "#/components/schemas/BookingSettings"
+        branding:
+          $ref: "#/components/schemas/Branding"
+        icalFeeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/IcalFeed"
+        icalExportToken:
+          type: string
+          description: Secret part of the calendar export link for OTAs.
+
+    PropertyPatch:
+      type: object
+      description: Sections to change. Absent sections stay as they are; lists replace the whole list.
+      properties:
+        name:
+          type: string
+        bookingType:
+          $ref: "#/components/schemas/BookingType"
+        description:
+          type: string
+          maxLength: 2000
+        location:
+          type: string
+        checkIn:
+          $ref: "#/components/schemas/Clock"
+        checkOut:
+          $ref: "#/components/schemas/Clock"
+        amenities:
+          type: array
+          items:
+            type: string
+        policy:
+          $ref: "#/components/schemas/Policy"
+        depositPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        balanceDueDays:
+          type: integer
+          minimum: 0
+          maximum: 90
+        houseRules:
+          type: array
+          items:
+            type: string
+        rules:
+          $ref: "#/components/schemas/StayRules"
+        booking:
+          $ref: "#/components/schemas/BookingSettings"
+        branding:
+          $ref: "#/components/schemas/BrandingInput"
+        payments:
+          $ref: "#/components/schemas/PaymentSettings"
+        extraGuest:
+          $ref: "#/components/schemas/ExtraGuest"
+        units:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnitInput"
+        seasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeasonInput"
+        lengthDiscounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/LengthDiscount"
+        charges:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChargeInput"
+        extras:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtraInput"
+        promos:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromoInput"
+        photos:
+          type: array
+          items:
+            $ref: "#/components/schemas/PhotoInput"
+        icalFeeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/IcalFeedInput"
+
+    Clock:
+      type: string
+      pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+      example: "14:00"
+
+    Day:
+      type: string
+      format: date
+      example: "2026-12-01"
+
+    MonthDay:
+      type: string
+      pattern: "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+      description: Month and day, repeating every year.
+      example: "12-15"
+
+    Policy:
+      type: string
+      enum: [flexible, moderate, strict]
+
+    Photo:
+      type: object
+      required: [id, key, url, caption]
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+        url:
+          type: string
+          format: uri
+        caption:
+          type: string
+
+    PhotoInput:
+      type: object
+      required: [key]
+      properties:
+        key:
+          type: string
+          description: The key from /v1/uploads, or of a photo the property already has.
+        caption:
+          type: string
+          maxLength: 120
+
+    Unit:
+      type: object
+      required: [id, name, sleeps, beds, rate, linkedUnitIds]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        sleeps:
+          type: integer
+        beds:
+          type: string
+        rate:
+          $ref: "#/components/schemas/Money"
+        weekendRate:
+          $ref: "#/components/schemas/Money"
+        linkedUnitIds:
+          type: array
+          description: Rooms a whole-house unit books together.
+          items:
+            type: string
+            format: uuid
+
+    UnitInput:
+      type: object
+      required: [id, name, sleeps, rate]
+      properties:
+        id:
+          type: string
+          description: An existing unit's id, or any text unique in the request for a new unit.
+        name:
+          type: string
+          maxLength: 60
+        sleeps:
+          type: integer
+          minimum: 1
+          maximum: 30
+        beds:
+          type: string
+          maxLength: 80
+        rate:
+          $ref: "#/components/schemas/Money"
+        weekendRate:
+          $ref: "#/components/schemas/Money"
+        linkedUnitIds:
+          type: array
+          items:
+            type: string
+
+    ExtraGuest:
+      type: object
+      description: A charge per guest per night above the included guests. Amount 0 is off.
+      required: [above, amount]
+      properties:
+        above:
+          type: integer
+          minimum: 0
+          maximum: 30
+        amount:
+          $ref: "#/components/schemas/Money"
+
+    Season:
+      type: object
+      required: [id, name, start, end, prices]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        start:
+          $ref: "#/components/schemas/MonthDay"
+        end:
+          $ref: "#/components/schemas/MonthDay"
+        minNights:
+          type: integer
+        prices:
+          type: object
+          description: Nightly price per unit id.
+          additionalProperties:
+            type: integer
+            format: int64
+
+    SeasonInput:
+      type: object
+      required: [name, start, end, prices]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          maxLength: 60
+        start:
+          $ref: "#/components/schemas/MonthDay"
+        end:
+          $ref: "#/components/schemas/MonthDay"
+        minNights:
+          type: integer
+          minimum: 1
+          maximum: 30
+        prices:
+          type: object
+          description: Nightly price per unit id, or per new unit's id from the same request.
+          additionalProperties:
+            type: integer
+            format: int64
+
+    LengthDiscount:
+      type: object
+      required: [nights, percent]
+      properties:
+        nights:
+          type: integer
+          minimum: 2
+        percent:
+          type: integer
+          minimum: 1
+          maximum: 90
+
+    StayRules:
+      type: object
+      required: [minNights, maxNights, sameDayCutoff, windowMonths, closedArrival]
+      properties:
+        minNights:
+          type: integer
+          minimum: 1
+          maximum: 30
+        maxNights:
+          type: integer
+          maximum: 365
+        sameDayCutoff:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 23
+          description: Hour until which same-day arrivals can book. Null turns them off.
+        windowMonths:
+          type: integer
+          minimum: 1
+          maximum: 24
+        closedArrival:
+          type: array
+          description: Weekdays guests can't arrive on, 0 for Sunday.
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+
+    ChargeKind:
+      type: string
+      enum: [percent, fixed]
+
+    Charge:
+      type: object
+      required: [id, name, kind, amount, per, enabled]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ChargeKind"
+        amount:
+          type: integer
+          format: int64
+          description: A whole percent, or minor units for fixed charges.
+        per:
+          type: string
+          enum: [stay, night, guest]
+        enabled:
+          type: boolean
+        note:
+          type: string
+
+    ChargeInput:
+      type: object
+      required: [name, kind, amount, per, enabled]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ChargeKind"
+        amount:
+          type: integer
+          format: int64
+        per:
+          type: string
+          enum: [stay, night, guest]
+        enabled:
+          type: boolean
+        note:
+          type: string
+
+    ExtraPer:
+      type: string
+      enum: [stay, night, guest, trip, guestNight]
+
+    Extra:
+      type: object
+      required: [id, name, price, per, onRequest, enabled]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        price:
+          $ref: "#/components/schemas/Money"
+        per:
+          $ref: "#/components/schemas/ExtraPer"
+        onRequest:
+          type: boolean
+        enabled:
+          type: boolean
+
+    ExtraInput:
+      type: object
+      required: [name, price, per, onRequest, enabled]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        price:
+          $ref: "#/components/schemas/Money"
+        per:
+          $ref: "#/components/schemas/ExtraPer"
+        onRequest:
+          type: boolean
+        enabled:
+          type: boolean
+
+    Promo:
+      type: object
+      required: [id, code, kind, amount, used]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ChargeKind"
+        amount:
+          type: integer
+          format: int64
+        from:
+          $ref: "#/components/schemas/Day"
+        to:
+          $ref: "#/components/schemas/Day"
+        limit:
+          type: integer
+        used:
+          type: integer
+          description: Bookings that used the code. Kept by the server.
+        minNights:
+          type: integer
+        note:
+          type: string
+
+    PromoInput:
+      type: object
+      required: [code, kind, amount]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+          example: MONSOON10
+        kind:
+          $ref: "#/components/schemas/ChargeKind"
+        amount:
+          type: integer
+          format: int64
+        from:
+          $ref: "#/components/schemas/Day"
+        to:
+          $ref: "#/components/schemas/Day"
+        limit:
+          type: integer
+          minimum: 1
+        minNights:
+          type: integer
+          minimum: 1
+        note:
+          type: string
+
+    BankDetails:
+      type: object
+      required: [enabled, bankName, accountName, accountNumber, payWithinHours, cancelIfUnpaid]
+      properties:
+        enabled:
+          type: boolean
+        bankName:
+          type: string
+        accountName:
+          type: string
+        accountNumber:
+          type: string
+          description: Encrypted at rest. Hidden from caretakers.
+        payWithinHours:
+          type: integer
+          minimum: 1
+          maximum: 168
+        cancelIfUnpaid:
+          type: boolean
+
+    PaymentSettings:
+      type: object
+      required: [bank, atProperty, cards]
+      properties:
+        bank:
+          $ref: "#/components/schemas/BankDetails"
+        atProperty:
+          type: boolean
+        cards:
+          type: string
+          enum: ["off", pending, "on"]
+          description: The app can apply (pending) or withdraw (off); "on" comes from PayHere's approval.
+
+    BookingSettings:
+      type: object
+      required: [mode, replyHours, holdMinutes, displayCurrencies]
+      properties:
+        mode:
+          type: string
+          enum: [instant, request]
+        replyHours:
+          type: integer
+          minimum: 1
+          maximum: 72
+        holdMinutes:
+          type: integer
+          minimum: 5
+          maximum: 120
+        displayCurrencies:
+          type: array
+          items:
+            type: string
+            enum: [USD, EUR, GBP, AUD, INR, LKR]
+
+    Branding:
+      type: object
+      required: [color]
+      properties:
+        color:
+          type: string
+          example: "#09090b"
+        logoKey:
+          type: string
+        logoUrl:
+          type: string
+          format: uri
+
+    BrandingInput:
+      type: object
+      required: [color]
+      properties:
+        color:
+          type: string
+          pattern: "^#[0-9a-fA-F]{6}$"
+        logoKey:
+          type: string
+          description: A key from /v1/uploads, or the current logo's. Leave out to remove the logo.
+
+    IcalChannel:
+      type: string
+      enum: [airbnb, booking, agoda, expedia, other]
+
+    IcalFeed:
+      type: object
+      required: [id, channel, url, status, upcoming]
+      properties:
+        id:
+          type: string
+          format: uuid
+        channel:
+          $ref: "#/components/schemas/IcalChannel"
+        url:
+          type: string
+        status:
+          type: string
+          enum: [pending, ok, error]
+          description: Pending until the import worker has read the link.
+        lastSync:
+          type: string
+          format: date-time
+        error:
+          type: string
+        upcoming:
+          type: integer
+          description: Imported stays from today on.
+
+    IcalFeedInput:
+      type: object
+      required: [channel, url]
+      properties:
+        id:
+          type: string
+        channel:
+          $ref: "#/components/schemas/IcalChannel"
+        url:
+          type: string
+          maxLength: 1000
+
+    UploadRequest:
+      type: object
+      required: [kind, contentType, size]
+      properties:
+        kind:
+          type: string
+          enum: [photo, logo]
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp, image/heic]
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Exact size in bytes. Photos up to 15 MB, logos up to 5 MB.
+
+    UploadTicket:
+      type: object
+      required: [key, uploadUrl, method, headers, expiresAt, url]
+      properties:
+        key:
+          type: string
+        uploadUrl:
+          type: string
+          format: uri
+        method:
+          type: string
+          enum: [PUT]
+        headers:
+          type: object
+          description: Headers to send with the upload, exactly as given.
+          additionalProperties:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+        url:
+          type: string
+          format: uri
+          description: Where the file is served once uploaded.
 
     PropertyList:
       type: object

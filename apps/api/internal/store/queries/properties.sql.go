@@ -12,78 +12,148 @@ import (
 	"github.com/google/uuid"
 )
 
-const createProperty = `-- name: CreateProperty :one
-INSERT INTO properties (id, account_id, slug, name, booking_type, location, currency, base_rate_minor)
-VALUES ($1, $2, $3, $4, $5, nullif($6::text, ''), $7, $8)
-RETURNING id, account_id, slug, name, booking_type, location, currency, base_rate_minor, created_at
+const getProperty = `-- name: GetProperty :one
+SELECT p.id, p.slug, p.name, p.booking_type, p.location, p.currency, p.created_at, p.updated_at, p.account_id, p.description, p.lat, p.lng, p.time_zone, p.check_in_time, p.check_out_time, p.amenities, p.policy, p.deposit_percent, p.balance_due_days, p.house_rules, p.booking_mode, p.reply_hours, p.hold_minutes, p.display_currencies, p.brand_color, p.logo_key, p.ical_export_token, p.status, p.min_nights, p.max_nights, p.same_day_cutoff, p.window_months, p.closed_arrival, p.extra_guest_above, p.extra_guest_amount,
+       coalesce((SELECT min(u.rate) FROM units u
+                 WHERE u.property_id = p.id AND u.archived_at IS NULL), 0)::bigint AS base_rate
+FROM properties p
+WHERE p.id = $1 AND p.account_id = $2
 `
 
-type CreatePropertyParams struct {
-	ID            uuid.UUID
-	AccountID     uuid.UUID
-	Slug          string
-	Name          string
-	BookingType   string
-	Location      string
-	Currency      string
-	BaseRateMinor int64
+type GetPropertyParams struct {
+	ID        uuid.UUID
+	AccountID uuid.UUID
 }
 
-type CreatePropertyRow struct {
-	ID            uuid.UUID
-	AccountID     uuid.UUID
-	Slug          string
-	Name          string
-	BookingType   string
-	Location      *string
-	Currency      string
-	BaseRateMinor int64
-	CreatedAt     time.Time
+type GetPropertyRow struct {
+	ID                uuid.UUID
+	Slug              string
+	Name              string
+	BookingType       string
+	Location          *string
+	Currency          string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	AccountID         uuid.UUID
+	Description       string
+	Lat               *float64
+	Lng               *float64
+	TimeZone          string
+	CheckInTime       string
+	CheckOutTime      string
+	Amenities         []string
+	Policy            string
+	DepositPercent    int16
+	BalanceDueDays    int16
+	HouseRules        []string
+	BookingMode       string
+	ReplyHours        int16
+	HoldMinutes       int16
+	DisplayCurrencies []string
+	BrandColor        string
+	LogoKey           *string
+	IcalExportToken   string
+	Status            string
+	MinNights         int16
+	MaxNights         int16
+	SameDayCutoff     *int16
+	WindowMonths      int16
+	ClosedArrival     []int16
+	ExtraGuestAbove   int16
+	ExtraGuestAmount  int64
+	BaseRate          int64
 }
 
-func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) (CreatePropertyRow, error) {
-	row := q.db.QueryRow(ctx, createProperty,
-		arg.ID,
-		arg.AccountID,
-		arg.Slug,
-		arg.Name,
-		arg.BookingType,
-		arg.Location,
-		arg.Currency,
-		arg.BaseRateMinor,
-	)
-	var i CreatePropertyRow
+func (q *Queries) GetProperty(ctx context.Context, arg GetPropertyParams) (GetPropertyRow, error) {
+	row := q.db.QueryRow(ctx, getProperty, arg.ID, arg.AccountID)
+	var i GetPropertyRow
 	err := row.Scan(
 		&i.ID,
-		&i.AccountID,
 		&i.Slug,
 		&i.Name,
 		&i.BookingType,
 		&i.Location,
 		&i.Currency,
-		&i.BaseRateMinor,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.AccountID,
+		&i.Description,
+		&i.Lat,
+		&i.Lng,
+		&i.TimeZone,
+		&i.CheckInTime,
+		&i.CheckOutTime,
+		&i.Amenities,
+		&i.Policy,
+		&i.DepositPercent,
+		&i.BalanceDueDays,
+		&i.HouseRules,
+		&i.BookingMode,
+		&i.ReplyHours,
+		&i.HoldMinutes,
+		&i.DisplayCurrencies,
+		&i.BrandColor,
+		&i.LogoKey,
+		&i.IcalExportToken,
+		&i.Status,
+		&i.MinNights,
+		&i.MaxNights,
+		&i.SameDayCutoff,
+		&i.WindowMonths,
+		&i.ClosedArrival,
+		&i.ExtraGuestAbove,
+		&i.ExtraGuestAmount,
+		&i.BaseRate,
 	)
 	return i, err
 }
 
 const getPropertyBySlug = `-- name: GetPropertyBySlug :one
 
-SELECT id, account_id, slug, name, booking_type, location, currency, base_rate_minor, created_at
-FROM properties
-WHERE slug = $1
+SELECT p.id, p.slug, p.name, p.booking_type, p.location, p.currency, p.created_at, p.updated_at, p.account_id, p.description, p.lat, p.lng, p.time_zone, p.check_in_time, p.check_out_time, p.amenities, p.policy, p.deposit_percent, p.balance_due_days, p.house_rules, p.booking_mode, p.reply_hours, p.hold_minutes, p.display_currencies, p.brand_color, p.logo_key, p.ical_export_token, p.status, p.min_nights, p.max_nights, p.same_day_cutoff, p.window_months, p.closed_arrival, p.extra_guest_above, p.extra_guest_amount,
+       coalesce((SELECT min(u.rate) FROM units u
+                 WHERE u.property_id = p.id AND u.archived_at IS NULL), 0)::bigint AS base_rate
+FROM properties p
+WHERE p.slug = $1
 `
 
 type GetPropertyBySlugRow struct {
-	ID            uuid.UUID
-	AccountID     uuid.UUID
-	Slug          string
-	Name          string
-	BookingType   string
-	Location      *string
-	Currency      string
-	BaseRateMinor int64
-	CreatedAt     time.Time
+	ID                uuid.UUID
+	Slug              string
+	Name              string
+	BookingType       string
+	Location          *string
+	Currency          string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	AccountID         uuid.UUID
+	Description       string
+	Lat               *float64
+	Lng               *float64
+	TimeZone          string
+	CheckInTime       string
+	CheckOutTime      string
+	Amenities         []string
+	Policy            string
+	DepositPercent    int16
+	BalanceDueDays    int16
+	HouseRules        []string
+	BookingMode       string
+	ReplyHours        int16
+	HoldMinutes       int16
+	DisplayCurrencies []string
+	BrandColor        string
+	LogoKey           *string
+	IcalExportToken   string
+	Status            string
+	MinNights         int16
+	MaxNights         int16
+	SameDayCutoff     *int16
+	WindowMonths      int16
+	ClosedArrival     []int16
+	ExtraGuestAbove   int16
+	ExtraGuestAmount  int64
+	BaseRate          int64
 }
 
 // Public: booking pages look a property up by its address, across accounts.
@@ -92,25 +162,88 @@ func (q *Queries) GetPropertyBySlug(ctx context.Context, slug string) (GetProper
 	var i GetPropertyBySlugRow
 	err := row.Scan(
 		&i.ID,
-		&i.AccountID,
 		&i.Slug,
 		&i.Name,
 		&i.BookingType,
 		&i.Location,
 		&i.Currency,
-		&i.BaseRateMinor,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.AccountID,
+		&i.Description,
+		&i.Lat,
+		&i.Lng,
+		&i.TimeZone,
+		&i.CheckInTime,
+		&i.CheckOutTime,
+		&i.Amenities,
+		&i.Policy,
+		&i.DepositPercent,
+		&i.BalanceDueDays,
+		&i.HouseRules,
+		&i.BookingMode,
+		&i.ReplyHours,
+		&i.HoldMinutes,
+		&i.DisplayCurrencies,
+		&i.BrandColor,
+		&i.LogoKey,
+		&i.IcalExportToken,
+		&i.Status,
+		&i.MinNights,
+		&i.MaxNights,
+		&i.SameDayCutoff,
+		&i.WindowMonths,
+		&i.ClosedArrival,
+		&i.ExtraGuestAbove,
+		&i.ExtraGuestAmount,
+		&i.BaseRate,
 	)
 	return i, err
 }
 
+const insertProperty = `-- name: InsertProperty :exec
+INSERT INTO properties (id, account_id, slug, name, booking_type, location, currency,
+                        ical_export_token, display_currencies)
+VALUES ($1, $2, $3, $4, $5, nullif($6::text, ''), $7,
+        $8, $9)
+`
+
+type InsertPropertyParams struct {
+	ID                uuid.UUID
+	AccountID         uuid.UUID
+	Slug              string
+	Name              string
+	BookingType       string
+	Location          string
+	Currency          string
+	IcalExportToken   string
+	DisplayCurrencies []string
+}
+
+func (q *Queries) InsertProperty(ctx context.Context, arg InsertPropertyParams) error {
+	_, err := q.db.Exec(ctx, insertProperty,
+		arg.ID,
+		arg.AccountID,
+		arg.Slug,
+		arg.Name,
+		arg.BookingType,
+		arg.Location,
+		arg.Currency,
+		arg.IcalExportToken,
+		arg.DisplayCurrencies,
+	)
+	return err
+}
+
 const listProperties = `-- name: ListProperties :many
 
-SELECT id, account_id, slug, name, booking_type, location, currency, base_rate_minor, created_at
-FROM properties
-WHERE account_id = $1
-  AND ($2::uuid[] IS NULL OR id = ANY ($2::uuid[]))
-ORDER BY created_at DESC
+SELECT p.id, p.slug, p.name, p.booking_type, p.location, p.currency, p.created_at, p.updated_at, p.account_id, p.description, p.lat, p.lng, p.time_zone, p.check_in_time, p.check_out_time, p.amenities, p.policy, p.deposit_percent, p.balance_due_days, p.house_rules, p.booking_mode, p.reply_hours, p.hold_minutes, p.display_currencies, p.brand_color, p.logo_key, p.ical_export_token, p.status, p.min_nights, p.max_nights, p.same_day_cutoff, p.window_months, p.closed_arrival, p.extra_guest_above, p.extra_guest_amount,
+       coalesce((SELECT min(u.rate) FROM units u
+                 WHERE u.property_id = p.id AND u.archived_at IS NULL), 0)::bigint AS base_rate
+FROM properties p
+WHERE p.account_id = $1
+  AND ($2::uuid[] IS NULL OR p.id = ANY ($2::uuid[]))
+ORDER BY p.created_at DESC
 LIMIT 200
 `
 
@@ -120,19 +253,47 @@ type ListPropertiesParams struct {
 }
 
 type ListPropertiesRow struct {
-	ID            uuid.UUID
-	AccountID     uuid.UUID
-	Slug          string
-	Name          string
-	BookingType   string
-	Location      *string
-	Currency      string
-	BaseRateMinor int64
-	CreatedAt     time.Time
+	ID                uuid.UUID
+	Slug              string
+	Name              string
+	BookingType       string
+	Location          *string
+	Currency          string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	AccountID         uuid.UUID
+	Description       string
+	Lat               *float64
+	Lng               *float64
+	TimeZone          string
+	CheckInTime       string
+	CheckOutTime      string
+	Amenities         []string
+	Policy            string
+	DepositPercent    int16
+	BalanceDueDays    int16
+	HouseRules        []string
+	BookingMode       string
+	ReplyHours        int16
+	HoldMinutes       int16
+	DisplayCurrencies []string
+	BrandColor        string
+	LogoKey           *string
+	IcalExportToken   string
+	Status            string
+	MinNights         int16
+	MaxNights         int16
+	SameDayCutoff     *int16
+	WindowMonths      int16
+	ClosedArrival     []int16
+	ExtraGuestAbove   int16
+	ExtraGuestAmount  int64
+	BaseRate          int64
 }
 
 // Owner queries take the account, and the membership's property scope when it has one, so a
-// missed filter cannot leak another account's rows.
+// missed filter cannot leak another account's rows. A property's base rate is its lowest active
+// unit rate.
 func (q *Queries) ListProperties(ctx context.Context, arg ListPropertiesParams) ([]ListPropertiesRow, error) {
 	rows, err := q.db.Query(ctx, listProperties, arg.AccountID, arg.PropertyIds)
 	if err != nil {
@@ -144,14 +305,41 @@ func (q *Queries) ListProperties(ctx context.Context, arg ListPropertiesParams) 
 		var i ListPropertiesRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.AccountID,
 			&i.Slug,
 			&i.Name,
 			&i.BookingType,
 			&i.Location,
 			&i.Currency,
-			&i.BaseRateMinor,
 			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountID,
+			&i.Description,
+			&i.Lat,
+			&i.Lng,
+			&i.TimeZone,
+			&i.CheckInTime,
+			&i.CheckOutTime,
+			&i.Amenities,
+			&i.Policy,
+			&i.DepositPercent,
+			&i.BalanceDueDays,
+			&i.HouseRules,
+			&i.BookingMode,
+			&i.ReplyHours,
+			&i.HoldMinutes,
+			&i.DisplayCurrencies,
+			&i.BrandColor,
+			&i.LogoKey,
+			&i.IcalExportToken,
+			&i.Status,
+			&i.MinNights,
+			&i.MaxNights,
+			&i.SameDayCutoff,
+			&i.WindowMonths,
+			&i.ClosedArrival,
+			&i.ExtraGuestAbove,
+			&i.ExtraGuestAmount,
+			&i.BaseRate,
 		); err != nil {
 			return nil, err
 		}
@@ -161,4 +349,181 @@ func (q *Queries) ListProperties(ctx context.Context, arg ListPropertiesParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockProperty = `-- name: LockProperty :one
+SELECT id FROM properties WHERE id = $1 AND account_id = $2 FOR UPDATE
+`
+
+type LockPropertyParams struct {
+	ID        uuid.UUID
+	AccountID uuid.UUID
+}
+
+// Serializes changes to one property's setup.
+func (q *Queries) LockProperty(ctx context.Context, arg LockPropertyParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockProperty, arg.ID, arg.AccountID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const updatePropertyBooking = `-- name: UpdatePropertyBooking :exec
+UPDATE properties SET
+    booking_mode       = $1,
+    reply_hours        = $2,
+    hold_minutes       = $3,
+    display_currencies = $4
+WHERE id = $5 AND account_id = $6
+`
+
+type UpdatePropertyBookingParams struct {
+	BookingMode       string
+	ReplyHours        int16
+	HoldMinutes       int16
+	DisplayCurrencies []string
+	ID                uuid.UUID
+	AccountID         uuid.UUID
+}
+
+func (q *Queries) UpdatePropertyBooking(ctx context.Context, arg UpdatePropertyBookingParams) error {
+	_, err := q.db.Exec(ctx, updatePropertyBooking,
+		arg.BookingMode,
+		arg.ReplyHours,
+		arg.HoldMinutes,
+		arg.DisplayCurrencies,
+		arg.ID,
+		arg.AccountID,
+	)
+	return err
+}
+
+const updatePropertyBranding = `-- name: UpdatePropertyBranding :exec
+UPDATE properties SET brand_color = $1, logo_key = $2
+WHERE id = $3 AND account_id = $4
+`
+
+type UpdatePropertyBrandingParams struct {
+	BrandColor string
+	LogoKey    *string
+	ID         uuid.UUID
+	AccountID  uuid.UUID
+}
+
+func (q *Queries) UpdatePropertyBranding(ctx context.Context, arg UpdatePropertyBrandingParams) error {
+	_, err := q.db.Exec(ctx, updatePropertyBranding,
+		arg.BrandColor,
+		arg.LogoKey,
+		arg.ID,
+		arg.AccountID,
+	)
+	return err
+}
+
+const updatePropertyDetails = `-- name: UpdatePropertyDetails :exec
+UPDATE properties SET
+    name             = coalesce($1::text, name),
+    booking_type     = coalesce($2::text, booking_type),
+    description      = coalesce($3::text, description),
+    location         = CASE WHEN $4::text IS NULL THEN location
+                            ELSE nullif($4::text, '') END,
+    check_in_time    = coalesce($5::text, check_in_time),
+    check_out_time   = coalesce($6::text, check_out_time),
+    amenities        = coalesce($7::text[], amenities),
+    policy           = coalesce($8::text, policy),
+    deposit_percent  = coalesce($9::smallint, deposit_percent),
+    balance_due_days = coalesce($10::smallint, balance_due_days),
+    house_rules      = coalesce($11::text[], house_rules)
+WHERE id = $12 AND account_id = $13
+`
+
+type UpdatePropertyDetailsParams struct {
+	Name           *string
+	BookingType    *string
+	Description    *string
+	Location       *string
+	CheckInTime    *string
+	CheckOutTime   *string
+	Amenities      []string
+	Policy         *string
+	DepositPercent *int16
+	BalanceDueDays *int16
+	HouseRules     []string
+	ID             uuid.UUID
+	AccountID      uuid.UUID
+}
+
+// Null leaves a column as it is.
+func (q *Queries) UpdatePropertyDetails(ctx context.Context, arg UpdatePropertyDetailsParams) error {
+	_, err := q.db.Exec(ctx, updatePropertyDetails,
+		arg.Name,
+		arg.BookingType,
+		arg.Description,
+		arg.Location,
+		arg.CheckInTime,
+		arg.CheckOutTime,
+		arg.Amenities,
+		arg.Policy,
+		arg.DepositPercent,
+		arg.BalanceDueDays,
+		arg.HouseRules,
+		arg.ID,
+		arg.AccountID,
+	)
+	return err
+}
+
+const updatePropertyExtraGuest = `-- name: UpdatePropertyExtraGuest :exec
+UPDATE properties SET extra_guest_above = $1, extra_guest_amount = $2
+WHERE id = $3 AND account_id = $4
+`
+
+type UpdatePropertyExtraGuestParams struct {
+	ExtraGuestAbove  int16
+	ExtraGuestAmount int64
+	ID               uuid.UUID
+	AccountID        uuid.UUID
+}
+
+func (q *Queries) UpdatePropertyExtraGuest(ctx context.Context, arg UpdatePropertyExtraGuestParams) error {
+	_, err := q.db.Exec(ctx, updatePropertyExtraGuest,
+		arg.ExtraGuestAbove,
+		arg.ExtraGuestAmount,
+		arg.ID,
+		arg.AccountID,
+	)
+	return err
+}
+
+const updatePropertyRules = `-- name: UpdatePropertyRules :exec
+UPDATE properties SET
+    min_nights      = $1,
+    max_nights      = $2,
+    same_day_cutoff = $3,
+    window_months   = $4,
+    closed_arrival  = $5
+WHERE id = $6 AND account_id = $7
+`
+
+type UpdatePropertyRulesParams struct {
+	MinNights     int16
+	MaxNights     int16
+	SameDayCutoff *int16
+	WindowMonths  int16
+	ClosedArrival []int16
+	ID            uuid.UUID
+	AccountID     uuid.UUID
+}
+
+func (q *Queries) UpdatePropertyRules(ctx context.Context, arg UpdatePropertyRulesParams) error {
+	_, err := q.db.Exec(ctx, updatePropertyRules,
+		arg.MinNights,
+		arg.MaxNights,
+		arg.SameDayCutoff,
+		arg.WindowMonths,
+		arg.ClosedArrival,
+		arg.ID,
+		arg.AccountID,
+	)
+	return err
 }

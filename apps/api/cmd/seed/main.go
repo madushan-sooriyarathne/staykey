@@ -32,6 +32,7 @@ import (
 
 	"staykey.direct/api/internal/config"
 	"staykey.direct/api/internal/domain"
+	"staykey.direct/api/internal/secret"
 	"staykey.direct/api/internal/store"
 	"staykey.direct/api/internal/tenant"
 )
@@ -77,7 +78,11 @@ func run(ownerPhone, ownerName string, reset bool) error {
 	}
 
 	ctx := context.Background()
-	db, err := store.NewPostgres(ctx, cfg.DatabaseURL)
+	box, err := secret.New(cfg.DataKey)
+	if err != nil {
+		return err
+	}
+	db, err := store.NewPostgres(ctx, cfg.DatabaseURL, store.WithSecrets(box))
 	if err != nil {
 		return err
 	}
