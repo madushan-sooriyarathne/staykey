@@ -13,7 +13,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { Checkbox, styles as c, Field } from "@/components/controls";
 import { font } from "@/components/ui";
-import { requestCode, verifyCode } from "@/lib/auth";
+import { afterSignIn } from "@/features/auth/enter";
+import { requestCode, useDevCode, verifyCode } from "@/lib/auth";
 import { haptics } from "@/lib/haptics";
 import { COUNTRIES, type Country, useOnboarding } from "../store";
 import type { StepProps } from "../types";
@@ -107,14 +108,17 @@ const CODE_BOXES = ["c1", "c2", "c3", "c4", "c5", "c6"] as const;
 const RESEND_SECONDS = 30;
 
 export function VerifyStep({ next, goTo }: StepProps) {
-  const { draft } = useOnboarding();
+  const { draft, update } = useOnboarding();
+  const devCode = useDevCode((s) => s.code);
   const [code, setCode] = useState("");
-  const [status, setStatus] = useState<"idle" | "checking" | "wrong">("idle");
+  const [status, setStatus] = useState<"idle" | "checking" | "wrong" | "expired">("idle");
+  const [message, setMessage] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const input = useRef<TextInput>(null);
   const shake = useSharedValue(0);
   const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
   const phone = `${draft.country.dial} ${formatPhone(draft.country, draft.phone)}`;
+  const e164 = `${draft.country.dial}${draft.phone}`;
 
   useEffect(() => {
     if (seconds <= 0) return;
@@ -122,16 +126,12 @@ export function VerifyStep({ next, goTo }: StepProps) {
     return () => clearTimeout(t);
   }, [seconds]);
 
-  async function submit(value: string) {
-    setStatus("checking");
-    const ok = await verifyCode(phone, value);
-    if (ok) {
-      haptics.success();
-      next();
-      return;
-    }
+  function fail(kind: "wrong" | "expired", text: string) {
     haptics.error();
-    setStatus("wrong");
+    setStatus(kind);
+    setMessage(text);
+    // An expired or exhausted code can't be retried, so offer a new one straight away.
+    if (kind === "expired") setSeconds(0);
     shake.value = withSequence(
       withTiming(-8, { duration: 50 }),
       withTiming(8, { duration: 50 }),
@@ -141,6 +141,45 @@ export function VerifyStep({ next, goTo }: StepProps) {
     );
     setCode("");
     input.current?.focus();
+  }
+
+  async function submit(value: string) {
+    setStatus("checking");
+    setMessage(null);
+    const result = await verifyCode(e164, value);
+    if (!result.ok) {
+      fail(result.reason === "expired" ? "expired" : "wrong", result.message);
+      return;
+    }
+
+    const where = await afterSignIn(result.signIn);
+    if (where.to === "error") {
+      fail("expired", where.message);
+      return;
+    }
+    haptics.success();
+    // "app" flips the router guard to the tabs; setup carries on with the next step.
+    if (where.to === "setup") {
+      const name = result.signIn.user.name.trim();
+      if (name && !draft.firstName) {
+        const [first = "", ...rest] = name.split(" ");
+        update({ firstName: first, lastName: rest.join(" ") });
+      }
+      next();
+    }
+  }
+
+  async function resend() {
+    haptics.select();
+    setStatus("idle");
+    setMessage(null);
+    const result = await requestCode(e164);
+    if (result.ok) {
+      setSeconds(result.resendAfter);
+    } else {
+      setMessage(result.message);
+      setSeconds(result.retryAfter ?? RESEND_SECONDS);
+    }
   }
 
   return (
@@ -188,7 +227,10 @@ export function VerifyStep({ next, goTo }: StepProps) {
         style={s.hiddenInput}
         onChangeText={(t) => {
           const value = t.replace(/\D/g, "").slice(0, CODE_LENGTH);
-          if (status === "wrong") setStatus("idle");
+          if (status === "wrong") {
+            setStatus("idle");
+            setMessage(null);
+          }
           if (value.length > code.length) haptics.select();
           setCode(value);
           if (value.length === CODE_LENGTH) submit(value);
@@ -201,33 +243,37 @@ export function VerifyStep({ next, goTo }: StepProps) {
             <ActivityIndicator size="small" color={colors.steel} />
             <Text style={c.muted}>Checking code</Text>
           </Animated.View>
-        ) : status === "wrong" ? (
+        ) : status === "wrong" && message ? (
           <Animated.Text entering={FadeIn} style={c.error}>
-            That code didn't match. Try again.
+            {message}
           </Animated.Text>
         ) : seconds > 0 ? (
-          <Text style={c.muted}>Resend code in 0:{String(seconds).padStart(2, "0")}</Text>
+          <Text style={c.muted}>
+            {message ? <Text style={c.error}>{message} </Text> : null}
+            Resend code in {formatSeconds(seconds)}
+          </Text>
         ) : (
-          <Text
-            style={s.inlineLink}
-            onPress={() => {
-              haptics.select();
-              requestCode(phone);
-              setSeconds(RESEND_SECONDS);
-            }}
-          >
-            Resend code
+          <Text style={c.muted}>
+            {message ? <Text style={c.error}>{message} </Text> : null}
+            <Text style={s.inlineLink} onPress={resend}>
+              {status === "expired" ? "Send a new code" : "Resend code"}
+            </Text>
           </Text>
         )}
       </View>
 
-      {__DEV__ ? (
-        <Text style={c.muted}>
-          Development build: any 6-digit code works, 000000 simulates a wrong one.
+      {devCode ? (
+        <Text testID="dev-code" style={c.muted}>
+          Development server: your code is {devCode}.
         </Text>
       ) : null}
     </View>
   );
+}
+
+/** 0:30, or 4:05 when a limit means a longer wait. */
+function formatSeconds(total: number): string {
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
 export function NameStep() {

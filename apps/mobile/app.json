@@ -41,7 +41,8 @@
         {
           "photosPermission": "StayKey uses your photos to show guests your property."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

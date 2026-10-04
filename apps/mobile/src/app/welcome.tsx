@@ -51,8 +51,8 @@ export default function Welcome() {
   }
 
   function signIn() {
-    // Sign in uses the same phone and code steps. TODO: when the API knows the number, skip
-    // property setup and load the owner's account instead.
+    // Sign in uses the same phone and code steps. A number with an account goes straight to the
+    // app after the code; one without carries on with property setup.
     haptics.step();
     setStep("phone");
     router.push("/onboarding");

@@ -8,6 +8,7 @@ import { useCan } from "@/data/hooks";
 import { plural } from "@/data/labels";
 import { useData } from "@/data/store";
 import { useOnboarding } from "@/features/onboarding/store";
+import { signOut } from "@/lib/auth";
 import { haptics } from "@/lib/haptics";
 import { PROTOTYPE } from "@/lib/prototype";
 import { PLANS } from "@/lib/purchases";
@@ -161,6 +162,7 @@ export default function MoreScreen() {
                 title="Restart onboarding"
                 onPress={() => {
                   haptics.warning();
+                  signOut();
                   clearDraft();
                   resetData();
                   resetSession();

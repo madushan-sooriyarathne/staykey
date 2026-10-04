@@ -5,11 +5,14 @@ import {
   useFonts,
 } from "@expo-google-fonts/dm-sans";
 import { colors } from "@staykey/tokens";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
+import { queryClient } from "@/api/query-client";
 import { useData } from "@/data/store";
+import { SessionCheck } from "@/features/auth/session-check";
 import { useOnboarding } from "@/features/onboarding/store";
 import { useSession } from "@/lib/session";
 
@@ -70,7 +73,8 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
+      <SessionCheck />
       <StatusBar style="dark" />
       <Stack
         screenOptions={{ contentStyle: { backgroundColor: colors.paper }, headerShown: false }}
@@ -95,6 +99,6 @@ export default function RootLayout() {
           <Stack.Screen name="range/rates" options={sheet([0.6, 0.9])} />
         </Stack.Protected>
       </Stack>
-    </>
+    </QueryClientProvider>
   );
 }
