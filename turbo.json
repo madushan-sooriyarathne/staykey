@@ -27,6 +27,9 @@
     "migrate": {
       "cache": false
     },
+    "seed": {
+      "cache": false
+    },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
