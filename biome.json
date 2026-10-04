@@ -17,7 +17,8 @@
       "!**/next-env.d.ts",
       "!**/expo-env.d.ts",
       "!packages/api-client/src/schema.ts",
-      "!apps/api"
+      "!apps/api",
+      "!docs/design"
     ]
   },
   "formatter": {
