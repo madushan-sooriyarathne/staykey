@@ -1,84 +1,117 @@
-import { formatMoney } from "@staykey/api-client";
-import { colors } from "@staykey/tokens";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback } from "react";
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
-import { Body, Button, Card, Chip, font, Label, Screen } from "@/components/ui";
-import { useProperties } from "@/lib/api";
+import { colors, radius } from "@staykey/tokens";
+import { router } from "expo-router";
+import { Image, StyleSheet, Text, View } from "react-native";
+import { Tag } from "@/components/brand";
+import { Button, PressScale } from "@/components/controls";
+import { Appear } from "@/components/kit";
+import { font, Screen } from "@/components/ui";
+import { addMonths, formatMonthShort, monthStart, relativeDay, today } from "@/data/dates";
+import { plural } from "@/data/labels";
+import { nextArrival, occupancy, physicalUnits } from "@/data/pricing";
+import { useData } from "@/data/store";
+import type { PropertyConfig } from "@/data/types";
+import { haptics } from "@/lib/haptics";
 
 export default function PropertiesScreen() {
-  const { state, reload } = useProperties();
-
-  // Refresh when returning from the "New property" modal.
-  useFocusEffect(
-    useCallback(() => {
-      reload();
-    }, [reload]),
-  );
-
+  const properties = useData((s) => s.properties);
   return (
     <Screen
       title="Properties"
       right={
-        <Pressable onPress={() => router.push("/property/new")} style={styles.add}>
-          <Text style={styles.addText}>Add</Text>
-        </Pressable>
+        <Button
+          compact
+          variant="ghost"
+          title="Add"
+          icon={undefined}
+          onPress={() => router.push("/property/new")}
+          testID="properties-add"
+        />
       }
     >
-      {state.status === "loading" && <ActivityIndicator color={colors.obsidian} />}
-
-      {state.status === "error" && (
-        <Card>
-          <Chip label="API offline" tone="ember" />
-          <Body>{state.message}</Body>
-        </Card>
-      )}
-
-      {state.status === "ready" && state.items.length === 0 && (
-        <Card>
-          <Body>No properties yet.</Body>
-          <Button title="Add your first property" onPress={() => router.push("/property/new")} />
-        </Card>
-      )}
-
-      {state.status === "ready" &&
-        state.items.map((p) => (
-          <Card key={p.id} style={{ padding: 0, overflow: "hidden" }}>
-            <View style={styles.photo}>
-              <Label>Cover photo</Label>
-            </View>
-            <View style={styles.cardBody}>
-              <Text style={styles.name}>{p.name}</Text>
-              {p.location ? <Label tone="faint">{p.location}</Label> : null}
-              <View style={styles.chips}>
-                <Chip label={p.bookingType === "entire" ? "Entire place" : "By room"} />
-                <Chip label="Page live" tone="spark" />
-              </View>
-              <Body>From {formatMoney(p.baseRate, p.currency)} a night</Body>
-              <Pressable onPress={() => Linking.openURL(p.bookingPageUrl)}>
-                <Text style={styles.link}>{p.bookingPageUrl.replace(/^https?:\/\//, "")}</Text>
-              </Pressable>
-            </View>
-          </Card>
-        ))}
+      {properties.map((p, i) => (
+        <Appear key={p.id} index={i}>
+          <PropertyCard property={p} />
+        </Appear>
+      ))}
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  add: {
-    height: 38,
-    paddingHorizontal: 14,
-    borderRadius: 14,
+function PropertyCard({ property: p }: { property: PropertyConfig }) {
+  const bookings = useData((s) => s.bookings);
+  const start = monthStart(today());
+  const occ = occupancy(p, bookings, start, addMonths(start, 1));
+  const next = nextArrival(p.id, bookings);
+  const issues = p.ical.filter((f) => f.status === "error").length;
+  const rooms = physicalUnits(p).length;
+  const cover = p.photos[0];
+
+  return (
+    <PressScale
+      testID={`property-${p.slug}`}
+      scaleTo={0.985}
+      onPress={() => {
+        haptics.select();
+        router.push({ pathname: "/property/[id]", params: { id: p.id } });
+      }}
+      style={s.card}
+    >
+      <View style={s.photo}>
+        {cover ? (
+          <Image source={{ uri: cover.uri }} style={StyleSheet.absoluteFill} />
+        ) : (
+          <Text style={s.photoText}>Add a cover photo</Text>
+        )}
+      </View>
+      <View style={s.body}>
+        <Text style={s.name}>{p.name}</Text>
+        {p.location ? <Text style={s.sub}>{p.location}</Text> : null}
+        <View style={s.chips}>
+          <Tag
+            tone="soft"
+            label={p.bookingType === "entire" ? "Entire villa" : plural(rooms, "room")}
+          />
+          <Tag tone="spark" label="Page live" pulse />
+          {issues ? <Tag tone="ember" label={plural(issues, "sync issue")} /> : null}
+        </View>
+        <View style={s.split}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.statValue}>{Math.round(occ * 100)}%</Text>
+            <Text style={s.sub}>{formatMonthShort(start)} occupancy</Text>
+          </View>
+          <View style={s.vr} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.statValue}>{next ? relativeDay(next.checkIn) : "None"}</Text>
+            <Text style={s.sub}>Next arrival</Text>
+          </View>
+        </View>
+      </View>
+    </PressScale>
+  );
+}
+
+const s = StyleSheet.create({
+  card: {
+    backgroundColor: colors.snow,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.cloud,
-    backgroundColor: colors.snow,
-    justifyContent: "center",
+    overflow: "hidden",
   },
-  addText: { fontFamily: font.medium, color: colors.iron, fontSize: 14 },
-  photo: { height: 140, backgroundColor: colors.mist, justifyContent: "flex-end", padding: 12 },
-  cardBody: { padding: 20, gap: 8 },
+  photo: { height: 150, backgroundColor: colors.mist, justifyContent: "flex-end", padding: 14 },
+  photoText: { fontFamily: font.regular, fontSize: 13, color: colors.steel },
+  body: { padding: 16, gap: 6 },
   name: { fontFamily: font.semibold, fontSize: 20, color: colors.obsidian },
-  chips: { flexDirection: "row", gap: 6 },
-  link: { fontFamily: font.medium, color: colors.obsidian, textDecorationLine: "underline" },
+  sub: { fontFamily: font.regular, fontSize: 13, color: colors.fog },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingTop: 4 },
+  split: {
+    flexDirection: "row",
+    gap: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.cloud,
+    marginTop: 10,
+    paddingTop: 12,
+  },
+  vr: { width: 1, backgroundColor: colors.cloud },
+  statValue: { fontFamily: font.semibold, fontSize: 20, color: colors.obsidian },
 });

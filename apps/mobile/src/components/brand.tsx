@@ -12,10 +12,13 @@ import Animated, {
 } from "react-native-reanimated";
 import { font } from "@/components/ui";
 
-type Tone = "neutral" | "ember" | "spark" | "onDark";
+type Tone = "neutral" | "soft" | "ember" | "spark" | "onDark" | "ink" | "dash";
 
 const TONES: Record<Tone, { bg: string; fg: string; border: string }> = {
   neutral: { bg: colors.snow, fg: colors.iron, border: colors.cloud },
+  soft: { bg: colors.paper, fg: colors.steel, border: colors.paper },
+  ink: { bg: colors.obsidian, fg: colors.snow, border: colors.obsidian },
+  dash: { bg: "transparent", fg: colors.iron, border: colors.ash },
   ember: { bg: colors.emberTint, fg: colors.emberInk, border: colors.emberTint },
   spark: { bg: colors.magentaTint, fg: colors.magentaInk, border: colors.magentaTint },
   onDark: { bg: "rgba(255,255,255,0.1)", fg: colors.snow, border: "rgba(255,255,255,0.16)" },
@@ -37,7 +40,14 @@ export function Tag({
 }) {
   const t = TONES[tone];
   return (
-    <View style={[s.tag, { backgroundColor: t.bg, borderColor: t.border }, style]}>
+    <View
+      style={[
+        s.tag,
+        { backgroundColor: t.bg, borderColor: t.border },
+        tone === "dash" && { borderStyle: "dashed" },
+        style,
+      ]}
+    >
       {pulse ? <PulseDot /> : null}
       {icon ? <SymbolView name={icon} tintColor={t.fg} size={13} /> : null}
       <Text style={[s.tagText, { color: t.fg }]}>{label}</Text>

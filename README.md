@@ -105,13 +105,15 @@ Built:
 - Go API with health, create and list properties, and public property lookup, backed by PostgreSQL with tests
 - Booking app with subdomain routing, a property page and the embed bridge
 - Widget loader with auto-resize and analytics events
-- Expo app with the five-tab shell, Today and Properties screens on live data, and a create-property form
+- Expo owner app with every V1 screen from the designs: Today (owner and caretaker), month and timeline Calendar with range actions, Bookings, Properties, booking detail, new and edit booking, record payment with bank slips, cancel with policy refunds, contact sheet, Activity, block dates and edit rates sheets, all property settings (details, photos, units, rates and seasons, stay rules, policies, taxes and charges, payment methods, booking settings, branding, share and embed with QR, iCal sync, extras, promo codes), Insights, Team, message templates, notifications, subscription, profile and help
 - Owner onboarding in the app: Welcome, 10 or 11 steps across four stages (depending on whole place or rooms), You're live, team invites, the setup checklist on Today and the subscription paywall. Steps slide in from the direction of travel with subtle haptics, and progress autosaves so "Finish later" resumes in place. Phone codes and purchases are stubbed (any 6 digits except 000000 verify)
 - Marketing site landing page
 
+How the app gets its data today: property creation goes through the API, and everything else runs on an on-device store (`apps/mobile/src/data`) with typed domain models, pricing and availability rules covered by tests, and sample bookings generated around today's date. Screens read the store through small hooks, so moving each area to the API means swapping the store actions for API calls. In development (or with `EXPO_PUBLIC_PROTOTYPE_TOOLS=true`) More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
+
 Next:
 - Owner auth with phone OTP, plus accounts and tenant scoping on every table
-- Units, rates and the night inventory ledger for availability
-- Bookings, holds and the booking state machine
-- iCal import and export
+- API endpoints for units, rates, bookings, blocks, payments and team, replacing the on-device store
+- The night inventory ledger, holds and the booking state machine on the server
+- iCal import and export workers
 - Real OTP endpoints, photo upload, and RevenueCat for in-app subscriptions
