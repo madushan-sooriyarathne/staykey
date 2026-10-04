@@ -2,6 +2,8 @@
 
 As of 4 Oct 2026. Live, editable copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d
 
+Status: phase 1 Foundations is done (see `docs/HANDOVER.md`); phase 2 is next.
+
 ## Goal and scope
 
 Turn the app's on-device data store into a Postgres-backed Go API in six phases, ending with the booking page and subscriptions running on the same data. The app screens stay as they are. Only the data hooks underneath them change.
