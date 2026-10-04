@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"staykey.direct/api/internal/domain"
+	"staykey.direct/api/internal/secret"
 	"staykey.direct/api/internal/store/queries"
 )
 
@@ -22,27 +23,38 @@ const uniqueViolation = "23505"
 
 // Postgres is a store backed by a pgx connection pool.
 type Postgres struct {
-	pool *pgxpool.Pool
-	q    *queries.Queries
+	pool    *pgxpool.Pool
+	q       *queries.Queries
+	secrets *secret.Box
 }
+
+// Option configures a Postgres store.
+type Option func(*Postgres)
+
+// WithSecrets sets the box that encrypts sensitive columns such as bank account numbers.
+func WithSecrets(box *secret.Box) Option { return func(s *Postgres) { s.secrets = box } }
 
 // NewPostgres creates a pool for databaseURL. Connections are opened lazily, so the API starts
 // even when the database is briefly unavailable.
-func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
+func NewPostgres(ctx context.Context, databaseURL string, opts ...Option) (*Postgres, error) {
 	cfg, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse database url: %w", err)
 	}
-	return NewPostgresWithConfig(ctx, cfg)
+	return NewPostgresWithConfig(ctx, cfg, opts...)
 }
 
 // NewPostgresWithConfig creates a pool from a parsed config, for callers that need to adjust it.
-func NewPostgresWithConfig(ctx context.Context, cfg *pgxpool.Config) (*Postgres, error) {
+func NewPostgresWithConfig(ctx context.Context, cfg *pgxpool.Config, opts ...Option) (*Postgres, error) {
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("create pool: %w", err)
 	}
-	return &Postgres{pool: pool, q: queries.New(pool)}, nil
+	s := &Postgres{pool: pool, q: queries.New(pool)}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s, nil
 }
 
 // Close releases all connections.
@@ -87,4 +99,10 @@ func notFound(err error) error {
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation
+}
+
+// violates reports whether err is a unique violation of the named constraint or index.
+func violates(err error, constraint string) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == constraint
 }

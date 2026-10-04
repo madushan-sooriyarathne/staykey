@@ -5,12 +5,14 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 
 	"staykey.direct/api/internal/auth"
 	"staykey.direct/api/internal/domain"
+	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/oapi"
 	"staykey.direct/api/internal/tenant"
 )
@@ -26,8 +28,10 @@ type Store interface {
 	ListAccounts(ctx context.Context, userID uuid.UUID) ([]domain.AccountMembership, error)
 	CreateAccount(ctx context.Context, userID uuid.UUID, name string) (domain.AccountMembership, error)
 
-	ListProperties(ctx context.Context, t tenant.Tenant) ([]domain.Property, error)
-	CreateProperty(ctx context.Context, t tenant.Tenant, p domain.NewProperty) (domain.Property, error)
+	ListProperties(ctx context.Context, t tenant.Tenant) ([]domain.PropertyDetail, error)
+	GetProperty(ctx context.Context, t tenant.Tenant, id uuid.UUID) (domain.PropertyDetail, error)
+	CreateProperty(ctx context.Context, t tenant.Tenant, p domain.NewProperty) (domain.PropertyDetail, error)
+	UpdateProperty(ctx context.Context, t tenant.Tenant, id uuid.UUID, p domain.PropertyPatch) (domain.PropertyDetail, error)
 
 	GetPropertyBySlug(ctx context.Context, slug string) (domain.Property, error)
 }
@@ -43,13 +47,20 @@ type Options struct {
 	// ClientIPHeader names the header a trusted proxy puts the client address in, for example
 	// Fly-Client-IP. Empty uses the connection's address.
 	ClientIPHeader string
-	Logger         *slog.Logger
+	// PublicURL is the API's own address, for links to files the local store serves. Empty
+	// derives it from each request, which suits development on a LAN.
+	PublicURL string
+	// Media serves the local file store's files and uploads under /media/. Nil when files live
+	// in R2.
+	Media  http.Handler
+	Logger *slog.Logger
 }
 
 // Server implements oapi.StrictServerInterface.
 type Server struct {
 	store Store
 	auth  *auth.Service
+	files files.Store
 	opts  Options
 	log   *slog.Logger
 	reqs  map[string]requirement
@@ -57,8 +68,9 @@ type Server struct {
 
 var _ oapi.StrictServerInterface = (*Server)(nil)
 
-// New returns a Server backed by store and signing people in with authService.
-func New(store Store, authService *auth.Service, opts Options) (*Server, error) {
+// New returns a Server backed by store, signing people in with authService and keeping photos
+// in fileStore.
+func New(store Store, authService *auth.Service, fileStore files.Store, opts Options) (*Server, error) {
 	log := opts.Logger
 	if log == nil {
 		log = slog.Default()
@@ -71,7 +83,7 @@ func New(store Store, authService *auth.Service, opts Options) (*Server, error) 
 	if err != nil {
 		return nil, fmt.Errorf("read security requirements: %w", err)
 	}
-	return &Server{store: store, auth: authService, opts: opts, log: log, reqs: reqs}, nil
+	return &Server{store: store, auth: authService, files: fileStore, opts: opts, log: log, reqs: reqs}, nil
 }
 
 // GetHealth reports service health, including whether the database answers.
@@ -79,10 +91,10 @@ func (s *Server) GetHealth(ctx context.Context, _ oapi.GetHealthRequestObject) (
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	health := oapi.Health{Status: oapi.Ok, Database: oapi.Up}
+	health := oapi.Health{Status: oapi.HealthStatusOk, Database: oapi.Up}
 	if err := s.store.Ping(ctx); err != nil {
 		s.log.Warn("database ping failed", "error", err)
-		health = oapi.Health{Status: oapi.Degraded, Database: oapi.Down}
+		health = oapi.Health{Status: oapi.HealthStatusDegraded, Database: oapi.Down}
 	}
 	return oapi.GetHealth200JSONResponse(health), nil
 }

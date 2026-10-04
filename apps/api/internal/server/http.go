@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/oapi"
 )
 
@@ -24,6 +25,9 @@ func (s *Server) Handler() http.Handler {
 	})
 
 	mux := http.NewServeMux()
+	if s.opts.Media != nil {
+		mux.Handle(files.MediaPrefix, s.opts.Media)
+	}
 	routes := oapi.HandlerWithOptions(strict, oapi.StdHTTPServerOptions{
 		BaseRouter: mux,
 		// Runs after routing (so r.Pattern is set) and before the body is decoded.
@@ -33,7 +37,8 @@ func (s *Server) Handler() http.Handler {
 		},
 	})
 
-	return s.logRequests(s.recoverPanics(cors(withClientIP(routes, s.opts.ClientIPHeader), s.opts.AllowAllOrigins)))
+	handler := withBaseURL(withClientIP(routes, s.opts.ClientIPHeader), s.opts.PublicURL)
+	return s.logRequests(s.recoverPanics(cors(handler, s.opts.AllowAllOrigins)))
 }
 
 // cors lets booking pages and the embed widget call /v1/public from any origin. With

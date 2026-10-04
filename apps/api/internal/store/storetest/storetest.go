@@ -20,6 +20,7 @@ import (
 	"github.com/pressly/goose/v3"
 
 	"staykey.direct/api/internal/db"
+	"staykey.direct/api/internal/secret"
 	"staykey.direct/api/internal/store"
 )
 
@@ -67,7 +68,7 @@ func New(t testing.TB) *store.Postgres {
 	}
 	cfg.ConnConfig.RuntimeParams["search_path"] = schema
 	cfg.MaxConns = 8
-	s, err := store.NewPostgresWithConfig(ctx, cfg)
+	s, err := store.NewPostgresWithConfig(ctx, cfg, store.WithSecrets(secret.FromPassphrase("storetest")))
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}

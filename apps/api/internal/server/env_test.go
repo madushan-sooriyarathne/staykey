@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"staykey.direct/api/internal/auth"
+	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/oapi"
 	"staykey.direct/api/internal/store"
 	"staykey.direct/api/internal/store/storetest"
@@ -37,11 +38,12 @@ func (c *clock) Advance(d time.Duration) {
 	c.now = c.now.Add(d)
 }
 
-// env is an API wired to its own database schema and a fixed clock.
+// env is an API wired to its own database schema, file folder and a fixed clock.
 type env struct {
 	t     *testing.T
 	h     http.Handler
 	store *store.Postgres
+	files *files.Local
 	clock *clock
 }
 
@@ -68,15 +70,20 @@ func newEnvWithStore(t *testing.T, st *store.Postgres, serverStore Store, config
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := New(serverStore, authService, Options{
+	local, err := files.NewLocal(t.TempDir(), []byte("test uploads"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv, err := New(serverStore, authService, local, Options{
 		BookingDomain: "staykey.direct",
 		BookingScheme: "https",
+		Media:         local.Handler(),
 		Logger:        log,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &env{t: t, h: srv.Handler(), store: st, clock: clk}
+	return &env{t: t, h: srv.Handler(), store: st, files: local, clock: clk}
 }
 
 // session is a signed-in caller.

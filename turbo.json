@@ -31,7 +31,7 @@
     },
     "seed": {
       "cache": false,
-      "passThroughEnv": ["APP_ENV", "DATABASE_URL"]
+      "passThroughEnv": ["APP_ENV", "DATABASE_URL", "STAYKEY_DATA_KEY"]
     },
     "dev": {
       "dependsOn": ["^build"],
@@ -45,7 +45,16 @@
         "STAYKEY_SMS_PROVIDER",
         "STAYKEY_CLIENT_IP_HEADER",
         "STAYKEY_BOOKING_DOMAIN",
-        "STAYKEY_BOOKING_SCHEME"
+        "STAYKEY_BOOKING_SCHEME",
+        "STAYKEY_PUBLIC_URL",
+        "STAYKEY_DATA_KEY",
+        "STAYKEY_STORAGE",
+        "STAYKEY_MEDIA_DIR",
+        "STAYKEY_MEDIA_URL",
+        "STAYKEY_R2_ENDPOINT",
+        "STAYKEY_R2_BUCKET",
+        "STAYKEY_R2_ACCESS_KEY_ID",
+        "STAYKEY_R2_SECRET_ACCESS_KEY"
       ]
     }
   }

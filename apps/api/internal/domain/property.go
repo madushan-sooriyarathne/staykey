@@ -33,11 +33,12 @@ type Property struct {
 	BookingType   BookingType
 	Location      string
 	Currency      string
-	BaseRateMinor int64 // nightly base rate in minor units, for example cents
+	BaseRateMinor int64 // lowest nightly unit rate in minor units, for example cents
 	CreatedAt     time.Time
 }
 
-// NewProperty is the input for creating a property.
+// NewProperty is the input for creating a property. Setup carries the rest of the property's
+// setup, as onboarding publishes it; without units, the property gets one unit at BaseRateMinor.
 type NewProperty struct {
 	Slug          string
 	Name          string
@@ -45,6 +46,7 @@ type NewProperty struct {
 	Location      string
 	Currency      string
 	BaseRateMinor int64
+	Setup         PropertyPatch
 }
 
 var (
@@ -71,6 +73,7 @@ func (p *NewProperty) Normalize() {
 	if p.Slug == "" {
 		p.Slug = Slugify(p.Name)
 	}
+	p.Setup.Normalize()
 }
 
 // Validate checks the input against StayKey's rules. Call Normalize first.
@@ -82,7 +85,9 @@ func (p NewProperty) Validate() error {
 		return &ValidationError{"bookingType", `must be "entire" or "rooms"`}
 	case !supportedCurrencies[p.Currency]:
 		return &ValidationError{"currency", "must be one of USD, LKR, EUR or GBP"}
-	case p.BaseRateMinor <= 0:
+	case p.Setup.Units == nil && p.BaseRateMinor <= 0:
+		return &ValidationError{"baseRate", "must be greater than zero"}
+	case p.BaseRateMinor < 0 || p.BaseRateMinor > MaxMoneyMinor:
 		return &ValidationError{"baseRate", "must be greater than zero"}
 	case len(p.Location) > 160:
 		return &ValidationError{"location", "must be at most 160 characters"}
@@ -90,5 +95,8 @@ func (p NewProperty) Validate() error {
 	if err := ValidateSlug(p.Slug); err != nil {
 		return &ValidationError{"slug", err.Error()}
 	}
-	return nil
+	if p.Setup.Name != nil || p.Setup.BookingType != nil || p.Setup.Location != nil {
+		return &ValidationError{"name", "send the name, booking type and location once, at the top level"}
+	}
+	return p.Setup.Validate()
 }
