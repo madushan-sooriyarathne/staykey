@@ -27,6 +27,7 @@ var supportedCurrencies = map[string]bool{"USD": true, "LKR": true, "EUR": true,
 // Property is a villa, guesthouse or similar listing with its own booking page.
 type Property struct {
 	ID            uuid.UUID
+	AccountID     uuid.UUID
 	Slug          string
 	Name          string
 	BookingType   BookingType

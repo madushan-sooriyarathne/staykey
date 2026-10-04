@@ -7,15 +7,48 @@ package oapi
 
 import (
 	"bytes"
+	"compress/flate"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"path"
+	"strings"
 	"time"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+// Defines values for AccountStatus.
+const (
+	Active AccountStatus = "active"
+	Closed AccountStatus = "closed"
+	Grace  AccountStatus = "grace"
+	Lapsed AccountStatus = "lapsed"
+	Trial  AccountStatus = "trial"
+)
+
+// Valid indicates whether the value is a known member of the AccountStatus enum.
+func (e AccountStatus) Valid() bool {
+	switch e {
+	case Active:
+		return true
+	case Closed:
+		return true
+	case Grace:
+		return true
+	case Lapsed:
+		return true
+	case Trial:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for BookingType.
 const (
@@ -95,6 +128,74 @@ func (e HealthStatus) Valid() bool {
 	}
 }
 
+// Defines values for Language.
+const (
+	En Language = "en"
+	Si Language = "si"
+)
+
+// Valid indicates whether the value is a known member of the Language enum.
+func (e Language) Valid() bool {
+	switch e {
+	case En:
+		return true
+	case Si:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Role.
+const (
+	Caretaker Role = "caretaker"
+	Manager   Role = "manager"
+	Owner     Role = "owner"
+)
+
+// Valid indicates whether the value is a known member of the Role enum.
+func (e Role) Valid() bool {
+	switch e {
+	case Caretaker:
+		return true
+	case Manager:
+		return true
+	case Owner:
+		return true
+	default:
+		return false
+	}
+}
+
+// Account An account as the signed-in user sees it, with their role in it.
+type Account struct {
+	CreatedAt time.Time          `json:"createdAt"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      string             `json:"name"`
+
+	// PropertyIds The properties this member is limited to. Empty means every property.
+	PropertyIds    []openapi_types.UUID `json:"propertyIds"`
+	Role           Role                 `json:"role"`
+	Status         AccountStatus        `json:"status"`
+	TrialStartedAt time.Time            `json:"trialStartedAt"`
+}
+
+// AccountList defines model for AccountList.
+type AccountList struct {
+	Items []Account `json:"items"`
+}
+
+// AccountStatus defines model for AccountStatus.
+type AccountStatus string
+
+// AuthTokens defines model for AuthTokens.
+type AuthTokens struct {
+	AccessToken           string    `json:"accessToken"`
+	AccessTokenExpiresAt  time.Time `json:"accessTokenExpiresAt"`
+	RefreshToken          string    `json:"refreshToken"`
+	RefreshTokenExpiresAt time.Time `json:"refreshTokenExpiresAt"`
+}
+
 // BookingType Whether guests book the whole place or individual rooms.
 type BookingType string
 
@@ -106,8 +207,16 @@ type Error struct {
 	// Code Example: slug_taken
 	Code string `json:"code"`
 
+	// Field The request field the error is about, when there is one.
+	//
+	// Example: slug
+	Field *string `json:"field,omitempty"`
+
 	// Message Example: That booking page address is already taken.
 	Message string `json:"message"`
+
+	// RetryAfter Seconds to wait before retrying, on 429 responses.
+	RetryAfter *int `json:"retryAfter,omitempty"`
 }
 
 // Health defines model for Health.
@@ -121,6 +230,21 @@ type HealthDatabase string
 
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
+
+// Language defines model for Language.
+type Language string
+
+// Me defines model for Me.
+type Me struct {
+	Accounts []Account `json:"accounts"`
+	User     User      `json:"user"`
+}
+
+// NewAccount defines model for NewAccount.
+type NewAccount struct {
+	// Name Example: Kingfisher Villa
+	Name string `json:"name"`
+}
 
 // NewProperty defines model for NewProperty.
 type NewProperty struct {
@@ -144,6 +268,36 @@ type NewProperty struct {
 	// Example: kingfisher
 	Slug *Slug `json:"slug,omitempty"`
 }
+
+// OtpRequest defines model for OtpRequest.
+type OtpRequest struct {
+	// Phone Phone number with its country code. Returned in E.164, for example +94771234567.
+	//
+	// Example: +94771234567
+	Phone Phone `json:"phone"`
+}
+
+// OtpSent defines model for OtpSent.
+type OtpSent struct {
+	// DevCode The code itself. Development servers only, so test devices can sign in.
+	DevCode   *string   `json:"devCode,omitempty"`
+	ExpiresAt time.Time `json:"expiresAt"`
+
+	// Phone Phone number with its country code. Returned in E.164, for example +94771234567.
+	//
+	// Example: +94771234567
+	Phone Phone `json:"phone"`
+
+	// ResendAfter Seconds before another code can be requested.
+	//
+	// Example: 30
+	ResendAfter int `json:"resendAfter"`
+}
+
+// Phone Phone number with its country code. Returned in E.164, for example +94771234567.
+//
+// Example: +94771234567
+type Phone = string
 
 // Property defines model for Property.
 type Property struct {
@@ -187,16 +341,99 @@ type PublicProperty struct {
 	Slug Slug `json:"slug"`
 }
 
+// RefreshRequest defines model for RefreshRequest.
+type RefreshRequest struct {
+	RefreshToken string `json:"refreshToken"`
+}
+
+// Role defines model for Role.
+type Role string
+
+// SignIn defines model for SignIn.
+type SignIn struct {
+	Accounts []Account `json:"accounts"`
+
+	// NewUser True when this sign-in created the user.
+	NewUser bool       `json:"newUser"`
+	Tokens  AuthTokens `json:"tokens"`
+	User    User       `json:"user"`
+}
+
 // Slug Lowercase subdomain label used for the booking page, for example "kingfisher" in kingfisher.staykey.direct.
 //
 // Example: kingfisher
 type Slug = string
 
+// User defines model for User.
+type User struct {
+	CreatedAt time.Time          `json:"createdAt"`
+	Email     *string            `json:"email,omitempty"`
+	Id        openapi_types.UUID `json:"id"`
+	Language  Language           `json:"language"`
+	Name      string             `json:"name"`
+
+	// Phone Phone number with its country code. Returned in E.164, for example +94771234567.
+	//
+	// Example: +94771234567
+	Phone Phone `json:"phone"`
+}
+
+// UserPatch defines model for UserPatch.
+type UserPatch struct {
+	// Email An empty string clears the email.
+	Email    *string   `json:"email,omitempty"`
+	Language *Language `json:"language,omitempty"`
+	Name     *string   `json:"name,omitempty"`
+}
+
+// VerifyRequest defines model for VerifyRequest.
+type VerifyRequest struct {
+	// Code Example: 482913
+	Code string `json:"code"`
+
+	// DeviceName Shown in the list of signed-in devices.
+	//
+	// Example: Nimal's iPhone
+	DeviceName *string `json:"deviceName,omitempty"`
+
+	// Phone Phone number with its country code. Returned in E.164, for example +94771234567.
+	//
+	// Example: +94771234567
+	Phone Phone `json:"phone"`
+}
+
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
 
+// Forbidden defines model for Forbidden.
+type Forbidden = Error
+
 // NotFound defines model for NotFound.
 type NotFound = Error
+
+// TooManyRequests defines model for TooManyRequests.
+type TooManyRequests = Error
+
+// Unauthorized defines model for Unauthorized.
+type Unauthorized = Error
+
+// CreateAccountJSONRequestBody defines body for CreateAccount for application/json ContentType.
+type CreateAccountJSONRequestBody = NewAccount
+
+// LogoutJSONRequestBody defines body for Logout for application/json ContentType.
+type LogoutJSONRequestBody = RefreshRequest
+
+// RequestOtpJSONRequestBody defines body for RequestOtp for application/json ContentType.
+type RequestOtpJSONRequestBody = OtpRequest
+
+// RefreshSessionJSONRequestBody defines body for RefreshSession for application/json ContentType.
+type RefreshSessionJSONRequestBody = RefreshRequest
+
+// VerifyOtpJSONRequestBody defines body for VerifyOtp for application/json ContentType.
+type VerifyOtpJSONRequestBody = VerifyRequest
+
+// UpdateMeJSONRequestBody defines body for UpdateMe for application/json ContentType.
+type UpdateMeJSONRequestBody = UserPatch
 
 // CreatePropertyJSONRequestBody defines body for CreateProperty for application/json ContentType.
 type CreatePropertyJSONRequestBody = NewProperty
@@ -206,7 +443,31 @@ type ServerInterface interface {
 	// GetHealth Service and database health
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
-	// ListProperties List the owner's properties
+	// ListAccounts Accounts the signed-in user belongs to
+	// (GET /v1/accounts)
+	ListAccounts(w http.ResponseWriter, r *http.Request)
+	// CreateAccount Create an account with the signed-in user as its owner
+	// (POST /v1/accounts)
+	CreateAccount(w http.ResponseWriter, r *http.Request)
+	// Logout End the session behind a refresh token
+	// (POST /v1/auth/logout)
+	Logout(w http.ResponseWriter, r *http.Request)
+	// RequestOtp Text a 6-digit sign-in code to a phone number
+	// (POST /v1/auth/otp)
+	RequestOtp(w http.ResponseWriter, r *http.Request)
+	// RefreshSession Exchange a refresh token for new tokens
+	// (POST /v1/auth/refresh)
+	RefreshSession(w http.ResponseWriter, r *http.Request)
+	// VerifyOtp Check a code and sign in, creating the user on first sign-in
+	// (POST /v1/auth/verify)
+	VerifyOtp(w http.ResponseWriter, r *http.Request)
+	// GetMe The signed-in user and the accounts they belong to
+	// (GET /v1/me)
+	GetMe(w http.ResponseWriter, r *http.Request)
+	// UpdateMe Update the signed-in user's profile
+	// (PATCH /v1/me)
+	UpdateMe(w http.ResponseWriter, r *http.Request)
+	// ListProperties List the properties the caller can see
 	// (GET /v1/properties)
 	ListProperties(w http.ResponseWriter, r *http.Request)
 	// CreateProperty Create a property and its booking page address
@@ -231,6 +492,118 @@ func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHealth(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAccounts operation middleware
+func (siw *ServerInterfaceWrapper) ListAccounts(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAccounts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAccount operation middleware
+func (siw *ServerInterfaceWrapper) CreateAccount(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Logout operation middleware
+func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Logout(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RequestOtp operation middleware
+func (siw *ServerInterfaceWrapper) RequestOtp(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RequestOtp(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RefreshSession operation middleware
+func (siw *ServerInterfaceWrapper) RefreshSession(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RefreshSession(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// VerifyOtp operation middleware
+func (siw *ServerInterfaceWrapper) VerifyOtp(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.VerifyOtp(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMe operation middleware
+func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateMe operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMe(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateMe(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -415,6 +788,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.GetHealth)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/auth/otp", wrapper.RequestOtp)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/auth/verify", wrapper.VerifyOtp)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/auth/refresh", wrapper.RefreshSession)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/auth/logout", wrapper.Logout)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/me", wrapper.GetMe)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/v1/me", wrapper.UpdateMe)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/accounts", wrapper.ListAccounts)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/accounts", wrapper.CreateAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/properties", wrapper.ListProperties)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/properties", wrapper.CreateProperty)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/public/properties/{slug}", wrapper.GetPublicProperty)
@@ -424,7 +805,20 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 type BadRequestJSONResponse Error
 
+type ForbiddenJSONResponse Error
+
 type NotFoundJSONResponse Error
+
+type TooManyRequestsResponseHeaders struct {
+	RetryAfter *int
+}
+type TooManyRequestsJSONResponse struct {
+	Body Error
+
+	Headers TooManyRequestsResponseHeaders
+}
+
+type UnauthorizedJSONResponse Error
 
 type GetHealthRequestObject struct {
 }
@@ -447,6 +841,317 @@ func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseW
 	return err
 }
 
+type ListAccountsRequestObject struct {
+}
+
+type ListAccountsResponseObject interface {
+	VisitListAccountsResponse(w http.ResponseWriter) error
+}
+
+type ListAccounts200JSONResponse AccountList
+
+func (response ListAccounts200JSONResponse) VisitListAccountsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAccounts401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAccounts401JSONResponse) VisitListAccountsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccountRequestObject struct {
+	Body *CreateAccountJSONRequestBody
+}
+
+type CreateAccountResponseObject interface {
+	VisitCreateAccountResponse(w http.ResponseWriter) error
+}
+
+type CreateAccount201JSONResponse Account
+
+func (response CreateAccount201JSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccount400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateAccount400JSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccount401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateAccount401JSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogoutRequestObject struct {
+	Body *LogoutJSONRequestBody
+}
+
+type LogoutResponseObject interface {
+	VisitLogoutResponse(w http.ResponseWriter) error
+}
+
+type Logout204Response struct {
+}
+
+func (response Logout204Response) VisitLogoutResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RequestOtpRequestObject struct {
+	Body *RequestOtpJSONRequestBody
+}
+
+type RequestOtpResponseObject interface {
+	VisitRequestOtpResponse(w http.ResponseWriter) error
+}
+
+type RequestOtp200JSONResponse OtpSent
+
+func (response RequestOtp200JSONResponse) VisitRequestOtpResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RequestOtp400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RequestOtp400JSONResponse) VisitRequestOtpResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RequestOtp429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response RequestOtp429JSONResponse) VisitRequestOtpResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshSessionRequestObject struct {
+	Body *RefreshSessionJSONRequestBody
+}
+
+type RefreshSessionResponseObject interface {
+	VisitRefreshSessionResponse(w http.ResponseWriter) error
+}
+
+type RefreshSession200JSONResponse AuthTokens
+
+func (response RefreshSession200JSONResponse) VisitRefreshSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshSession401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RefreshSession401JSONResponse) VisitRefreshSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VerifyOtpRequestObject struct {
+	Body *VerifyOtpJSONRequestBody
+}
+
+type VerifyOtpResponseObject interface {
+	VisitVerifyOtpResponse(w http.ResponseWriter) error
+}
+
+type VerifyOtp200JSONResponse SignIn
+
+func (response VerifyOtp200JSONResponse) VisitVerifyOtpResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VerifyOtp400JSONResponse Error
+
+func (response VerifyOtp400JSONResponse) VisitVerifyOtpResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMeRequestObject struct {
+}
+
+type GetMeResponseObject interface {
+	VisitGetMeResponse(w http.ResponseWriter) error
+}
+
+type GetMe200JSONResponse Me
+
+func (response GetMe200JSONResponse) VisitGetMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMe401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetMe401JSONResponse) VisitGetMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateMeRequestObject struct {
+	Body *UpdateMeJSONRequestBody
+}
+
+type UpdateMeResponseObject interface {
+	VisitUpdateMeResponse(w http.ResponseWriter) error
+}
+
+type UpdateMe200JSONResponse User
+
+func (response UpdateMe200JSONResponse) VisitUpdateMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateMe400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateMe400JSONResponse) VisitUpdateMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateMe401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateMe401JSONResponse) VisitUpdateMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListPropertiesRequestObject struct {
 }
 
@@ -464,6 +1169,48 @@ func (response ListProperties200JSONResponse) VisitListPropertiesResponse(w http
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListProperties400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListProperties400JSONResponse) VisitListPropertiesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListProperties401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListProperties401JSONResponse) VisitListPropertiesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListProperties404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListProperties404JSONResponse) VisitListPropertiesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -500,6 +1247,48 @@ func (response CreateProperty400JSONResponse) VisitCreatePropertyResponse(w http
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateProperty401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateProperty401JSONResponse) VisitCreatePropertyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateProperty403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CreateProperty403JSONResponse) VisitCreatePropertyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateProperty404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreateProperty404JSONResponse) VisitCreatePropertyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -559,7 +1348,31 @@ type StrictServerInterface interface {
 	// GetHealth Service and database health
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
-	// ListProperties List the owner's properties
+	// ListAccounts Accounts the signed-in user belongs to
+	// (GET /v1/accounts)
+	ListAccounts(ctx context.Context, request ListAccountsRequestObject) (ListAccountsResponseObject, error)
+	// CreateAccount Create an account with the signed-in user as its owner
+	// (POST /v1/accounts)
+	CreateAccount(ctx context.Context, request CreateAccountRequestObject) (CreateAccountResponseObject, error)
+	// Logout End the session behind a refresh token
+	// (POST /v1/auth/logout)
+	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
+	// RequestOtp Text a 6-digit sign-in code to a phone number
+	// (POST /v1/auth/otp)
+	RequestOtp(ctx context.Context, request RequestOtpRequestObject) (RequestOtpResponseObject, error)
+	// RefreshSession Exchange a refresh token for new tokens
+	// (POST /v1/auth/refresh)
+	RefreshSession(ctx context.Context, request RefreshSessionRequestObject) (RefreshSessionResponseObject, error)
+	// VerifyOtp Check a code and sign in, creating the user on first sign-in
+	// (POST /v1/auth/verify)
+	VerifyOtp(ctx context.Context, request VerifyOtpRequestObject) (VerifyOtpResponseObject, error)
+	// GetMe The signed-in user and the accounts they belong to
+	// (GET /v1/me)
+	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
+	// UpdateMe Update the signed-in user's profile
+	// (PATCH /v1/me)
+	UpdateMe(ctx context.Context, request UpdateMeRequestObject) (UpdateMeResponseObject, error)
+	// ListProperties List the properties the caller can see
 	// (GET /v1/properties)
 	ListProperties(ctx context.Context, request ListPropertiesRequestObject) (ListPropertiesResponseObject, error)
 	// CreateProperty Create a property and its booking page address
@@ -626,6 +1439,240 @@ func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetHealthResponseObject); ok {
 		if err := validResponse.VisitGetHealthResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAccounts operation middleware
+func (sh *strictHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
+	var request ListAccountsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAccounts(ctx, request.(ListAccountsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAccounts")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAccountsResponseObject); ok {
+		if err := validResponse.VisitListAccountsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAccount operation middleware
+func (sh *strictHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
+	var request CreateAccountRequestObject
+
+	var body CreateAccountJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAccount(ctx, request.(CreateAccountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAccount")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAccountResponseObject); ok {
+		if err := validResponse.VisitCreateAccountResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Logout operation middleware
+func (sh *strictHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	var request LogoutRequestObject
+
+	var body LogoutJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Logout(ctx, request.(LogoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Logout")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LogoutResponseObject); ok {
+		if err := validResponse.VisitLogoutResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RequestOtp operation middleware
+func (sh *strictHandler) RequestOtp(w http.ResponseWriter, r *http.Request) {
+	var request RequestOtpRequestObject
+
+	var body RequestOtpJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestOtp(ctx, request.(RequestOtpRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestOtp")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RequestOtpResponseObject); ok {
+		if err := validResponse.VisitRequestOtpResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RefreshSession operation middleware
+func (sh *strictHandler) RefreshSession(w http.ResponseWriter, r *http.Request) {
+	var request RefreshSessionRequestObject
+
+	var body RefreshSessionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RefreshSession(ctx, request.(RefreshSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RefreshSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RefreshSessionResponseObject); ok {
+		if err := validResponse.VisitRefreshSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// VerifyOtp operation middleware
+func (sh *strictHandler) VerifyOtp(w http.ResponseWriter, r *http.Request) {
+	var request VerifyOtpRequestObject
+
+	var body VerifyOtpJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.VerifyOtp(ctx, request.(VerifyOtpRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "VerifyOtp")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(VerifyOtpResponseObject); ok {
+		if err := validResponse.VisitVerifyOtpResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMe operation middleware
+func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
+	var request GetMeRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMe(ctx, request.(GetMeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMe")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMeResponseObject); ok {
+		if err := validResponse.VisitGetMeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateMe operation middleware
+func (sh *strictHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
+	var request UpdateMeRequestObject
+
+	var body UpdateMeJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateMe(ctx, request.(UpdateMeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateMe")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateMeResponseObject); ok {
+		if err := validResponse.VisitUpdateMeResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -712,4 +1759,157 @@ func (sh *strictHandler) GetPublicProperty(w http.ResponseWriter, r *http.Reques
 	} else if response != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
 	}
+}
+
+// Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
+// Stored as a slice of fixed-width chunks rather than one concatenated
+// const string: with thousands of chunks the chained `+` fold is several
+// times slower for the Go compiler than parsing a slice literal.
+var swaggerSpec = []string{
+	"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",
+	"eb78zwA=",
+}
+
+// decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
+// after base64-decoding and flate-decompressing the embedded blob.
+func decodeSpec() ([]byte, error) {
+	encoded := strings.Join(swaggerSpec, "")
+	compressed, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("error base64 decoding spec: %w", err)
+	}
+	zr := flate.NewReader(bytes.NewReader(compressed))
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(zr); err != nil {
+		return nil, fmt.Errorf("read flate: %w", err)
+	}
+	if err := zr.Close(); err != nil {
+		return nil, fmt.Errorf("close flate reader: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+var rawSpec = decodeSpecCached()
+
+// a naive cache of the decoded OpenAPI spec
+func decodeSpecCached() func() ([]byte, error) {
+	data, err := decodeSpec()
+	return func() ([]byte, error) {
+		return data, err
+	}
+}
+
+// Constructs a synthetic filesystem for resolving external references when loading openapi specifications.
+func PathToRawSpec(pathToFile string) map[string]func() ([]byte, error) {
+	res := make(map[string]func() ([]byte, error))
+	if len(pathToFile) > 0 {
+		res[pathToFile] = rawSpec
+	}
+
+	return res
+}
+
+// GetSpec returns the OpenAPI specification corresponding to the generated
+// code in this file. External references in the spec are resolved through
+// PathToRawSpec; externally-referenced files must be embedded in their
+// corresponding Go packages (via the import-mapping feature). URL-based
+// external refs are not supported.
+func GetSpec() (swagger *openapi3.T, err error) {
+	resolvePath := PathToRawSpec("")
+
+	loader := openapi3.NewLoader()
+	loader.IsExternalRefsAllowed = true
+	loader.ReadFromURIFunc = func(loader *openapi3.Loader, url *url.URL) ([]byte, error) {
+		pathToFile := url.String()
+		pathToFile = path.Clean(pathToFile)
+		getSpec, ok := resolvePath[pathToFile]
+		if !ok {
+			err1 := fmt.Errorf("path not found: %s", pathToFile)
+			return nil, err1
+		}
+		return getSpec()
+	}
+	var specData []byte
+	specData, err = rawSpec()
+	if err != nil {
+		return
+	}
+	swagger, err = loader.LoadFromData(specData)
+	if err != nil {
+		return
+	}
+	return
+}
+
+// GetSpecJSON returns the raw JSON bytes of the embedded OpenAPI
+// specification: decompressed but not unmarshaled. External references
+// are not resolved here; the bytes are the spec exactly as embedded by
+// codegen. The result is cached at package init time, so repeated calls
+// are cheap.
+func GetSpecJSON() ([]byte, error) {
+	return rawSpec()
+}
+
+// GetSwagger returns the OpenAPI specification corresponding to the
+// generated code in this file.
+//
+// Deprecated: GetSwagger predates kin-openapi renaming openapi3.Swagger
+// to openapi3.T. Use [GetSpec] instead. This wrapper is retained for
+// backwards compatibility.
+func GetSwagger() (*openapi3.T, error) {
+	return GetSpec()
 }

@@ -1,114 +1,30 @@
 package server
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
-	"log/slog"
 	"net/http"
-	"net/http/httptest"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 
 	"staykey.direct/api/internal/domain"
 	"staykey.direct/api/internal/oapi"
+	"staykey.direct/api/internal/store/storetest"
+	"staykey.direct/api/internal/tenant"
 )
-
-// memStore is an in-memory Store for handler tests.
-type memStore struct {
-	mu      sync.Mutex
-	bySlug  map[string]domain.Property
-	pingErr error
-}
-
-func newMemStore() *memStore { return &memStore{bySlug: map[string]domain.Property{}} }
-
-func (m *memStore) Ping(context.Context) error { return m.pingErr }
-
-func (m *memStore) ListProperties(context.Context) ([]domain.Property, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	out := make([]domain.Property, 0, len(m.bySlug))
-	for _, p := range m.bySlug {
-		out = append(out, p)
-	}
-	return out, nil
-}
-
-func (m *memStore) CreateProperty(_ context.Context, in domain.NewProperty) (domain.Property, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if _, ok := m.bySlug[in.Slug]; ok {
-		return domain.Property{}, domain.ErrSlugTaken
-	}
-	p := domain.Property{
-		ID: uuid.New(), Slug: in.Slug, Name: in.Name, BookingType: in.BookingType,
-		Location: in.Location, Currency: in.Currency, BaseRateMinor: in.BaseRateMinor, CreatedAt: time.Now(),
-	}
-	m.bySlug[p.Slug] = p
-	return p, nil
-}
-
-func (m *memStore) GetPropertyBySlug(_ context.Context, slug string) (domain.Property, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	p, ok := m.bySlug[slug]
-	if !ok {
-		return domain.Property{}, domain.ErrNotFound
-	}
-	return p, nil
-}
-
-func newTestServer(store Store) http.Handler {
-	return New(store, Options{
-		BookingDomain: "staykey.direct",
-		BookingScheme: "https",
-		Logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
-	}).Handler()
-}
-
-func do(t *testing.T, h http.Handler, method, path string, body any) *httptest.ResponseRecorder {
-	t.Helper()
-	var r io.Reader
-	if body != nil {
-		b, err := json.Marshal(body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		r = bytes.NewReader(b)
-	}
-	req := httptest.NewRequest(method, path, r)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-	return rec
-}
-
-func decode[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
-	t.Helper()
-	var v T
-	if err := json.NewDecoder(rec.Body).Decode(&v); err != nil {
-		t.Fatalf("decode response: %v (body %q)", err, rec.Body.String())
-	}
-	return v
-}
 
 func kingfisher() map[string]any {
 	return map[string]any{"name": "Kingfisher Villa", "bookingType": "entire", "currency": "USD", "baseRate": 18000}
 }
 
 func TestCreateThenFetchPublicProperty(t *testing.T) {
-	h := newTestServer(newMemStore())
+	t.Parallel()
+	e := newEnv(t)
+	s, account := e.owner("+94771000001", "Kingfisher Villa")
 
-	rec := do(t, h, http.MethodPost, "/v1/properties", kingfisher())
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("create: status %d, body %s", rec.Code, rec.Body)
-	}
+	rec := e.do(call{method: http.MethodPost, path: "/v1/properties", body: kingfisher(), as: s, account: account})
+	e.expect(rec, http.StatusCreated)
 	created := decode[oapi.Property](t, rec)
 	if created.Slug != "kingfisher-villa" {
 		t.Errorf("slug = %q, want kingfisher-villa", created.Slug)
@@ -116,11 +32,12 @@ func TestCreateThenFetchPublicProperty(t *testing.T) {
 	if created.BookingPageUrl != "https://kingfisher-villa.staykey.direct" {
 		t.Errorf("bookingPageUrl = %q", created.BookingPageUrl)
 	}
-
-	rec = do(t, h, http.MethodGet, "/v1/public/properties/kingfisher-villa", nil)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("public get: status %d, body %s", rec.Code, rec.Body)
+	if created.Id.Version() != 7 {
+		t.Errorf("id version = %d, want UUIDv7", created.Id.Version())
 	}
+
+	rec = e.do(call{method: http.MethodGet, path: "/v1/public/properties/kingfisher-villa"})
+	e.expect(rec, http.StatusOK)
 	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "*" {
 		t.Errorf("public CORS header = %q, want *", got)
 	}
@@ -129,60 +46,117 @@ func TestCreateThenFetchPublicProperty(t *testing.T) {
 		t.Errorf("unexpected public property: %+v", public)
 	}
 
-	rec = do(t, h, http.MethodGet, "/v1/properties", nil)
-	list := decode[oapi.PropertyList](t, rec)
-	if len(list.Items) != 1 {
+	rec = e.do(call{method: http.MethodGet, path: "/v1/properties", as: s, account: account})
+	e.expect(rec, http.StatusOK)
+	if list := decode[oapi.PropertyList](t, rec); len(list.Items) != 1 {
 		t.Errorf("list returned %d items, want 1", len(list.Items))
 	}
 }
 
 func TestCreatePropertyRejectsDuplicateSlug(t *testing.T) {
-	h := newTestServer(newMemStore())
-	do(t, h, http.MethodPost, "/v1/properties", kingfisher())
+	t.Parallel()
+	e := newEnv(t)
+	s, account := e.owner("+94771000002", "Kingfisher Villa")
+	e.do(call{method: http.MethodPost, path: "/v1/properties", body: kingfisher(), as: s, account: account})
 
-	rec := do(t, h, http.MethodPost, "/v1/properties", kingfisher())
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("status %d, want 409", rec.Code)
-	}
-	if e := decode[oapi.Error](t, rec); e.Code != "slug_taken" {
-		t.Errorf("code = %q, want slug_taken", e.Code)
+	// Slugs are unique across accounts, since they are subdomains.
+	other, otherAccount := e.owner("+94771000003", "Someone else")
+	rec := e.do(call{method: http.MethodPost, path: "/v1/properties", body: kingfisher(), as: other, account: otherAccount})
+	e.expect(rec, http.StatusConflict)
+	if body := decode[oapi.Error](t, rec); body.Code != "slug_taken" {
+		t.Errorf("code = %q, want slug_taken", body.Code)
 	}
 }
 
 func TestCreatePropertyValidation(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s, account := e.owner("+94771000004", "Villa One")
 	cases := map[string]map[string]any{
 		"zero rate":     {"name": "Villa One", "bookingType": "entire", "currency": "USD", "baseRate": 0},
 		"bad currency":  {"name": "Villa One", "bookingType": "entire", "currency": "JPY", "baseRate": 100},
 		"bad type":      {"name": "Villa One", "bookingType": "hostel", "currency": "USD", "baseRate": 100},
 		"short name":    {"name": "V", "bookingType": "entire", "currency": "USD", "baseRate": 100},
 		"reserved slug": {"name": "Villa One", "slug": "api", "bookingType": "entire", "currency": "USD", "baseRate": 100},
-		"malformed":     nil,
 	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := newTestServer(newMemStore())
-			rec := do(t, h, http.MethodPost, "/v1/properties", body)
+			rec := e.do(call{method: http.MethodPost, path: "/v1/properties", body: body, as: s, account: account})
 			if rec.Code != http.StatusBadRequest {
 				t.Fatalf("status %d, want 400 (body %s)", rec.Code, rec.Body)
 			}
 		})
 	}
+	t.Run("malformed", func(t *testing.T) {
+		rec := e.do(call{method: http.MethodPost, path: "/v1/properties", raw: []byte("{"), as: s, account: account})
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status %d, want 400 (body %s)", rec.Code, rec.Body)
+		}
+	})
 }
 
-func TestGetPublicPropertyNotFound(t *testing.T) {
-	h := newTestServer(newMemStore())
-	rec := do(t, h, http.MethodGet, "/v1/public/properties/nowhere", nil)
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("status %d, want 404", rec.Code)
+func TestOnlyOwnersCreateProperties(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	owner, account := e.owner("+94771000005", "Coral Bay House")
+	accountID := uuid.MustParse(account)
+
+	for _, role := range []domain.Role{domain.RoleManager, domain.RoleCaretaker} {
+		member, _ := e.signIn(map[domain.Role]string{domain.RoleManager: "+94771000006", domain.RoleCaretaker: "+94771000007"}[role])
+		ownerTenant := tenant.Tenant{AccountID: accountID, UserID: owner.userID, Role: domain.RoleOwner}
+		if _, err := e.store.AddMember(context.Background(), ownerTenant, member.userID, role, nil); err != nil {
+			t.Fatal(err)
+		}
+		rec := e.do(call{method: http.MethodPost, path: "/v1/properties", body: kingfisher(), as: member, account: account})
+		e.expect(rec, http.StatusForbidden)
 	}
 }
 
-func TestHealthReportsDatabaseDown(t *testing.T) {
-	store := newMemStore()
-	store.pingErr = errors.New("connection refused")
-	h := newTestServer(store)
+func TestCaretakerSeesOnlyAssignedProperties(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	owner, account := e.owner("+94771000008", "Two villas")
+	villa := e.createProperty(owner, account, "Kingfisher Villa")
+	e.createProperty(owner, account, "Coral Bay House")
 
-	health := decode[oapi.Health](t, do(t, h, http.MethodGet, "/healthz", nil))
+	caretaker, _ := e.signIn("+94771000009")
+	ownerTenant := tenant.Tenant{AccountID: uuid.MustParse(account), UserID: owner.userID, Role: domain.RoleOwner}
+	if _, err := e.store.AddMember(context.Background(), ownerTenant, caretaker.userID, domain.RoleCaretaker, []uuid.UUID{villa.Id}); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := e.do(call{method: http.MethodGet, path: "/v1/properties", as: caretaker, account: account})
+	e.expect(rec, http.StatusOK)
+	list := decode[oapi.PropertyList](t, rec)
+	if len(list.Items) != 1 || list.Items[0].Id != villa.Id {
+		t.Fatalf("caretaker sees %+v, want only %s", list.Items, villa.Id)
+	}
+
+	rec = e.do(call{method: http.MethodGet, path: "/v1/accounts", as: caretaker})
+	e.expect(rec, http.StatusOK)
+	accounts := decode[oapi.AccountList](t, rec)
+	if len(accounts.Items) != 1 || accounts.Items[0].Role != oapi.Caretaker || len(accounts.Items[0].PropertyIds) != 1 {
+		t.Fatalf("caretaker accounts = %+v", accounts.Items)
+	}
+}
+
+func TestGetPublicPropertyNotFound(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	rec := e.do(call{method: http.MethodGet, path: "/v1/public/properties/nowhere"})
+	e.expect(rec, http.StatusNotFound)
+}
+
+type downStore struct{ Store }
+
+func (downStore) Ping(context.Context) error { return errors.New("connection refused") }
+
+func TestHealthReportsDatabaseDown(t *testing.T) {
+	t.Parallel()
+	st := storetest.New(t)
+	e := newEnvWithStore(t, st, downStore{st})
+
+	health := decode[oapi.Health](t, e.do(call{method: http.MethodGet, path: "/healthz"}))
 	if health.Status != oapi.Degraded || health.Database != oapi.Down {
 		t.Errorf("health = %+v, want degraded/down", health)
 	}

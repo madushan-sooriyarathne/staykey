@@ -1,10 +1,12 @@
 # Generates request/response types and a strict net/http server interface
 # from the shared contract in packages/api-spec/openapi.yaml.
+# The embedded spec lets the server read each operation's security requirements.
 package: oapi
 output: api.gen.go
 generate:
   std-http-server: true
   strict-server: true
   models: true
+  embedded-spec: true
 output-options:
   skip-prune: false

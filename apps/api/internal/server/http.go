@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -18,20 +17,23 @@ func (s *Server) Handler() http.Handler {
 			writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		},
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-			s.log.Error("request failed", "method", r.Method, "path", r.URL.Path, "error", err)
-			writeError(w, http.StatusInternalServerError, "internal_error", "Something went wrong on our side.")
+			if !writeAPIError(w, err) {
+				s.log.Error("request failed", "method", r.Method, "path", r.URL.Path, "error", err)
+			}
 		},
 	})
 
 	mux := http.NewServeMux()
 	routes := oapi.HandlerWithOptions(strict, oapi.StdHTTPServerOptions{
 		BaseRouter: mux,
+		// Runs after routing (so r.Pattern is set) and before the body is decoded.
+		Middlewares: []oapi.MiddlewareFunc{s.secure},
 		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
 			writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		},
 	})
 
-	return s.logRequests(s.recoverPanics(cors(routes, s.opts.AllowAllOrigins)))
+	return s.logRequests(s.recoverPanics(cors(withClientIP(routes, s.opts.ClientIPHeader), s.opts.AllowAllOrigins)))
 }
 
 // cors lets booking pages and the embed widget call /v1/public from any origin. With
@@ -41,8 +43,9 @@ func cors(next http.Handler, allowAll bool) http.Handler {
 		if allowAll || strings.HasPrefix(r.URL.Path, "/v1/public/") {
 			h := w.Header()
 			h.Set("Access-Control-Allow-Origin", "*")
-			h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			h.Set("Access-Control-Allow-Headers", "Content-Type")
+			h.Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
+			h.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Idempotency-Key, X-Account-Id")
+			h.Set("Access-Control-Expose-Headers", "Retry-After")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
 				return
@@ -86,10 +89,4 @@ type statusRecorder struct {
 func (r *statusRecorder) WriteHeader(status int) {
 	r.status = status
 	r.ResponseWriter.WriteHeader(status)
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(oapi.Error{Code: code, Message: message})
 }

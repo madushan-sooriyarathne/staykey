@@ -3,19 +3,32 @@ package server
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
+
+	"staykey.direct/api/internal/auth"
 	"staykey.direct/api/internal/domain"
 	"staykey.direct/api/internal/oapi"
+	"staykey.direct/api/internal/tenant"
 )
 
-// Store is the persistence the server needs. internal/store.Postgres implements it.
+// Store is the persistence the server needs. internal/store.Postgres implements it. Owner data
+// is only reachable through a tenant.Tenant.
 type Store interface {
 	Ping(ctx context.Context) error
-	ListProperties(ctx context.Context) ([]domain.Property, error)
-	CreateProperty(ctx context.Context, p domain.NewProperty) (domain.Property, error)
+	tenant.Memberships
+
+	GetUser(ctx context.Context, id uuid.UUID) (domain.User, error)
+	UpdateUser(ctx context.Context, id uuid.UUID, p domain.UserPatch) (domain.User, error)
+	ListAccounts(ctx context.Context, userID uuid.UUID) ([]domain.AccountMembership, error)
+	CreateAccount(ctx context.Context, userID uuid.UUID, name string) (domain.AccountMembership, error)
+
+	ListProperties(ctx context.Context, t tenant.Tenant) ([]domain.Property, error)
+	CreateProperty(ctx context.Context, t tenant.Tenant, p domain.NewProperty) (domain.Property, error)
+
 	GetPropertyBySlug(ctx context.Context, slug string) (domain.Property, error)
 }
 
@@ -27,25 +40,38 @@ type Options struct {
 	BookingScheme string
 	// AllowAllOrigins opens CORS on every route. Use in development only.
 	AllowAllOrigins bool
-	Logger          *slog.Logger
+	// ClientIPHeader names the header a trusted proxy puts the client address in, for example
+	// Fly-Client-IP. Empty uses the connection's address.
+	ClientIPHeader string
+	Logger         *slog.Logger
 }
 
 // Server implements oapi.StrictServerInterface.
 type Server struct {
 	store Store
+	auth  *auth.Service
 	opts  Options
 	log   *slog.Logger
+	reqs  map[string]requirement
 }
 
 var _ oapi.StrictServerInterface = (*Server)(nil)
 
-// New returns a Server backed by store.
-func New(store Store, opts Options) *Server {
+// New returns a Server backed by store and signing people in with authService.
+func New(store Store, authService *auth.Service, opts Options) (*Server, error) {
 	log := opts.Logger
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Server{store: store, opts: opts, log: log}
+	spec, err := oapi.GetSwagger()
+	if err != nil {
+		return nil, fmt.Errorf("load embedded spec: %w", err)
+	}
+	reqs, err := requirementsFrom(spec)
+	if err != nil {
+		return nil, fmt.Errorf("read security requirements: %w", err)
+	}
+	return &Server{store: store, auth: authService, opts: opts, log: log, reqs: reqs}, nil
 }
 
 // GetHealth reports service health, including whether the database answers.
@@ -59,104 +85,6 @@ func (s *Server) GetHealth(ctx context.Context, _ oapi.GetHealthRequestObject) (
 		health = oapi.Health{Status: oapi.Degraded, Database: oapi.Down}
 	}
 	return oapi.GetHealth200JSONResponse(health), nil
-}
-
-// ListProperties returns the owner's properties.
-func (s *Server) ListProperties(ctx context.Context, _ oapi.ListPropertiesRequestObject) (oapi.ListPropertiesResponseObject, error) {
-	props, err := s.store.ListProperties(ctx)
-	if err != nil {
-		return nil, err
-	}
-	items := make([]oapi.Property, 0, len(props))
-	for _, p := range props {
-		items = append(items, s.toAPI(p))
-	}
-	return oapi.ListProperties200JSONResponse{Items: items}, nil
-}
-
-// CreateProperty validates input, derives the slug when needed and stores the property.
-func (s *Server) CreateProperty(ctx context.Context, req oapi.CreatePropertyRequestObject) (oapi.CreatePropertyResponseObject, error) {
-	if req.Body == nil {
-		return badRequest("invalid_body", "Request body is required."), nil
-	}
-
-	in := domain.NewProperty{
-		Name:          req.Body.Name,
-		BookingType:   domain.BookingType(req.Body.BookingType),
-		Currency:      string(req.Body.Currency),
-		BaseRateMinor: req.Body.BaseRate,
-	}
-	if req.Body.Slug != nil {
-		in.Slug = *req.Body.Slug
-	}
-	if req.Body.Location != nil {
-		in.Location = *req.Body.Location
-	}
-	in.Normalize()
-
-	if err := in.Validate(); err != nil {
-		var vErr *domain.ValidationError
-		if errors.As(err, &vErr) {
-			return badRequest("invalid_"+vErr.Field, vErr.Error()), nil
-		}
-		return nil, err
-	}
-
-	created, err := s.store.CreateProperty(ctx, in)
-	if errors.Is(err, domain.ErrSlugTaken) {
-		return oapi.CreateProperty409JSONResponse{
-			Code:    "slug_taken",
-			Message: "That booking page address is already taken.",
-		}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return oapi.CreateProperty201JSONResponse(s.toAPI(created)), nil
-}
-
-// GetPublicProperty returns what a guest sees on a booking page.
-func (s *Server) GetPublicProperty(ctx context.Context, req oapi.GetPublicPropertyRequestObject) (oapi.GetPublicPropertyResponseObject, error) {
-	p, err := s.store.GetPropertyBySlug(ctx, req.Slug)
-	if errors.Is(err, domain.ErrNotFound) {
-		return oapi.GetPublicProperty404JSONResponse{NotFoundJSONResponse: oapi.NotFoundJSONResponse{
-			Code:    "not_found",
-			Message: "There is no booking page at this address.",
-		}}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return oapi.GetPublicProperty200JSONResponse{
-		Slug:        p.Slug,
-		Name:        p.Name,
-		BookingType: oapi.BookingType(p.BookingType),
-		Location:    optional(p.Location),
-		Currency:    oapi.Currency(p.Currency),
-		BaseRate:    p.BaseRateMinor,
-	}, nil
-}
-
-func (s *Server) toAPI(p domain.Property) oapi.Property {
-	return oapi.Property{
-		Id:             p.ID,
-		Slug:           p.Slug,
-		Name:           p.Name,
-		BookingType:    oapi.BookingType(p.BookingType),
-		Location:       optional(p.Location),
-		Currency:       oapi.Currency(p.Currency),
-		BaseRate:       p.BaseRateMinor,
-		BookingPageUrl: s.bookingPageURL(p.Slug),
-		CreatedAt:      p.CreatedAt,
-	}
-}
-
-func (s *Server) bookingPageURL(slug string) string {
-	return s.opts.BookingScheme + "://" + slug + "." + s.opts.BookingDomain
-}
-
-func badRequest(code, message string) oapi.CreateProperty400JSONResponse {
-	return oapi.CreateProperty400JSONResponse{BadRequestJSONResponse: oapi.BadRequestJSONResponse{Code: code, Message: message}}
 }
 
 func optional(s string) *string {
