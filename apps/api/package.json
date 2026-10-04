@@ -1,0 +1,16 @@
+{
+  "name": "@staykey/api",
+  "private": true,
+  "description": "StayKey backend in Go. This package.json only lets Turborepo run the Go toolchain.",
+  "scripts": {
+    "dev": "go run ./cmd/api",
+    "build": "go build -o bin/api ./cmd/api",
+    "test": "go test ./...",
+    "typecheck": "go vet ./...",
+    "generate": "go generate ./...",
+    "migrate": "go run ./cmd/migrate up"
+  },
+  "devDependencies": {
+    "@staykey/api-spec": "workspace:*"
+  }
+}

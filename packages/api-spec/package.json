@@ -1,0 +1,12 @@
+{
+  "name": "@staykey/api-spec",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenAPI contract for the StayKey API. The Go server and the TypeScript client are both generated from openapi.yaml.",
+  "files": [
+    "openapi.yaml"
+  ],
+  "exports": {
+    "./openapi.yaml": "./openapi.yaml"
+  }
+}

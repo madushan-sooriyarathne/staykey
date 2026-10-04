@@ -1,0 +1,225 @@
+openapi: 3.0.3
+info:
+  title: StayKey API
+  version: 0.1.0
+  description: |
+    Contract for the StayKey backend. Owner endpoints live under /v1, public
+    endpoints used by booking pages and the widget live under /v1/public.
+    Money is always an integer amount in minor units (cents) with an ISO currency.
+servers:
+  - url: https://api.staykey.direct
+    description: Production
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: system
+  - name: properties
+  - name: public
+
+paths:
+  /healthz:
+    get:
+      tags: [system]
+      operationId: getHealth
+      summary: Service and database health
+      responses:
+        "200":
+          description: Health status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /v1/properties:
+    get:
+      tags: [properties]
+      operationId: listProperties
+      summary: List the owner's properties
+      responses:
+        "200":
+          description: Properties, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyList"
+    post:
+      tags: [properties]
+      operationId: createProperty
+      summary: Create a property and its booking page address
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewProperty"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: The booking page address is already taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/public/properties/{slug}:
+    get:
+      tags: [public]
+      operationId: getPublicProperty
+      summary: Public details for a property's booking page
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/Slug"
+      responses:
+        "200":
+          description: Public property details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicProperty"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  responses:
+    BadRequest:
+      description: The request was invalid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Health:
+      type: object
+      required: [status, database]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        database:
+          type: string
+          enum: [up, down]
+
+    Slug:
+      type: string
+      description: Lowercase subdomain label used for the booking page, for example "kingfisher" in kingfisher.staykey.direct.
+      pattern: "^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$"
+      example: kingfisher
+
+    BookingType:
+      type: string
+      description: Whether guests book the whole place or individual rooms.
+      enum: [entire, rooms]
+
+    Currency:
+      type: string
+      enum: [USD, LKR, EUR, GBP]
+
+    NewProperty:
+      type: object
+      required: [name, bookingType, currency, baseRate]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 80
+          example: Kingfisher Villa
+        slug:
+          $ref: "#/components/schemas/Slug"
+        bookingType:
+          $ref: "#/components/schemas/BookingType"
+        location:
+          type: string
+          maxLength: 160
+          example: Unawatuna, Galle
+        currency:
+          $ref: "#/components/schemas/Currency"
+        baseRate:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Nightly base rate in minor units.
+          example: 18000
+
+    Property:
+      type: object
+      required: [id, slug, name, bookingType, currency, baseRate, bookingPageUrl, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          $ref: "#/components/schemas/Slug"
+        name:
+          type: string
+        bookingType:
+          $ref: "#/components/schemas/BookingType"
+        location:
+          type: string
+        currency:
+          $ref: "#/components/schemas/Currency"
+        baseRate:
+          type: integer
+          format: int64
+        bookingPageUrl:
+          type: string
+          format: uri
+          example: https://kingfisher.staykey.direct
+        createdAt:
+          type: string
+          format: date-time
+
+    PropertyList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Property"
+
+    PublicProperty:
+      type: object
+      required: [slug, name, bookingType, currency, baseRate]
+      properties:
+        slug:
+          $ref: "#/components/schemas/Slug"
+        name:
+          type: string
+        bookingType:
+          $ref: "#/components/schemas/BookingType"
+        location:
+          type: string
+        currency:
+          $ref: "#/components/schemas/Currency"
+        baseRate:
+          type: integer
+          format: int64
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: slug_taken
+        message:
+          type: string
+          example: That booking page address is already taken.
