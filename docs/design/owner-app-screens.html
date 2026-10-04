@@ -1,0 +1,1578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Owner App Screens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --obsidian:#09090b;--graphite:#18181b;--slate:#27272a;--iron:#3f3f46;--steel:#52525b;
+  --fog:#71717a;--ash:#a1a1aa;--mist:#d4d4d8;--cloud:#ececee;--paper:#f4f4f5;--subtle:#fafafa;--snow:#ffffff;
+  --ember:#ff5a00;--ember-tint:#fff0e6;--ember-ink:#b83f00;
+  --magenta:#fe45e2;--magenta-tint:#ffedfc;--magenta-ink:#a3128c;
+  --font:'Cosmica','DM Sans',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --shadow-btn:inset 0 0.5px 0 0 rgba(255,255,255,.5),inset 0 9px 14px -5px rgba(117,123,133,.4),0 0 0 1.5px rgb(44,46,52),0 4px 6px 0 rgba(0,0,0,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--paper);color:var(--graphite);font-family:var(--font);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+a:focus-visible{outline:2px solid var(--obsidian);outline-offset:3px;border-radius:10000px}
+.page{max-width:1200px;margin:0 auto;padding:0 24px}
+
+/* Gallery chrome */
+.hero{padding-top:80px;padding-bottom:48px;display:grid;grid-template-columns:1.5fr 1fr;gap:48px;align-items:end}
+.hero h1{font-size:64px;line-height:1.12;font-weight:600;color:var(--obsidian)}
+.hero p{color:var(--steel);max-width:46ch}
+.hero .facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:4px 10px;border-radius:12px;border:1px solid var(--cloud);background:var(--snow);color:var(--graphite)}
+.tag.ember{background:var(--ember);border-color:var(--ember);color:#fff}
+.jump{position:sticky;top:0;z-index:20;background:rgba(244,244,245,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--cloud)}
+.jump .page{display:flex;gap:8px;overflow-x:auto;padding-top:12px;padding-bottom:12px;scrollbar-width:none}
+.jump a{flex:none;text-decoration:none;font-size:14px;padding:8px 16px;border-radius:10000px;background:var(--snow);border:1px solid var(--cloud);color:var(--graphite);white-space:nowrap}
+.jump a:hover{border-color:var(--mist)}
+.group{padding-top:80px;scroll-margin-top:64px}
+.group-head{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;margin-bottom:40px;padding-bottom:24px;border-bottom:1px solid var(--cloud)}
+.group-head h2{font-size:40px;line-height:1.28;font-weight:600;color:var(--obsidian)}
+.group-head p{max-width:46ch;color:var(--steel)}
+.group-head .count{font-size:14px;color:var(--fog);white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:64px 32px;justify-items:center}
+.shot{width:360px;max-width:100%;display:flex;flex-direction:column;gap:20px}
+.shot figcaption h3{font-size:18px;font-weight:600;color:var(--obsidian);display:flex;align-items:center;gap:8px}
+.shot figcaption p{font-size:14px;color:var(--steel);margin-top:4px}
+footer.foot{padding-top:96px;padding-bottom:64px;color:var(--fog);font-size:14px}
+
+/* Phone */
+.phone{position:relative;width:100%;height:760px;background:var(--paper);border:1px solid var(--mist);border-radius:48px;overflow:hidden;display:flex;flex-direction:column}
+.phone::before{content:'';position:absolute;top:11px;left:50%;transform:translateX(-50%);width:100px;height:28px;border-radius:10000px;background:var(--obsidian);z-index:8}
+.status{flex:none;height:50px;display:flex;align-items:center;justify-content:space-between;padding:6px 26px 0 34px;font-size:15px;font-weight:600;color:var(--obsidian);position:relative;z-index:7}
+.status .sys{display:flex;gap:6px;align-items:center}
+.homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:124px;height:5px;border-radius:10000px;background:var(--obsidian);z-index:9}
+.screen{flex:1;min-height:0;display:flex;flex-direction:column;position:relative}
+.tabbar{flex:none;display:grid;grid-template-columns:repeat(var(--tabs,5),1fr);background:var(--snow);border-top:1px solid var(--cloud);padding:8px 4px 28px}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;color:var(--ash)}
+.tab .ic{width:22px;height:22px}
+.tab.on{color:var(--obsidian);font-weight:600}
+.tab.on::after{content:'';width:4px;height:4px;border-radius:50%;background:var(--ember);margin-top:1px}
+
+/* Icons */
+.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ic.sm{width:16px;height:16px}
+
+/* App type and layout */
+.lhead{flex:none;padding:6px 20px 14px}
+.lhead-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.eyebrow{font-size:13px;color:var(--fog)}
+.lhead h1{font-size:30px;line-height:1.15;font-weight:600;color:var(--obsidian)}
+.appbar{flex:none;display:flex;align-items:center;gap:12px;padding:4px 16px 12px}
+.appbar h1{flex:1;text-align:center;font-size:17px;font-weight:600;color:var(--obsidian);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appbar .txt{min-width:40px;text-align:right;font-size:15px;font-weight:500;color:var(--obsidian)}
+.spacer{width:40px;flex:none}
+.iconbtn{width:40px;height:40px;flex:none;border-radius:50%;background:var(--snow);border:1px solid var(--cloud);display:grid;place-items:center;color:var(--iron);position:relative}
+.iconbtn .dot{position:absolute;top:8px;right:9px;width:9px;height:9px;border-radius:50%;background:var(--ember);border:2px solid var(--snow)}
+.switcher{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:7px 12px 7px 14px;border-radius:10000px;background:var(--snow);border:1px solid var(--cloud);font-size:14px;color:var(--graphite)}
+.body{flex:1;min-height:0;overflow:hidden;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.sec-label{font-size:13px;color:var(--fog);padding:6px 4px 0}
+.hint{font-size:13px;color:var(--fog)}
+.hint.pad{padding:0 4px}
+.card{background:var(--snow);border:1px solid var(--cloud);border-radius:28px;padding:20px;flex:none}
+.card.tight{padding:14px 16px;border-radius:24px}
+.card.list{padding:14px 20px 4px}
+.card-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}
+.card-title h2,.h2{font-size:17px;font-weight:600;color:var(--obsidian)}
+.card-title .meta{font-size:13px;color:var(--fog)}
+.row{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--cloud)}
+.card-title + .row,.row.first{border-top:0}
+.grow{flex:1;min-width:0}
+.t{font-size:15px;font-weight:500;color:var(--obsidian);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s{font-size:13px;color:var(--fog)}
+.end{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.amt{font-size:15px;font-weight:600;color:var(--obsidian)}
+.row > .ic{color:var(--ash)}
+.s.one{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t.wrap{white-space:normal}
+.compact .row{padding:10px 0}
+.iconbtn.ember{background:var(--ember);border-color:var(--ember);color:#fff;box-shadow:inset 0 0.5px 0 0 rgba(255,255,255,.5),0 0 0 1px rgba(255,90,0,.25)}
+.iconbtn.solid{background:var(--obsidian);border-color:var(--obsidian);color:#fff;box-shadow:var(--shadow-btn)}
+.av{width:40px;height:40px;flex:none;border-radius:50%;background:var(--paper);display:grid;place-items:center;font-size:14px;font-weight:600;color:var(--iron)}
+.av.lg{width:72px;height:72px;font-size:24px;background:var(--snow);border:1px solid var(--cloud)}
+.ibox{width:40px;height:40px;flex:none;border-radius:14px;background:var(--paper);display:grid;place-items:center;color:var(--iron);position:relative}
+.ibox.ember{background:var(--ember-tint);color:var(--ember)}
+.ibox .dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--ember);border:2px solid var(--snow)}
+.dt{width:44px;flex:none;border-radius:14px;background:var(--paper);text-align:center;padding:5px 0}
+.dt small{display:block;font-size:11px;color:var(--fog);line-height:1.2}
+.dt b{display:block;font-size:18px;font-weight:600;color:var(--obsidian);line-height:1.2}
+
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:1.4;padding:3px 8px;border-radius:12px;border:1px solid var(--cloud);color:var(--graphite);background:var(--snow);white-space:nowrap}
+.chip.fill{background:var(--iron);border-color:var(--iron);color:#fafafa}
+.chip.ink{background:var(--obsidian);border-color:var(--obsidian);color:#fff}
+.chip.ember{background:var(--ember);border-color:var(--ember);color:#fff;font-weight:500}
+.chip.spark{background:var(--magenta-tint);border-color:var(--magenta-tint);color:var(--magenta-ink);font-weight:500}
+.chip.ember-soft{background:var(--ember-tint);border-color:var(--ember-tint);color:var(--ember-ink);font-weight:500}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--magenta);box-shadow:0 0 0 3px rgba(254,69,226,.22);flex:none}
+.chip.soft{background:var(--paper);border-color:var(--paper);color:var(--iron)}
+.chip.dash{border-style:dashed;border-color:var(--ash);color:var(--iron)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 16px;border-radius:14px;font-size:15px;font-weight:500;white-space:nowrap;border:1px solid transparent}
+.btn.primary{background:var(--obsidian);color:#fff;box-shadow:var(--shadow-btn);border:0}
+.btn.ghost{background:var(--snow);color:var(--iron);border-color:var(--cloud)}
+.btn.neutral{background:var(--subtle);color:var(--graphite)}
+.btn.light{background:var(--snow);color:var(--obsidian)}
+.btn.on-dark{background:transparent;color:#fff;border-color:var(--steel)}
+.btn.dashed{background:transparent;color:var(--iron);border:1px dashed var(--ash)}
+.btn.sm{height:38px;font-size:14px;padding:0 12px}
+.btn.block{width:100%}
+.btn .ic{width:18px;height:18px}
+.bar{flex:none;display:flex;gap:8px;padding:12px 16px 30px;background:var(--snow);border-top:1px solid var(--cloud)}
+.bar .btn{flex:1}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+
+.field{display:flex;flex-direction:column;gap:6px;flex:none}
+.field > label{font-size:13px;color:var(--steel)}
+.input{min-height:48px;display:flex;align-items:center;gap:8px;padding:0 14px 0 16px;background:var(--snow);border:1px solid var(--cloud);border-radius:14px;font-size:15px;color:var(--graphite)}
+.input .grow{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.input .ph{color:var(--ash)}
+.input .ic{color:var(--fog)}
+.input.focus{border-color:var(--ember);box-shadow:0 0 0 3px var(--ember-tint)}
+.input.ta{min-height:84px;align-items:flex-start;padding:12px 16px;line-height:1.45}
+.seg{display:flex;gap:2px;padding:4px;background:var(--snow);border:1px solid var(--cloud);border-radius:10000px;flex:none}
+.seg span{flex:1;text-align:center;padding:7px 6px;border-radius:10000px;font-size:13px;color:var(--fog);white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.seg .on{background:var(--obsidian);color:#fff;font-weight:500}
+.seg .n{min-width:18px;height:18px;padding:0 5px;border-radius:10000px;background:var(--ember);color:#fff;font-size:11px;font-weight:600;display:inline-grid;place-items:center}
+.pills{display:flex;gap:8px;flex-wrap:wrap}
+.pill{padding:7px 12px;border-radius:10000px;border:1px solid var(--cloud);background:var(--snow);font-size:13px;color:var(--iron);white-space:nowrap}
+.pill.on{background:var(--obsidian);border-color:var(--obsidian);color:#fff}
+.switch{width:44px;height:26px;border-radius:10000px;background:var(--mist);position:relative;flex:none}
+.switch::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.switch.on{background:var(--obsidian)}
+.switch.on::after{left:21px}
+.stepper{display:flex;align-items:center;gap:10px;flex:none}
+.stepper b{min-width:22px;text-align:center;font-weight:600;color:var(--obsidian)}
+.stepper i{width:32px;height:32px;border-radius:50%;border:1px solid var(--cloud);display:grid;place-items:center;color:var(--iron);background:var(--snow);font-style:normal;font-size:18px;line-height:1}
+.radio{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--mist);flex:none;position:relative}
+.radio.on{border-color:var(--obsidian)}
+.radio.on::after{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--obsidian)}
+.opt{display:flex;gap:12px;align-items:flex-start;padding:16px;border-radius:24px;background:var(--snow);border:1px solid var(--cloud);flex:none}
+.opt.on{border:1.5px solid var(--obsidian)}
+.opt .radio{margin-top:2px}
+
+.dark{background:var(--graphite);color:#fff;border-radius:28px;padding:20px;flex:none}
+.dark .h2,.dark .t{color:#fff}
+.glow{position:relative;overflow:hidden;isolation:isolate}
+.glow::before{content:'';position:absolute;z-index:-1;top:-110px;right:-90px;width:250px;height:250px;border-radius:50%;background:radial-gradient(circle,rgba(254,69,226,.5) 0%,rgba(255,90,0,.3) 38%,rgba(255,90,0,0) 70%)}
+.dark .s{color:var(--ash)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:14px;color:var(--graphite)}
+.kv > span:first-child{color:var(--steel)}
+.kv.total{border-top:1px solid var(--cloud);margin-top:6px;padding-top:12px;font-size:15px;font-weight:600;color:var(--obsidian)}
+.kv.total > span:first-child{color:var(--obsidian)}
+.stat .n{font-size:28px;font-weight:600;color:var(--obsidian);line-height:1.1}
+.stat .l{font-size:13px;color:var(--steel);margin-top:2px}
+.photo{background:linear-gradient(160deg,var(--cloud),var(--mist));display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:12px;color:var(--steel);font-size:12px;border-radius:24px;flex:none;position:relative}
+.photo .ic{width:18px;height:18px;color:var(--fog)}
+.photo .chip{position:absolute;top:10px;left:10px}
+.fab{position:absolute;right:16px;bottom:16px;width:56px;height:56px;border-radius:50%;background:var(--obsidian);color:#fff;display:grid;place-items:center;box-shadow:var(--shadow-btn);z-index:3}
+.fab .ic{width:24px;height:24px}
+.divider{height:1px;background:var(--cloud);margin:12px 0}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.split > div + div{border-left:1px solid var(--cloud);padding-left:12px}
+.progress{height:6px;border-radius:10000px;background:var(--cloud);overflow:hidden}
+.progress > i{display:block;height:100%;background:var(--ember);border-radius:10000px}
+.dark .progress{background:var(--iron)}
+.dark .progress > i{background:linear-gradient(90deg,var(--ember),var(--magenta))}
+
+/* Sheets */
+.under{position:absolute;inset:0;padding:6px 16px;display:flex;flex-direction:column;gap:12px}
+.under .blk{background:var(--snow);border:1px solid var(--cloud);border-radius:28px;flex:none}
+.scrim{position:absolute;inset:0;background:rgba(9,9,11,.38);z-index:4}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:5;background:var(--snow);border-radius:32px 32px 0 0;padding:10px 20px 34px;display:flex;flex-direction:column;gap:16px}
+.grab{width:40px;height:5px;border-radius:10000px;background:var(--mist);margin:0 auto}
+.sheet h2{font-size:22px;font-weight:600;color:var(--obsidian);line-height:1.2}
+
+/* Calendar */
+.cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.cal-head .nav{display:flex;gap:6px}
+.cal-head .nav .iconbtn{width:34px;height:34px}
+.wk,.days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.wk{text-align:center;font-size:12px;color:var(--fog);margin-bottom:6px}
+.d{height:46px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;line-height:1.15;color:var(--graphite);position:relative}
+.d small{font-size:10px;color:var(--ash)}
+.d.out,.d.past{color:var(--ash)}
+.d.direct{background:var(--ember);color:#fff;font-weight:500}
+.d.direct small{color:rgba(255,255,255,.75)}
+.d.ota{background:var(--mist);color:var(--obsidian)}
+.d.ota small{color:var(--steel)}
+.d.block{background:repeating-linear-gradient(135deg,var(--paper) 0 4px,var(--cloud) 4px 8px);color:var(--steel)}
+.d.req{border:1.5px dashed var(--steel)}
+.d.today{font-weight:700}
+.d.today::after{content:'';position:absolute;bottom:5px;width:4px;height:4px;border-radius:50%;background:currentColor}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;color:var(--steel)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:5px;display:inline-block}
+
+/* Misc */
+.bars{display:flex;align-items:flex-end;gap:10px;height:116px;margin-top:16px}
+.bars div{flex:1;background:var(--mist);border-radius:8px 8px 4px 4px}
+.bars div.cur{background:linear-gradient(180deg,var(--magenta),var(--ember))}
+.bar-labels{display:flex;gap:10px;margin-top:6px}
+.bar-labels span{flex:1;text-align:center;font-size:11px;color:var(--fog)}
+.stack{display:flex;height:12px;gap:3px;margin:12px 0 4px}
+.stack i{display:block;height:100%;border-radius:10000px}
+.code{background:var(--graphite);color:var(--cloud);border-radius:20px;padding:14px 16px;font-size:12.5px;line-height:1.6;white-space:pre-wrap;word-break:break-all;flex:none}
+.mini{border:1px solid var(--cloud);border-radius:24px;background:var(--paper);padding:10px;display:flex;flex-direction:column;gap:8px;flex:none}
+.mini .photo{height:84px;border-radius:16px}
+.mini .input{min-height:36px;font-size:12px;border-radius:12px;padding:0 10px}
+.mini .btn{height:36px;font-size:13px;border-radius:12px}
+.swatch{width:32px;height:32px;border-radius:50%;flex:none;border:1px solid var(--cloud)}
+.swatch.on{box-shadow:0 0 0 2px var(--snow),0 0 0 4px var(--obsidian)}
+.map{height:110px;border-radius:20px;background:repeating-linear-gradient(0deg,transparent 0 23px,var(--cloud) 23px 24px),repeating-linear-gradient(90deg,transparent 0 23px,var(--cloud) 23px 24px),var(--subtle);border:1px solid var(--cloud);display:grid;place-items:center;color:var(--obsidian)}
+.map .ic{width:28px;height:28px;fill:var(--snow)}
+.var{display:inline-block;font-size:12px;padding:1px 6px;border-radius:12px;background:var(--paper);color:var(--iron);border:1px solid var(--cloud)}
+.colhead{display:flex;justify-content:flex-end;gap:8px;font-size:12px;color:var(--fog);padding:0 0 4px}
+.colhead span{width:56px;text-align:center}
+.togs{display:flex;gap:8px}
+.togs > div{width:56px;display:grid;place-items:center}
+
+@media (max-width:900px){
+  .hero{grid-template-columns:1fr;gap:24px;padding-top:56px}
+  .hero h1{font-size:48px}
+}
+@media (max-width:640px){
+  .page{padding:0 16px}
+  .hero h1{font-size:40px;line-height:1.15}
+  .group{padding-top:56px}
+  .group-head{flex-direction:column;align-items:flex-start;gap:12px}
+  .group-head h2{font-size:32px}
+  .grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M8 2.5v4M16 2.5v4M3 10h18"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 6h18M7 12h10M10 18h4"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="14" height="14" rx="3"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 3.13a4 4 0 0 1 0 7.75M22 21a7 7 0 0 0-4-6.3"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></symbol>
+  <symbol id="i-bank" viewBox="0 0 24 24"><path d="M3 21h18M4 10h16M5 10v8M9.5 10v8M14.5 10v8M19 10v8M12 3l9 5H3z"/></symbol>
+  <symbol id="i-cash" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="3"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.41 0l8.59-8.59a1 1 0 0 0 0-1.41z"/><circle cx="7" cy="7" r="1.5"/></symbol>
+  <symbol id="i-percent" viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18M7 16v-4M12 16V8M17 16v-7"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-bed" viewBox="0 0 24 24"><path d="M2 4v16M2 8h18a2 2 0 0 1 2 2v10M2 17h20M6 8v9"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="1.2"/><circle cx="17.5" cy="10.5" r="1.2"/><circle cx="8.5" cy="7.5" r="1.2"/><circle cx="6.5" cy="12.5" r="1.2"/><path d="M12 2a10 10 0 0 0 0 20c.93 0 1.5-.75 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99a1.5 1.5 0 0 1 1.5-1.5H16a6 6 0 0 0 6-6c0-4.97-4.48-9-10-9z"/></symbol>
+  <symbol id="i-rules" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l3-2 3 2 2-2 2 2 3-2 3 2V2l-3 2-3-2-2 2-2-2-3 2zM8 9h8M8 13h6"/></symbol>
+  <symbol id="i-signal" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor" stroke="none"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor" stroke="none"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 16 12"><path d="M1 4.2a10 10 0 0 1 14 0M3.6 6.9a6.3 6.3 0 0 1 8.8 0M6.2 9.5a2.6 2.6 0 0 1 3.6 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-battery" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="9" rx="2" fill="currentColor" stroke="none"/><path d="M25 4.5v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".45"/></symbol>
+</svg>
+
+<header class="page hero">
+  <div>
+    <h1>Owner app screens</h1>
+  </div>
+  <div>
+    <p>All 37 V1 screens of the iOS and Android owner app, excluding onboarding. Styled on the brand reference: zinc neutrals and hairline borders, with Ember marking direct bookings and anything that needs the owner, and Magenta Spark marking wins and live status.</p>
+    <div class="facts">
+      <span class="tag">37 screens</span>
+      <span class="tag">5-tab navigation</span>
+      <span class="tag">Caretaker view</span>
+      <span class="tag"><i class="sw" style="background:var(--ember)"></i>Ember: direct and action</span>
+      <span class="tag"><i class="sw" style="background:var(--magenta)"></i>Magenta Spark: wins and live</span>
+    </div>
+  </div>
+</header>
+
+<nav class="jump" aria-label="Screen groups">
+  <div class="page">
+    <a href="#main">Main tabs</a>
+    <a href="#booking">Booking screens</a>
+    <a href="#sheets">Calendar sheets</a>
+    <a href="#property">Property settings</a>
+    <a href="#more">More</a>
+    <a href="#caretaker">Caretaker view</a>
+  </div>
+</nav>
+
+<main class="page">
+
+<section class="group" id="main">
+  <div class="group-head">
+    <div><h2>Main tabs</h2></div>
+    <p>The five tabs an owner moves between all day. Today opens by default after sign-in.</p>
+  </div>
+  <div class="grid">
+
+    <!-- Today -->
+    <figure class="shot">
+      <div class="phone" data-tab="today">
+        <div class="screen">
+          <div class="lhead">
+            <div class="lhead-row">
+              <div><div class="eyebrow">Sunday, 4 October</div><h1>Today</h1></div>
+              <div style="display:flex;gap:8px"><div class="iconbtn"><svg class="ic"><use href="#i-bell"/></svg><span class="dot"></span></div><div class="iconbtn ember"><svg class="ic"><use href="#i-plus"/></svg></div></div>
+            </div>
+            <div class="switcher">All properties <svg class="ic sm"><use href="#i-chev-d"/></svg></div>
+          </div>
+          <div class="body">
+            <div class="three">
+              <div class="card tight stat"><div class="n">2</div><div class="l">Arrivals</div></div>
+              <div class="card tight stat"><div class="n">1</div><div class="l">Departure</div></div>
+              <div class="card tight stat"><div class="n">1</div><div class="l">In house</div></div>
+            </div>
+            <div class="dark glow">
+              <div class="card-title"><span class="h2">2 booking requests</span><span class="chip ember">Reply needed</span></div>
+              <div style="margin:12px 0 14px">
+                <div class="t">Priya Nair</div>
+                <div class="s">Family Suite, Coral Bay House</div>
+                <div class="s">10 to 12 Oct, 3 guests, $260</div>
+              </div>
+              <div class="two"><span class="btn on-dark sm">Decline</span><span class="btn light sm">Approve</span></div>
+              <div class="s" style="margin-top:12px">Auto-declines in 18 hours. 1 more request waiting.</div>
+            </div>
+            <div class="card list">
+              <div class="card-title"><h2>Arrivals</h2><span class="meta">2 today</span></div>
+              <div class="row"><div class="av">EL</div><div class="grow"><div class="t">Emma Larsen</div><div class="s">Kingfisher Villa, 2:00 PM</div></div><span class="chip spark">Paid</span></div>
+              <div class="row"><div class="av">AM</div><div class="grow"><div class="t">Arjun Mehta</div><div class="s">Ocean Room, 6:30 PM</div></div><span class="chip ember-soft">$180 due</span></div>
+            </div>
+          </div>
+                  </div>
+      </div>
+      <figcaption><h3>Today</h3><p>Daily snapshot of arrivals, departures, in-house guests, requests and unpaid balances. The plus button adds a manual booking.</p></figcaption>
+    </figure>
+
+    <!-- Calendar -->
+    <figure class="shot">
+      <div class="phone" data-tab="calendar">
+        <div class="screen">
+          <div class="lhead">
+            <div class="lhead-row">
+              <h1>Calendar</h1>
+              <span class="btn ghost sm">Today</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+              <div class="switcher" style="margin:0">Kingfisher Villa <svg class="ic sm"><use href="#i-chev-d"/></svg></div>
+              <div class="seg" style="flex:1"><span class="on">Month</span><span>Timeline</span></div>
+            </div>
+          </div>
+          <div class="body">
+            <div class="card" style="padding:16px">
+              <div class="cal-head">
+                <span class="h2">October 2026</span>
+                <div class="nav"><span class="iconbtn"><svg class="ic sm"><use href="#i-chev-l"/></svg></span><span class="iconbtn"><svg class="ic sm"><use href="#i-chev-r"/></svg></span></div>
+              </div>
+              <div class="wk"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+              <div class="days">
+                <div class="d out">28</div><div class="d out">29</div><div class="d out">30</div><div class="d past">1</div><div class="d past">2</div><div class="d past">3</div><div class="d direct today">4</div>
+                <div class="d direct">5</div><div class="d direct">6</div><div class="d direct">7</div><div class="d">8<small>$180</small></div><div class="d">9<small>$220</small></div><div class="d ota">10</div><div class="d ota">11</div>
+                <div class="d ota">12</div><div class="d">13<small>$180</small></div><div class="d block">14</div><div class="d">15<small>$180</small></div><div class="d req">16</div><div class="d req">17</div><div class="d req">18</div>
+                <div class="d">19<small>$180</small></div><div class="d">20<small>$180</small></div><div class="d">21<small>$180</small></div><div class="d ota">22</div><div class="d ota">23</div><div class="d ota">24</div><div class="d ota">25</div>
+                <div class="d ota">26</div><div class="d">27<small>$180</small></div><div class="d">28<small>$180</small></div><div class="d">29<small>$180</small></div><div class="d">30<small>$220</small></div><div class="d">31<small>$220</small></div><div class="d out">1</div>
+              </div>
+            </div>
+            <div class="card tight">
+              <div class="legend">
+                <span><i class="sw" style="background:var(--ember)"></i>Direct</span>
+                <span><i class="sw" style="background:var(--mist)"></i>OTA via iCal</span>
+                <span><i class="sw" style="background:repeating-linear-gradient(135deg,var(--paper) 0 3px,var(--cloud) 3px 6px);border:1px solid var(--cloud)"></i>Blocked</span>
+                <span><i class="sw" style="border:1.5px dashed var(--steel)"></i>Request</span>
+              </div>
+            </div>
+            <p class="hint pad">Tap two dates to add a booking, block nights or change rates.</p>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Calendar</h3><p>Month view per unit with nightly rates on open dates, plus a timeline view across units. Selecting a range opens booking, block and rate actions.</p></figcaption>
+    </figure>
+
+    <!-- Bookings -->
+    <figure class="shot">
+      <div class="phone" data-tab="bookings">
+        <div class="screen">
+          <div class="lhead">
+            <div class="lhead-row">
+              <h1>Bookings</h1>
+              <div class="iconbtn"><svg class="ic"><use href="#i-filter"/></svg></div>
+            </div>
+          </div>
+          <div class="body">
+            <div class="input"><svg class="ic"><use href="#i-search"/></svg><span class="ph grow">Search guest or reference</span></div>
+            <div class="seg"><span class="on">Upcoming</span><span>Pending <i class="n">2</i></span><span>Past</span><span>Cancelled</span></div>
+            <div class="sec-label">Today</div>
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><div class="dt"><small>Oct</small><b>4</b></div><div class="grow"><div class="t">Emma Larsen</div><div class="s one">Kingfisher Villa</div></div><div class="end"><span class="amt">$832</span><span class="chip fill">Confirmed</span></div></div>
+              <div class="row"><div class="dt"><small>Oct</small><b>4</b></div><div class="grow"><div class="t">Arjun Mehta</div><div class="s one">Ocean Room, WhatsApp</div></div><div class="end"><span class="amt">$270</span><span class="chip ember-soft">$180 due</span></div></div>
+            </div>
+            <div class="sec-label">This week</div>
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><div class="dt"><small>Oct</small><b>10</b></div><div class="grow"><div class="t">Booking.com stay</div><div class="s one">Kingfisher Villa, 3 nights</div></div><div class="end"><span class="chip soft">iCal</span></div></div>
+              <div class="row"><div class="dt"><small>Oct</small><b>10</b></div><div class="grow"><div class="t">Priya Nair</div><div class="s one">Family Suite, 2 nights</div></div><div class="end"><span class="amt">$260</span><span class="chip dash">Requested</span></div></div>
+              <div class="row"><div class="dt"><small>Oct</small><b>16</b></div><div class="grow"><div class="t">Lukas Weber</div><div class="s one">Kingfisher Villa, 3 nights</div></div><div class="end"><span class="amt">$620</span><span class="chip dash">Requested</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Bookings</h3><p>Searchable list split into upcoming, pending, past and cancelled, filterable by property, source and dates.</p></figcaption>
+    </figure>
+
+    <!-- Properties -->
+    <figure class="shot">
+      <div class="phone" data-tab="properties">
+        <div class="screen">
+          <div class="lhead">
+            <div class="lhead-row">
+              <h1>Properties</h1>
+              <span class="btn ghost sm"><svg class="ic"><use href="#i-plus"/></svg>Add</span>
+            </div>
+          </div>
+          <div class="body">
+            <div class="card" style="padding:0;overflow:hidden">
+              <div class="photo" style="height:148px;border-radius:0"><span>Pool and garden</span><svg class="ic"><use href="#i-image"/></svg></div>
+              <div style="padding:16px 20px 20px">
+                <div class="h2" style="font-size:20px">Kingfisher Villa</div>
+                <div class="s">Unawatuna, Galle</div>
+                <div class="chips" style="margin:12px 0 14px"><span class="chip soft">Entire villa</span><span class="chip spark"><i class="pulse"></i>Page live</span><span class="chip ember">1 sync issue</span></div>
+                <div class="split"><div class="stat"><div class="n" style="font-size:22px">61%</div><div class="l">October occupancy</div></div><div class="stat"><div class="n" style="font-size:22px">Today</div><div class="l">Next arrival</div></div></div>
+              </div>
+            </div>
+            <div class="card" style="padding:0;overflow:hidden">
+              <div class="photo" style="height:148px;border-radius:0"><span>Ocean view terrace</span><svg class="ic"><use href="#i-image"/></svg></div>
+              <div style="padding:16px 20px 20px">
+                <div class="h2" style="font-size:20px">Coral Bay House</div>
+                <div class="s">Mirissa, Matara</div>
+                <div class="chips" style="margin:12px 0 14px"><span class="chip soft">3 rooms</span><span class="chip spark"><i class="pulse"></i>Page live</span></div>
+                <div class="split"><div class="stat"><div class="n" style="font-size:22px">68%</div><div class="l">October occupancy</div></div><div class="stat"><div class="n" style="font-size:22px">Today</div><div class="l">Next arrival</div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Properties</h3><p>Every property with its booking page status and any setup issue, leading into that property's settings.</p></figcaption>
+    </figure>
+
+    <!-- More -->
+    <figure class="shot">
+      <div class="phone" data-tab="more">
+        <div class="screen">
+          <div class="lhead"><h1>More</h1></div>
+          <div class="body">
+            <div class="card tight">
+              <div class="row first" style="padding:2px 0"><div class="av" style="width:48px;height:48px">NP</div><div class="grow"><div class="t">Nadeesha Perera</div><div class="s">Owner, 2 properties</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+            </div>
+            <div class="card list compact" style="padding-top:4px">
+              <div class="row first"><span class="ibox"><svg class="ic"><use href="#i-chart"/></svg></span><div class="grow t">Insights</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-bell"/></svg></span><div class="grow t">Activity</div><span class="chip ember">3 new</span><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-users"/></svg></span><div class="grow t">Team</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+            </div>
+            <div class="card list compact" style="padding-top:4px">
+              <div class="row first"><span class="ibox"><svg class="ic"><use href="#i-file"/></svg></span><div class="grow t">Message templates</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-sliders"/></svg></span><div class="grow t">Notification settings</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+            </div>
+            <div class="card list compact" style="padding-top:4px">
+              <div class="row first"><span class="ibox"><svg class="ic"><use href="#i-card"/></svg></span><div class="grow t">Subscription</div><span class="chip soft">Trial</span><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-user"/></svg></span><div class="grow t">Profile and account</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-help"/></svg></span><div class="grow t">Help and support</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>More</h3><p>Hub for insights, activity, team, templates, notifications, subscription, account and support.</p></figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<section class="group" id="booking">
+  <div class="group-head">
+    <div><h2>Booking screens</h2></div>
+    <p>Everything that happens to a single booking, from a WhatsApp entry to a cancellation.</p>
+  </div>
+  <div class="grid">
+
+    <!-- Booking detail -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>KV-2041</h1>
+            <span class="iconbtn"><svg class="ic"><use href="#i-dots"/></svg></span>
+          </div>
+          <div class="body">
+            <div style="padding:0 4px">
+              <div class="chips"><span class="chip fill">Confirmed</span><span class="chip spark">Paid in full</span></div>
+              <div style="font-size:26px;font-weight:600;color:var(--obsidian);line-height:1.2;margin-top:10px">Emma Larsen</div>
+              <div class="s">Kingfisher Villa, 4 nights, 2 adults</div>
+            </div>
+            <div class="three">
+              <span class="btn ghost sm"><svg class="ic"><use href="#i-chat"/></svg>WhatsApp</span>
+              <span class="btn ghost sm"><svg class="ic"><use href="#i-phone"/></svg>Call</span>
+              <span class="btn ghost sm"><svg class="ic"><use href="#i-mail"/></svg>Email</span>
+            </div>
+            <div class="card">
+              <div class="split">
+                <div><div class="s">Check-in</div><div class="t">Sun 4 Oct</div><div class="s">From 2:00 PM</div></div>
+                <div><div class="s">Check-out</div><div class="t">Thu 8 Oct</div><div class="s">By 11:00 AM</div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title" style="margin-bottom:6px"><h2>Payment</h2><span class="chip ember-soft">Direct booking</span></div>
+              <div class="kv"><span>4 nights</span><span>$720</span></div>
+              <div class="kv"><span>Airport transfer</span><span>$40</span></div>
+              <div class="kv"><span>Service charge 10%</span><span>$72</span></div>
+              <div class="kv total"><span>Total</span><span>$832</span></div>
+              <div class="kv"><span>Card, 28 Sep</span><span>$832</span></div>
+            </div>
+          </div>
+          <div class="bar"><span class="btn ghost">Modify</span><span class="btn primary">Check in</span></div>
+        </div>
+      </div>
+      <figcaption><h3>Booking detail</h3><p>Guest, stay, price breakdown and payment ledger in one place, with the actions that fit the booking's status.</p></figcaption>
+    </figure>
+
+    <!-- New booking -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-x"/></svg></span>
+            <h1>New booking</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="field"><label>Unit</label><div class="input"><span class="grow">Kingfisher Villa</span><svg class="ic"><use href="#i-chev-d"/></svg></div></div>
+            <div class="two">
+              <div class="field"><label>Check-in</label><div class="input"><span class="grow">Thu 29 Oct</span></div></div>
+              <div class="field"><label>Check-out</label><div class="input"><span class="grow">Sun 1 Nov</span></div></div>
+            </div>
+            <div class="field"><label>Guest name</label><div class="input focus"><span class="grow">Daniel Fernando</span></div></div>
+            <div class="field"><label>Phone</label><div class="input"><span class="grow">+94 77 123 4567</span><span class="s">Paste</span></div></div>
+            <div class="field"><label>Booked through</label><div class="pills"><span class="pill on">WhatsApp</span><span class="pill">Phone</span><span class="pill">Walk-in</span><span class="pill">Other</span></div></div>
+            <div class="card tight">
+              <div class="kv" style="align-items:center"><span>3 nights from your rates</span><span class="amt">$620</span></div>
+              <div class="kv" style="align-items:center"><span>Deposit received</span><span class="switch on"></span></div>
+              <div class="s">$200 by bank transfer</div>
+            </div>
+          </div>
+          <div class="bar"><span class="btn primary">Save booking</span></div>
+        </div>
+      </div>
+      <figcaption><h3>New or edit booking</h3><p>Manual entry for WhatsApp and phone bookings. Price fills from the rate rules and can be overridden.</p></figcaption>
+    </figure>
+
+    <!-- Record payment -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Record payment</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="card tight">
+              <div class="row first" style="padding:2px 0"><div class="av">AM</div><div class="grow"><div class="t">Arjun Mehta</div><div class="s">Ocean Room, 4 to 7 Oct</div></div><div class="end"><span class="s">Balance</span><span class="amt">$180</span></div></div>
+            </div>
+            <div class="card">
+              <div class="card-title" style="margin-bottom:12px"><h2>Bank slip</h2><span class="meta">3 Oct, 9:12 PM</span></div>
+              <div class="photo" style="height:150px;border-radius:20px"><span>Transfer slip from guest</span><svg class="ic"><use href="#i-image"/></svg></div>
+              <p class="hint" style="margin-top:10px">Check the money has reached your account before you accept the slip.</p>
+            </div>
+            <div class="field"><label>Amount received</label><div class="input"><span class="grow">$180.00</span></div></div>
+            <div class="field"><label>Method</label><div class="pills"><span class="pill on">Bank transfer</span><span class="pill">Cash</span><span class="pill">Card</span></div></div>
+          </div>
+          <div class="bar"><span class="btn ghost">Reject slip</span><span class="btn primary">Record $180</span></div>
+        </div>
+      </div>
+      <figcaption><h3>Record payment</h3><p>Logs a payment's amount and method, and shows any bank slip the guest uploaded so the owner can accept or reject it.</p></figcaption>
+    </figure>
+
+    <!-- Cancel booking -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Cancel booking</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="card tight">
+              <div class="row first" style="padding:2px 0"><div class="av">MS</div><div class="grow"><div class="t">Mia Schneider</div><div class="s">Kingfisher Villa, 2 to 5 Nov</div></div><div class="end"><span class="s">Paid</span><span class="amt">$660</span></div></div>
+            </div>
+            <div class="card">
+              <div class="h2">Refund</div>
+              <p class="s" style="margin:4px 0 12px">Moderate policy gives a full refund up to 14 days before arrival. Mia arrives in 29 days.</p>
+              <div class="input"><span class="grow">$660.00</span><span class="chip soft">Full refund</span></div>
+            </div>
+            <div class="card list" style="padding-top:12px">
+              <div class="h2" style="margin-bottom:2px">Reason</div>
+              <div class="row first"><span class="radio on"></span><div class="grow t" style="font-weight:400">Guest changed plans</div></div>
+              <div class="row"><span class="radio"></span><div class="grow t" style="font-weight:400">I need the dates</div></div>
+              <div class="row"><span class="radio"></span><div class="grow t" style="font-weight:400">Guest stopped replying</div></div>
+            </div>
+            <div class="card tight"><div class="kv" style="align-items:center;padding:2px 0"><span style="color:var(--graphite)">Email Mia about the cancellation</span><span class="switch on"></span></div></div>
+          </div>
+          <div class="bar"><span class="btn ghost">Keep booking</span><span class="btn primary">Cancel booking</span></div>
+        </div>
+      </div>
+      <figcaption><h3>Cancel booking</h3><p>Suggests a refund from the cancellation policy, records a reason and frees the dates on the calendar.</p></figcaption>
+    </figure>
+
+    <!-- Contact guest sheet -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="under">
+            <div class="blk" style="height:44px;width:60%;border-radius:12px"></div>
+            <div class="blk" style="height:48px"></div>
+            <div class="blk" style="height:150px"></div>
+            <div class="blk" style="height:210px"></div>
+          </div>
+          <div class="scrim"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="row first" style="padding:0"><div class="av">EL</div><div class="grow"><div class="t">Emma Larsen</div><div class="s">+44 7700 900123</div></div><span class="iconbtn"><svg class="ic"><use href="#i-x"/></svg></span></div>
+            <div>
+              <div class="row first"><span class="ibox"><svg class="ic"><use href="#i-chat"/></svg></span><div class="grow"><div class="t">WhatsApp</div><div class="s">Open a chat with Emma</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-phone"/></svg></span><div class="grow"><div class="t">Call</div><div class="s">+44 7700 900123</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-mail"/></svg></span><div class="grow"><div class="t">Email</div><div class="s">emma.larsen@example.com</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+            </div>
+            <div>
+              <div class="sec-label" style="padding:0 0 4px">Send a template on WhatsApp</div>
+              <div class="pills"><span class="pill">Directions and check-in</span><span class="pill">Payment reminder</span><span class="pill">Thank you</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Contact guest</h3><p>Bottom sheet for reaching the guest by WhatsApp, call or email, with prefilled message templates.</p></figcaption>
+    </figure>
+
+    <!-- Activity -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Activity</h1>
+            <span class="txt">Mark read</span>
+          </div>
+          <div class="body">
+            <div class="seg"><span class="on">All</span><span>Bookings</span><span>Payments</span><span>Sync</span></div>
+            <div class="sec-label">Today</div>
+            <div class="card list" style="padding-top:4px">
+              <div class="row first" style="align-items:flex-start"><span class="ibox"><svg class="ic"><use href="#i-calendar"/></svg><i class="dot"></i></span><div class="grow"><div class="t wrap">Request from Priya Nair</div><div class="s">Family Suite, 10 to 12 Oct, $260</div></div><span class="s">9:58 AM</span></div>
+              <div class="row" style="align-items:flex-start"><span class="ibox ember"><svg class="ic"><use href="#i-alert"/></svg><i class="dot"></i></span><div class="grow"><div class="t wrap">Airbnb sync failed</div><div class="s">Kingfisher Villa, retrying every 15 minutes</div></div><span class="s">9:40 AM</span></div>
+            </div>
+            <div class="sec-label">Yesterday</div>
+            <div class="card list" style="padding-top:4px">
+              <div class="row first" style="align-items:flex-start"><span class="ibox"><svg class="ic"><use href="#i-upload"/></svg><i class="dot"></i></span><div class="grow"><div class="t wrap">Bank slip from Arjun Mehta</div><div class="s">$180 balance for Ocean Room</div></div><span class="s">9:12 PM</span></div>
+              <div class="row" style="align-items:flex-start"><span class="ibox"><svg class="ic"><use href="#i-calendar"/></svg></span><div class="grow"><div class="t wrap">Request from Lukas Weber</div><div class="s">Kingfisher Villa, 16 to 19 Oct</div></div><span class="s">4:05 PM</span></div>
+              <div class="row" style="align-items:flex-start"><span class="ibox"><svg class="ic"><use href="#i-refresh"/></svg></span><div class="grow"><div class="t wrap">Booking.com stay imported</div><div class="s">Kingfisher Villa, 10 to 13 Oct</div></div><span class="s">11:20 AM</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Activity</h3><p>Every alert in one feed: new bookings, requests, slips, cancellations and calendar sync problems.</p></figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<section class="group" id="sheets">
+  <div class="group-head">
+    <div><h2>Calendar sheets</h2></div>
+    <p>Quick actions that open after the owner selects a date range on the calendar.</p>
+  </div>
+  <div class="grid">
+
+    <!-- Block dates -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="under">
+            <div class="blk" style="height:44px;width:50%;border-radius:12px"></div>
+            <div class="blk" style="height:44px;border-radius:10000px"></div>
+            <div class="blk" style="height:330px"></div>
+          </div>
+          <div class="scrim"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div><h2>Block dates</h2><div class="s">Kingfisher Villa</div></div>
+            <div class="field"><label>Dates</label><div class="input"><span class="grow">Wed 14 Oct to Thu 15 Oct</span><span class="s">1 night</span></div></div>
+            <div class="field"><label>Reason</label><div class="pills"><span class="pill on">Maintenance</span><span class="pill">Owner stay</span><span class="pill">Other</span></div></div>
+            <div class="field"><label>Note for your team</label><div class="input"><span class="grow">Pool resurfacing</span></div></div>
+            <p class="hint">Blocked nights go into your iCal export, so Airbnb and Booking.com close them too.</p>
+            <span class="btn primary block">Block 1 night</span>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Block dates</h3><p>Closes a range for one or more units with an optional reason and team note.</p></figcaption>
+    </figure>
+
+    <!-- Edit rates -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="under">
+            <div class="blk" style="height:44px;width:50%;border-radius:12px"></div>
+            <div class="blk" style="height:44px;border-radius:10000px"></div>
+            <div class="blk" style="height:330px"></div>
+          </div>
+          <div class="scrim"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div><h2>Edit rates</h2><div class="s">Kingfisher Villa, Thu 29 Oct to Sun 1 Nov</div></div>
+            <div class="field"><label>Nightly price in USD</label><div class="input focus"><span class="grow">$200</span></div><span class="hint">Current rates for these nights: $180 to $220</span></div>
+            <div class="card tight" style="border-radius:20px">
+              <div class="kv" style="align-items:center;padding:2px 0"><span style="color:var(--graphite)">Minimum stay</span><div class="stepper"><i>−</i><b>2</b><i>+</i></div></div>
+              <div class="divider" style="margin:10px 0"></div>
+              <div class="kv" style="align-items:center;padding:2px 0"><span style="color:var(--graphite)">Closed to arrival</span><span class="switch"></span></div>
+            </div>
+            <span class="btn primary block">Apply to 3 nights</span>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Edit rates for range</h3><p>Sets the nightly price and minimum stay for the selected nights without opening the full rate settings.</p></figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<section class="group" id="property">
+  <div class="group-head">
+    <div><h2>Property settings</h2></div>
+    <p>Reached from a property's overview. Each screen saves on its own, so an owner can fix one thing while on the move.</p>
+  </div>
+  <div class="grid">
+
+    <!-- Property overview -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Kingfisher Villa</h1>
+            <span class="iconbtn"><svg class="ic"><use href="#i-share"/></svg></span>
+          </div>
+          <div class="body">
+            <div class="photo" style="height:140px"><span>Pool and garden</span><svg class="ic"><use href="#i-image"/></svg></div>
+            <div class="card tight">
+              <div class="card-title"><h2>Booking page</h2><span class="chip spark"><i class="pulse"></i>Live</span></div>
+              <div class="row first" style="padding:8px 0 12px"><svg class="ic" style="color:var(--fog)"><use href="#i-link"/></svg><div class="grow t" style="font-weight:400">kingfisher.direct.lk</div></div>
+              <div class="two"><span class="btn ghost sm"><svg class="ic"><use href="#i-copy"/></svg>Copy link</span><span class="btn ghost sm"><svg class="ic"><use href="#i-share"/></svg>Share</span></div>
+            </div>
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><span class="ibox"><svg class="ic"><use href="#i-home"/></svg></span><div class="grow t">Details</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-image"/></svg></span><div class="grow t">Photos</div><span class="s">12</span><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-bed"/></svg></span><div class="grow t">Units</div><span class="s">1</span><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-tag"/></svg></span><div class="grow t">Rates and seasons</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-refresh"/></svg></span><div class="grow t">iCal sync</div><span class="chip ember">1 issue</span><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-rules"/></svg></span><div class="grow t">Stay rules</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Property overview</h3><p>Booking page link and share actions, with entry points to every setting below. Issues surface on the matching row.</p></figcaption>
+    </figure>
+
+    <!-- Property details -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Details</h1>
+            <span class="txt">Save</span>
+          </div>
+          <div class="body">
+            <div class="field"><label>Property name</label><div class="input"><span class="grow">Kingfisher Villa</span></div></div>
+            <div class="field"><label>Guests book</label><div class="seg"><span class="on">The entire villa</span><span>By room</span></div></div>
+            <div class="field"><label>Description</label><div class="input ta">Three-bedroom villa with a private pool, ten minutes from Unawatuna beach.</div></div>
+            <div class="field"><label>Location</label><div class="map"><svg class="ic"><use href="#i-pin"/></svg></div><span class="hint">Yaddehimulla Road, Unawatuna</span></div>
+            <div class="two">
+              <div class="field"><label>Check-in from</label><div class="input"><span class="grow">2:00 PM</span></div></div>
+              <div class="field"><label>Check-out by</label><div class="input"><span class="grow">11:00 AM</span></div></div>
+            </div>
+            <div class="field"><label>Amenities</label><div class="pills"><span class="pill on">Pool</span><span class="pill on">WiFi</span><span class="pill on">Air conditioning</span><span class="pill on">Kitchen</span><span class="pill">Parking</span></div></div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Property details</h3><p>Name, booking type, description, map pin, check-in and check-out times, and amenities.</p></figcaption>
+    </figure>
+
+    <!-- Photos -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Photos</h1>
+            <span class="txt">Add</span>
+          </div>
+          <div class="body">
+            <p class="hint pad">12 photos. Hold and drag to reorder; the first photo is your cover.</p>
+            <div class="two">
+              <div class="photo" style="height:132px;border-radius:20px"><span class="chip ink">Cover</span><span>Pool and garden</span></div>
+              <div class="photo" style="height:132px;border-radius:20px"><span>Living room</span></div>
+              <div class="photo" style="height:132px;border-radius:20px"><span>Main bedroom</span></div>
+              <div class="photo" style="height:132px;border-radius:20px"><span>Second bedroom</span></div>
+              <div class="photo" style="height:132px;border-radius:20px"><span>Kitchen</span></div>
+              <div class="photo" style="height:132px;border-radius:20px"><span>Veranda</span></div>
+              <div class="photo" style="height:132px;border-radius:20px"><span>Bathroom</span></div>
+              <div style="height:132px;border-radius:20px;border:1.5px dashed var(--ash);display:grid;place-items:center;color:var(--iron);font-size:14px;text-align:center"><div><svg class="ic"><use href="#i-upload"/></svg><div>Add photos</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Photos</h3><p>Upload from the camera roll, reorder by dragging and pick the cover shown on the booking page.</p></figcaption>
+    </figure>
+
+    <!-- Units -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Units</h1>
+            <span class="txt">Add</span>
+          </div>
+          <div class="body">
+            <p class="hint pad">Coral Bay House, 3 rooms</p>
+            <div class="card tight">
+              <div class="card-title"><span class="t">Ocean Room</span><span class="amt">$90<span class="s"> / night</span></span></div>
+              <div class="s">Sleeps 2, 1 king bed</div>
+            </div>
+            <div class="card tight">
+              <div class="card-title"><span class="t">Garden Room</span><span class="amt">$75<span class="s"> / night</span></span></div>
+              <div class="s">Sleeps 2, 2 single beds</div>
+            </div>
+            <div class="card tight">
+              <div class="card-title"><span class="t">Family Suite</span><span class="amt">$130<span class="s"> / night</span></span></div>
+              <div class="s">Sleeps 4, 1 king and 2 single beds</div>
+            </div>
+            <div class="card tight" style="border-style:dashed;border-color:var(--ash)">
+              <div class="card-title"><span class="t">Whole house</span><span class="amt">$280<span class="s"> / night</span></span></div>
+              <div class="s">Books all three rooms together</div>
+              <div class="chips" style="margin-top:10px"><span class="chip dash">Linked to 3 rooms</span></div>
+            </div>
+            <span class="btn dashed block"><svg class="ic"><use href="#i-plus"/></svg>Add a unit</span>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Units</h3><p>Bookable rooms or the whole villa, with capacity and base price. A linked unit blocks its rooms when booked, and the reverse.</p></figcaption>
+    </figure>
+
+    <!-- Rates and seasons -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Rates and seasons</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="card">
+              <div class="card-title" style="margin-bottom:6px"><h2>Base rates</h2><span class="meta">USD</span></div>
+              <div class="kv"><span>Sunday to Thursday</span><span>$180</span></div>
+              <div class="kv"><span>Friday and Saturday</span><span>$220</span></div>
+              <div class="kv"><span>Each guest above 4</span><span>$25 a night</span></div>
+            </div>
+            <div class="card list">
+              <div class="card-title"><h2>Seasons</h2><span class="meta">Override base rates</span></div>
+              <div class="row"><div class="grow"><div class="t">Peak season</div><div class="s">15 Dec to 15 Jan, 3 night minimum</div></div><span class="amt">$320</span></div>
+              <div class="row"><div class="grow"><div class="t">High season</div><div class="s">16 Jan to 30 Apr</div></div><span class="amt">$260</span></div>
+              <div class="row"><div class="grow"><div class="t">Monsoon</div><div class="s">1 May to 31 Aug</div></div><span class="amt">$140</span></div>
+            </div>
+            <div class="card">
+              <div class="card-title" style="margin-bottom:6px"><h2>Longer stays</h2></div>
+              <div class="kv"><span>7 nights or more</span><span>10% off</span></div>
+              <div class="kv"><span>28 nights or more</span><span>25% off</span></div>
+            </div>
+            <span class="btn dashed block"><svg class="ic"><use href="#i-plus"/></svg>Add a season</span>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Rates and seasons</h3><p>Weeknight and weekend rates, an extra-guest fee, seasonal overrides and length-of-stay discounts.</p></figcaption>
+    </figure>
+
+    <!-- Stay rules -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Stay rules</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><div class="grow t" style="font-weight:400">Minimum nights</div><div class="stepper"><i>−</i><b>2</b><i>+</i></div></div>
+              <div class="row"><div class="grow t" style="font-weight:400">Maximum nights</div><div class="stepper"><i>−</i><b>30</b><i>+</i></div></div>
+              <div class="row"><div class="grow"><div class="t" style="font-weight:400">Advance notice</div><div class="s">Same-day bookings until 12:00 PM</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><div class="grow"><div class="t" style="font-weight:400">Booking window</div><div class="s">Up to 12 months ahead</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+            </div>
+            <div class="card">
+              <div class="h2">Closed arrival days</div>
+              <p class="s" style="margin:4px 0 12px">Guests cannot check in on the days you select.</p>
+              <div class="pills"><span class="pill">Mon</span><span class="pill">Tue</span><span class="pill">Wed</span><span class="pill">Thu</span><span class="pill">Fri</span><span class="pill">Sat</span><span class="pill">Sun</span></div>
+            </div>
+            <div class="card list">
+              <div class="card-title"><h2>Season rules</h2></div>
+              <div class="row"><div class="grow"><div class="t">Peak season</div><div class="s">Minimum 3 nights</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Stay rules</h3><p>Minimum and maximum nights, advance notice, booking window and closed arrival days, with per-season overrides.</p></figcaption>
+    </figure>
+
+    <!-- Policies -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Policies</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="sec-label">Cancellation</div>
+            <div class="opt"><span class="radio"></span><div><div class="t">Flexible</div><div class="s">Full refund up to 7 days before arrival</div></div></div>
+            <div class="opt on"><span class="radio on"></span><div><div class="t">Moderate</div><div class="s">Full refund up to 14 days before arrival, then 50%</div></div></div>
+            <div class="opt"><span class="radio"></span><div><div class="t">Strict</div><div class="s">50% refund up to 30 days before arrival, then none</div></div></div>
+            <div class="sec-label">Deposit and balance</div>
+            <div class="card tight">
+              <div class="kv"><span>Deposit at booking</span><span>30%</span></div>
+              <div class="kv"><span>Balance due</span><span>14 days before arrival</span></div>
+            </div>
+            <div class="sec-label">House rules</div>
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><div class="grow t" style="font-weight:400">No smoking indoors</div><svg class="ic"><use href="#i-pencil"/></svg></div>
+              <div class="row"><div class="grow t" style="font-weight:400">Quiet hours 10:00 PM to 7:00 AM</div><svg class="ic"><use href="#i-pencil"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Policies</h3><p>Cancellation policy, deposit and balance rules, and house rules guests accept at checkout.</p></figcaption>
+    </figure>
+
+    <!-- Taxes and charges -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Taxes and charges</h1>
+            <span class="txt">Add</span>
+          </div>
+          <div class="body">
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><span class="ibox"><svg class="ic"><use href="#i-percent"/></svg></span><div class="grow"><div class="t">Service charge</div><div class="s">10% on the room rate</div></div><span class="switch on"></span></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-percent"/></svg></span><div class="grow"><div class="t">VAT</div><div class="s">18%, off until you register</div></div><span class="switch"></span></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-receipt"/></svg></span><div class="grow"><div class="t">Cleaning fee</div><div class="s">$30 per stay</div></div><span class="switch on"></span></div>
+            </div>
+            <div class="card">
+              <div class="card-title" style="margin-bottom:6px"><h2>What guests see</h2><span class="meta">4-night stay</span></div>
+              <div class="kv"><span>4 nights</span><span>$720</span></div>
+              <div class="kv"><span>Service charge 10%</span><span>$72</span></div>
+              <div class="kv"><span>Cleaning fee</span><span>$30</span></div>
+              <div class="kv total"><span>Total</span><span>$822</span></div>
+            </div>
+            <p class="hint pad">Charges are added on top of the nightly rate and shown line by line at checkout.</p>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Taxes and charges</h3><p>VAT, service charge and fees as percentage or fixed lines, with a preview of the guest's breakdown.</p></figcaption>
+    </figure>
+
+    <!-- Payment methods -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Payment methods</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="card">
+              <div class="row first" style="padding:0 0 8px"><span class="ibox"><svg class="ic"><use href="#i-bank"/></svg></span><div class="grow t">Bank transfer</div><span class="switch on"></span></div>
+              <div class="kv"><span>Bank</span><span>Commercial Bank</span></div>
+              <div class="kv"><span>Account name</span><span>N. Perera</span></div>
+              <div class="kv"><span>Account</span><span>Ending 4417</span></div>
+              <div class="kv"><span>Guest pays within</span><span>24 hours</span></div>
+              <div class="kv" style="align-items:center"><span>Cancel if unpaid</span><span class="switch on"></span></div>
+            </div>
+            <div class="card tight">
+              <div class="row first" style="padding:2px 0"><span class="ibox"><svg class="ic"><use href="#i-cash"/></svg></span><div class="grow"><div class="t">Pay at property</div><div class="s">Cash or card on arrival</div></div><span class="switch on"></span></div>
+            </div>
+            <div class="card tight">
+              <div class="row first" style="padding:2px 0 12px"><span class="ibox"><svg class="ic"><use href="#i-card"/></svg></span><div class="grow"><div class="t">Card payments</div><div class="s">Approval takes a few days</div></div><span class="chip soft">Off</span></div>
+              <span class="btn ghost block sm">Connect card payments</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Payment methods</h3><p>Bank transfer details and deadline, pay at property, and the card gateway connection for owners who want it.</p></figcaption>
+    </figure>
+
+    <!-- Booking settings -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Booking settings</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="sec-label">How guests book</div>
+            <div class="opt"><span class="radio"></span><div><div class="t">Instant book</div><div class="s">Dates are confirmed as soon as the guest pays.</div></div></div>
+            <div class="opt on"><span class="radio on"></span><div><div class="t">Request to book</div><div class="s">You approve each booking before the guest pays.</div></div></div>
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><div class="grow"><div class="t" style="font-weight:400">Reply to requests within</div><div class="s">Declined automatically after this</div></div><span class="s">24 hours</span><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><div class="grow"><div class="t" style="font-weight:400">Dates held at checkout</div><div class="s">While a guest completes payment</div></div><span class="s">15 min</span><svg class="ic"><use href="#i-lock"/></svg></div>
+            </div>
+            <div class="sec-label">Currency</div>
+            <div class="card">
+              <div class="kv" style="padding-top:0"><span>Charge guests in</span><span>USD</span></div>
+              <div class="s" style="margin:10px 0 8px">Show prices in</div>
+              <div class="pills"><span class="pill on">USD</span><span class="pill on">EUR</span><span class="pill on">GBP</span><span class="pill">LKR</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Booking settings</h3><p>Instant book or request to book, the request reply window, and the currencies guests see.</p></figcaption>
+    </figure>
+
+    <!-- Booking page and branding -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Booking page</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="mini">
+              <div class="photo"><span>Cover photo</span></div>
+              <div style="display:flex;align-items:center;gap:8px;padding:0 2px"><span class="av" style="width:28px;height:28px;font-size:11px;background:var(--snow)">KV</span><span class="t" style="font-size:14px">Kingfisher Villa</span></div>
+              <div class="two"><div class="input"><span class="ph">Check-in</span></div><div class="input"><span class="ph">Check-out</span></div></div>
+              <span class="btn primary block">Check availability</span>
+            </div>
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><div class="grow t" style="font-weight:400">Logo</div><span class="av" style="width:32px;height:32px;font-size:12px">KV</span><span class="s">Replace</span></div>
+              <div class="row"><div class="grow t" style="font-weight:400">Button colour</div>
+                <div style="display:flex;gap:8px"><span class="swatch on" style="background:var(--obsidian)"></span><span class="swatch" style="background:var(--ember);border-color:var(--ember)"></span><span class="swatch" style="background:var(--magenta);border-color:var(--magenta)"></span><span class="swatch" style="background:var(--snow);display:grid;place-items:center;color:var(--iron)"><svg class="ic sm"><use href="#i-plus"/></svg></span></div>
+              </div>
+              <div class="row"><div class="grow"><div class="t" style="font-weight:400">Page address</div><div class="s">kingfisher.direct.lk</div></div><span class="s">Edit</span></div>
+            </div>
+          </div>
+          <div class="bar"><span class="btn ghost"><svg class="ic"><use href="#i-globe"/></svg>Open booking page</span></div>
+        </div>
+      </div>
+      <figcaption><h3>Booking page and branding</h3><p>Logo, button colour and page address, with a live preview of what guests see.</p></figcaption>
+    </figure>
+
+    <!-- Share and embed -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Share and embed</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="card tight" style="display:flex;gap:14px;align-items:center">
+              <svg class="qr" width="96" height="96" viewBox="0 0 25 25" aria-label="QR code for the booking page"></svg>
+              <div class="grow">
+                <div class="t">kingfisher.direct.lk</div>
+                <div class="s" style="margin-bottom:10px">Print it for the reception desk</div>
+                <span class="btn ghost sm"><svg class="ic"><use href="#i-upload"/></svg>Save QR</span>
+              </div>
+            </div>
+            <div class="two"><span class="btn primary sm"><svg class="ic"><use href="#i-chat"/></svg>WhatsApp</span><span class="btn ghost sm"><svg class="ic"><use href="#i-copy"/></svg>Copy link</span></div>
+            <div class="sec-label">Add to your website</div>
+            <div class="seg"><span class="on">Booking widget</span><span>Full booking page</span></div>
+            <div class="code">&lt;script src="https://cdn.direct.lk/widget.js" async&gt;&lt;/script&gt;
+&lt;div data-property="kingfisher"&gt;&lt;/div&gt;</div>
+            <div class="two"><span class="btn ghost sm"><svg class="ic"><use href="#i-code"/></svg>Copy code</span><span class="btn ghost sm"><svg class="ic"><use href="#i-mail"/></svg>Email developer</span></div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Share and embed</h3><p>Link, QR code and WhatsApp share, plus widget and iFrame code with a one-tap email to the owner's web developer.</p></figcaption>
+    </figure>
+
+    <!-- iCal sync -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>iCal sync</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="sec-label">Calendars you import</div>
+            <div class="card tight">
+              <div class="row first" style="padding:2px 0 12px;align-items:flex-start"><span class="ibox ember"><svg class="ic"><use href="#i-alert"/></svg></span><div class="grow"><div class="t">Airbnb</div><div class="s">Failed twice, tried 9:40 AM</div></div><span class="chip ember">Issue</span></div>
+              <div class="two"><span class="btn ghost sm">Check link</span><span class="btn primary sm"><svg class="ic"><use href="#i-refresh"/></svg>Sync now</span></div>
+            </div>
+            <div class="card tight">
+              <div class="row first" style="padding:2px 0"><span class="ibox"><svg class="ic"><use href="#i-check"/></svg></span><div class="grow"><div class="t">Booking.com</div><div class="s">Synced 9:45 AM, 1 upcoming stay</div></div></div>
+            </div>
+            <span class="btn dashed block sm"><svg class="ic"><use href="#i-plus"/></svg>Add a calendar link</span>
+            <div class="sec-label">Your calendar for OTAs</div>
+            <div class="card tight">
+              <p class="s" style="margin-bottom:10px">Paste this link into Airbnb and Booking.com so they close the dates booked here.</p>
+              <div class="input" style="min-height:42px"><span class="grow" style="font-size:13px">direct.lk/ical/kv-7f3a9c.ics</span><svg class="ic"><use href="#i-copy"/></svg></div>
+            </div>
+            <p class="hint pad">OTAs refresh imported calendars on their own schedule, often every few hours.</p>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>iCal sync</h3><p>Imported OTA calendars with sync status and errors, plus the export link owners paste into each OTA.</p></figcaption>
+    </figure>
+
+    <!-- Extras -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Extras</h1>
+            <span class="txt">Add</span>
+          </div>
+          <div class="body">
+            <p class="hint pad">Guests can add these during checkout.</p>
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><span class="ibox"><svg class="ic"><use href="#i-gift"/></svg></span><div class="grow"><div class="t">Airport transfer</div><div class="s">$40 per trip</div></div><span class="switch on"></span></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-gift"/></svg></span><div class="grow"><div class="t">Breakfast</div><div class="s">$8 per guest per night</div></div><span class="switch on"></span></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-gift"/></svg></span><div class="grow"><div class="t">Galle Fort tuk-tuk tour</div><div class="s">$25 per guest</div></div><span class="switch on"></span></div>
+              <div class="row"><span class="ibox"><svg class="ic"><use href="#i-gift"/></svg></span><div class="grow"><div class="t">Late check-out</div><div class="s">$30 per stay, on request</div></div><span class="switch"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Extras <span class="tag">P1</span></h3><p>Add-ons such as transfers, breakfast and tours, priced per stay, per night or per guest.</p></figcaption>
+    </figure>
+
+    <!-- Promo codes -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Promo codes</h1>
+            <span class="txt">New</span>
+          </div>
+          <div class="body">
+            <div class="card tight">
+              <div class="card-title"><span class="t">RETURN10</span><span class="chip spark">Active</span></div>
+              <div class="s" style="margin-bottom:12px">10% off any dates, for returning guests</div>
+              <div class="progress"><i style="width:20%"></i></div>
+              <div class="s" style="margin-top:6px">Used 4 of 20 times</div>
+            </div>
+            <div class="card tight">
+              <div class="card-title"><span class="t">MONSOON50</span><span class="chip">Scheduled</span></div>
+              <div class="s">$50 off stays of 3 nights or more, 1 May to 31 Aug</div>
+            </div>
+            <div class="card tight">
+              <div class="card-title"><span class="t" style="color:var(--fog)">FRIENDS15</span><span class="chip soft">Ended</span></div>
+              <div class="s">15% off, ended 30 Sep, used 12 times</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Promo codes <span class="tag">P1</span></h3><p>Discount codes with a value, valid dates and usage limits, and how often each has been used.</p></figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<section class="group" id="more">
+  <div class="group-head">
+    <div><h2>More</h2></div>
+    <p>Account, team and support screens, reached from the More tab.</p>
+  </div>
+  <div class="grid">
+
+    <!-- Team -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Team</h1>
+            <span class="txt">Invite</span>
+          </div>
+          <div class="body">
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><div class="av">NP</div><div class="grow"><div class="t">Nadeesha Perera</div><div class="s">Owner, all properties</div></div><span class="chip soft">You</span></div>
+              <div class="row"><div class="av">RS</div><div class="grow"><div class="t">Ruwan Silva</div><div class="s">Manager, all properties</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><div class="av">KJ</div><div class="grow"><div class="t">Kamal Jayasinghe</div><div class="s">Caretaker, Kingfisher Villa</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><div class="av"><svg class="ic sm"><use href="#i-user"/></svg></div><div class="grow"><div class="t">+94 71 555 0199</div><div class="s">Caretaker, Coral Bay House</div></div><span class="chip dash">Invited</span></div>
+            </div>
+            <div class="sec-label">What each role can do</div>
+            <div class="card">
+              <div class="t">Manager</div>
+              <div class="s" style="margin-bottom:12px">Bookings, calendar, rates and guests. No billing or account settings.</div>
+              <div class="t">Caretaker</div>
+              <div class="s">Arrivals, departures and guest contact. No prices or payments.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Team</h3><p>Members, pending invites, and each person's role and property access.</p></figcaption>
+    </figure>
+
+    <!-- Insights -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Insights</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div style="display:flex;gap:8px"><div class="seg" style="flex:1"><span class="on">Month</span><span>Year</span></div><div class="switcher" style="margin:0">All <svg class="ic sm"><use href="#i-chev-d"/></svg></div></div>
+            <div class="card">
+              <div class="s">Revenue booked for October</div>
+              <div style="font-size:34px;font-weight:600;color:var(--obsidian);line-height:1.15">$6,420</div>
+              <span class="chip spark" style="margin-top:6px">Up 12% on September</span>
+              <div class="bars"><div style="height:33%"></div><div style="height:28%"></div><div style="height:50%"></div><div style="height:61%"></div><div style="height:89%"></div><div class="cur" style="height:100%"></div></div>
+              <div class="bar-labels"><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span></div>
+            </div>
+            <div class="two">
+              <div class="card tight stat"><div class="n">64%</div><div class="l">Occupancy</div></div>
+              <div class="card tight stat"><div class="n">$185</div><div class="l">Average night</div></div>
+            </div>
+            <div class="card">
+              <div class="h2">Where bookings came from</div>
+              <div class="stack"><i style="width:38%;background:var(--ember)"></i><i style="width:31%;background:var(--steel)"></i><i style="width:23%;background:var(--ash)"></i><i style="width:8%;background:var(--mist)"></i></div>
+              <div class="legend" style="margin-top:8px"><span><i class="sw" style="background:var(--ember)"></i>Direct 38%</span><span><i class="sw" style="background:var(--steel)"></i>Booking.com 31%</span><span><i class="sw" style="background:var(--ash)"></i>Airbnb 23%</span><span><i class="sw" style="background:var(--mist)"></i>WhatsApp 8%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Insights <span class="tag">P1</span></h3><p>Revenue, occupancy, average nightly rate and booking sources by month or year, per property or combined.</p></figcaption>
+    </figure>
+
+    <!-- Message templates -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Message templates</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><div class="grow"><div class="t">Booking confirmed</div><div class="s">Email, right after confirmation</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><div class="grow"><div class="t">Payment reminder</div><div class="s">Email and WhatsApp, a day before it's due</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><div class="grow"><div class="t">Pre-arrival info</div><div class="s">Email and WhatsApp, 2 days before check-in</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><div class="grow"><div class="t">Thank you</div><div class="s">Email, the day after check-out</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+            </div>
+            <div class="card">
+              <div class="card-title" style="margin-bottom:10px"><h2>Pre-arrival info</h2><span class="meta">Preview</span></div>
+              <p style="font-size:14px;line-height:1.7;color:var(--graphite)">Hi <span class="var">guest name</span>, we look forward to welcoming you on <span class="var">check-in date</span>. Here is the map pin: <span class="var">map link</span>. The WiFi password is <span class="var">wifi password</span>.</p>
+              <span class="btn ghost block sm" style="margin-top:14px"><svg class="ic"><use href="#i-pencil"/></svg>Edit template</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Message templates <span class="tag">P1</span></h3><p>Guest emails and WhatsApp messages with fields that fill in from each booking.</p></figcaption>
+    </figure>
+
+    <!-- Notification settings -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Notifications</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="card list" style="padding-top:12px">
+              <div class="colhead"><span>Push</span><span>WhatsApp</span></div>
+              <div class="row first"><div class="grow t" style="font-weight:400">New booking</div><div class="togs"><div><span class="switch on"></span></div><div><span class="switch on"></span></div></div></div>
+              <div class="row"><div class="grow t" style="font-weight:400">Booking request</div><div class="togs"><div><span class="switch on"></span></div><div><span class="switch on"></span></div></div></div>
+              <div class="row"><div class="grow t" style="font-weight:400">Payment or slip</div><div class="togs"><div><span class="switch on"></span></div><div><span class="switch"></span></div></div></div>
+              <div class="row"><div class="grow t" style="font-weight:400">Cancellation</div><div class="togs"><div><span class="switch on"></span></div><div><span class="switch"></span></div></div></div>
+              <div class="row"><div class="grow t" style="font-weight:400">Sync problem</div><div class="togs"><div><span class="switch on"></span></div><div><span class="switch"></span></div></div></div>
+              <div class="row"><div class="grow"><div class="t" style="font-weight:400">Morning summary</div><div class="s">Every day at 7:00 AM</div></div><div class="togs"><div><span class="switch"></span></div><div><span class="switch on"></span></div></div></div>
+            </div>
+            <p class="hint pad">Guest emails are set in message templates.</p>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Notification settings</h3><p>Choose which events reach the owner by push and which by WhatsApp.</p></figcaption>
+    </figure>
+
+    <!-- Subscription -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Subscription</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="dark glow">
+              <div class="s">Your plan</div>
+              <div style="font-size:28px;font-weight:600;line-height:1.2;margin:2px 0 4px">Free trial</div>
+              <div class="s" style="margin-bottom:14px">9 days left, ends 13 Oct</div>
+              <div class="progress"><i style="width:36%"></i></div>
+              <span class="btn light block" style="margin-top:18px">Choose a plan</span>
+            </div>
+            <div class="card">
+              <div class="card-title" style="margin-bottom:6px"><h2>Usage</h2></div>
+              <div class="kv"><span>Properties</span><span>2</span></div>
+              <div class="kv"><span>Bookable units</span><span>5</span></div>
+              <div class="kv"><span>Team members</span><span>4</span></div>
+            </div>
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><div class="grow"><div class="t" style="font-weight:400">Payment method</div><div class="s">Not added</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><div class="grow"><div class="t" style="font-weight:400">Billing history</div><div class="s">No invoices yet</div></div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Subscription</h3><p>Plan or trial status, usage against the plan, payment method and billing history.</p></figcaption>
+    </figure>
+
+    <!-- Profile and account -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Profile and account</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 0 4px"><div class="av lg">NP</div><span class="s">Change photo</span></div>
+            <div class="field"><label>Name</label><div class="input"><span class="grow">Nadeesha Perera</span></div></div>
+            <div class="field"><label>Phone</label><div class="input"><span class="grow">+94 77 456 7890</span><span class="chip soft">Verified</span></div></div>
+            <div class="field"><label>Email</label><div class="input"><span class="grow">nadeesha@example.com</span></div></div>
+            <div class="field"><label>App language</label><div class="seg"><span class="on">English</span><span>සිංහල</span></div></div>
+            <span class="btn ghost block"><svg class="ic"><use href="#i-logout"/></svg>Sign out</span>
+            <span class="s" style="text-align:center">Delete account</span>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Profile and account</h3><p>Name, phone, email and app language, plus sign out and in-app account deletion, which both app stores require.</p></figcaption>
+    </figure>
+
+    <!-- Help and support -->
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>Help and support</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div class="input"><svg class="ic"><use href="#i-search"/></svg><span class="ph grow">Search help articles</span></div>
+            <div class="two">
+              <div class="dark" style="padding:16px;border-radius:24px"><svg class="ic"><use href="#i-chat"/></svg><div class="t" style="margin-top:14px">WhatsApp us</div><div class="s">Chat with our team</div></div>
+              <div class="card tight"><svg class="ic" style="color:var(--iron)"><use href="#i-mail"/></svg><div class="t" style="margin-top:14px">Email us</div><div class="s">For account issues</div></div>
+            </div>
+            <div class="sec-label">Popular topics</div>
+            <div class="card list" style="padding-top:4px">
+              <div class="row first"><div class="grow t" style="font-weight:400">Connect your Airbnb calendar</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><div class="grow t" style="font-weight:400">Add the widget to your website</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><div class="grow t" style="font-weight:400">Record a WhatsApp booking</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><div class="grow t" style="font-weight:400">Start taking card payments</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+              <div class="row"><div class="grow t" style="font-weight:400">Invite a caretaker</div><svg class="ic"><use href="#i-chev-r"/></svg></div>
+            </div>
+            <p class="hint" style="text-align:center">Version 1.0.0</p>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Help and support</h3><p>Searchable help articles and direct contact with the support team.</p></figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<section class="group" id="caretaker">
+  <div class="group-head">
+    <div><h2>Caretaker view</h2></div>
+    <p>The same app with a restricted role: Today, Calendar and booking details without prices, payments or settings.</p>
+  </div>
+  <div class="grid">
+
+    <figure class="shot">
+      <div class="phone" data-tab="today" data-role="caretaker">
+        <div class="screen">
+          <div class="lhead">
+            <div class="lhead-row">
+              <div><div class="eyebrow">Sunday, 4 October</div><h1>Today</h1></div>
+              <div class="iconbtn"><svg class="ic"><use href="#i-bell"/></svg></div>
+            </div>
+            <div class="switcher"><svg class="ic sm"><use href="#i-lock"/></svg>Kingfisher Villa</div>
+          </div>
+          <div class="body">
+            <div class="two">
+              <div class="card tight stat"><div class="n">1</div><div class="l">Arrival</div></div>
+              <div class="card tight stat"><div class="n">0</div><div class="l">Departures</div></div>
+            </div>
+            <div class="card">
+              <div class="row first" style="padding:0 0 12px"><div class="av">EL</div><div class="grow"><div class="t">Emma Larsen</div><div class="s">Arriving 2:00 PM, 2 adults</div></div></div>
+              <div class="s">Guest note</div>
+              <p style="font-size:14px;color:var(--graphite);margin:2px 0 10px">We land at 11:30. Could we check in a little early?</p>
+              <div class="chips" style="margin-bottom:14px"><span class="chip soft">Airport transfer booked</span></div>
+              <div class="two"><span class="btn ghost sm"><svg class="ic"><use href="#i-chat"/></svg>WhatsApp</span><span class="btn primary sm"><svg class="ic"><use href="#i-check"/></svg>Check in</span></div>
+            </div>
+            <div class="card list">
+              <div class="card-title"><h2>Next 7 days</h2></div>
+              <div class="row"><div class="dt"><small>Oct</small><b>8</b></div><div class="grow"><div class="t">Emma Larsen leaves</div><div class="s">Check-out by 11:00 AM</div></div></div>
+              <div class="row"><div class="dt"><small>Oct</small><b>10</b></div><div class="grow"><div class="t">Booking.com guest arrives</div><div class="s">3 nights</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><h3>Caretaker Today</h3><p>Arrivals with guest notes, extras and contact buttons, and the week ahead. Prices, balances and settings are hidden.</p></figcaption>
+    </figure>
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="screen">
+          <div class="appbar">
+            <span class="iconbtn"><svg class="ic"><use href="#i-chev-l"/></svg></span>
+            <h1>KV-2041</h1>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div style="padding:0 4px">
+              <div class="chips"><span class="chip fill">Confirmed</span></div>
+              <div style="font-size:26px;font-weight:600;color:var(--obsidian);line-height:1.2;margin-top:10px">Emma Larsen</div>
+              <div class="s">Kingfisher Villa, 4 nights, 2 adults</div>
+            </div>
+            <div class="two">
+              <span class="btn ghost sm"><svg class="ic"><use href="#i-chat"/></svg>WhatsApp</span>
+              <span class="btn ghost sm"><svg class="ic"><use href="#i-phone"/></svg>Call</span>
+            </div>
+            <div class="card">
+              <div class="split">
+                <div><div class="s">Check-in</div><div class="t">Sun 4 Oct</div><div class="s">From 2:00 PM</div></div>
+                <div><div class="s">Check-out</div><div class="t">Thu 8 Oct</div><div class="s">By 11:00 AM</div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="h2" style="margin-bottom:8px">For the stay</div>
+              <div class="kv"><span>Extras</span><span>Airport transfer</span></div>
+              <div class="kv"><span>Guest note</span><span>Early check-in if possible</span></div>
+              <div class="kv"><span>Owner note</span><span>Leave pool towels out</span></div>
+            </div>
+            <div class="card tight" style="display:flex;gap:10px;align-items:center">
+              <svg class="ic" style="color:var(--fog)"><use href="#i-lock"/></svg>
+              <span class="s">Prices and payments are visible to the owner and managers only.</span>
+            </div>
+          </div>
+          <div class="bar"><span class="btn primary"><svg class="ic"><use href="#i-check"/></svg>Check in</span></div>
+        </div>
+      </div>
+      <figcaption><h3>Caretaker booking detail</h3><p>Stay dates, extras and notes with contact buttons and check-in. No price breakdown, ledger, modify or cancel.</p></figcaption>
+    </figure>
+
+  </div>
+</section>
+
+</main>
+
+<footer class="page foot">
+  <p>Sample data throughout. Guest names, prices and the direct.lk address are placeholders until the product name and domain are chosen.</p>
+</footer>
+
+<script>
+(function(){
+  var status = '<div class="status"><span>9:41</span><span class="sys">' +
+    '<svg width="18" height="12"><use href="#i-signal"/></svg>' +
+    '<svg width="16" height="12"><use href="#i-wifi"/></svg>' +
+    '<svg width="27" height="13"><use href="#i-battery"/></svg></span></div>';
+  var tabsets = {
+    owner: [['today','Today','i-sun'],['calendar','Calendar','i-calendar'],['bookings','Bookings','i-list'],['properties','Properties','i-home'],['more','More','i-grid']],
+    caretaker: [['today','Today','i-sun'],['calendar','Calendar','i-calendar'],['account','Account','i-user']]
+  };
+  document.querySelectorAll('.phone').forEach(function(p){
+    p.insertAdjacentHTML('afterbegin', status);
+    var active = p.getAttribute('data-tab');
+    if (active) {
+      var set = tabsets[p.getAttribute('data-role') || 'owner'];
+      var html = '<nav class="tabbar" style="--tabs:' + set.length + '">';
+      set.forEach(function(t){
+        html += '<span class="tab' + (t[0] === active ? ' on' : '') + '"><svg class="ic"><use href="#' + t[2] + '"/></svg>' + t[1] + '</span>';
+      });
+      p.insertAdjacentHTML('beforeend', html + '</nav>');
+    }
+    p.insertAdjacentHTML('beforeend', '<span class="homebar"></span>');
+  });
+
+  // Decorative QR code: finder patterns plus a seeded module pattern
+  document.querySelectorAll('svg.qr').forEach(function(svg){
+    var n = 25, seed = 7, rects = '';
+    function rnd(){ seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+    function finder(x, y){ return '<rect x="' + (x + .5) + '" y="' + (y + .5) + '" width="6" height="6" fill="none" stroke="#09090b"/><rect x="' + (x + 2) + '" y="' + (y + 2) + '" width="3" height="3" fill="#09090b"/>'; }
+    function inFinder(x, y){ return (x < 8 && y < 8) || (x > n - 9 && y < 8) || (x < 8 && y > n - 9); }
+    for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
+      if (!inFinder(x, y) && rnd() > .52) rects += '<rect x="' + x + '" y="' + y + '" width="1" height="1" fill="#09090b"/>';
+    }
+    svg.innerHTML = rects + finder(0,0) + finder(n - 7, 0) + finder(0, n - 7);
+  });
+})();
+</script>
+</body>
+</html>
