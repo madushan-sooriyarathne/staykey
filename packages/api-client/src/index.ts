@@ -30,3 +30,17 @@ export function formatMoney(amountMinor: number, currency: Currency, locale = "e
     maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
   }).format(amount);
 }
+
+/**
+ * Suggests a booking page slug from a property name, for example "Kingfisher Villa" becomes
+ * "kingfisher-villa". Mirrors domain.Slugify in apps/api so suggestions match what the API accepts.
+ */
+export function suggestSlug(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug.slice(0, 40).replace(/-+$/, "");
+}
+
+export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;

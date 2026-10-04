@@ -106,6 +106,7 @@ Built:
 - Booking app with subdomain routing, a property page and the embed bridge
 - Widget loader with auto-resize and analytics events
 - Expo app with the five-tab shell, Today and Properties screens on live data, and a create-property form
+- Owner onboarding in the app: Welcome, 10 or 11 steps across four stages (depending on whole place or rooms), You're live, team invites, the setup checklist on Today and the subscription paywall. Steps slide in from the direction of travel with subtle haptics, and progress autosaves so "Finish later" resumes in place. Phone codes and purchases are stubbed (any 6 digits except 000000 verify)
 - Marketing site landing page
 
 Next:
@@ -113,4 +114,4 @@ Next:
 - Units, rates and the night inventory ledger for availability
 - Bookings, holds and the booking state machine
 - iCal import and export
-- Onboarding flow in the app, following the onboarding designs
+- Real OTP endpoints, photo upload, and RevenueCat for in-app subscriptions
