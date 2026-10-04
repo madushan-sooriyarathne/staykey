@@ -1,0 +1,8 @@
+@import "tailwindcss";
+@import "@staykey/tokens/theme.css";
+
+@layer base {
+  body {
+    @apply bg-paper font-sans text-body text-graphite antialiased;
+  }
+}

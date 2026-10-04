@@ -1,0 +1,15 @@
+{
+  "name": "@staykey/widget",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Embed loader served from cdn.staykey.direct/widget.js. Mounts a property's booking page in an auto-resizing iFrame.",
+  "scripts": {
+    "build": "bun build src/index.ts --outfile dist/widget.js --minify --target browser",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@staykey/config": "workspace:*",
+    "typescript": "^5"
+  }
+}

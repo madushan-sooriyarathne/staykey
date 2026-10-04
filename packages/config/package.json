@@ -1,0 +1,12 @@
+{
+  "name": "@staykey/config",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "tsconfig"
+  ],
+  "exports": {
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/library.json": "./tsconfig/library.json"
+  }
+}

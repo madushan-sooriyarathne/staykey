@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: staykey
+          POSTGRES_PASSWORD: staykey
+          POSTGRES_DB: staykey
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U staykey"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - run: bun install --frozen-lockfile
+
+      - name: Generated code is up to date
+        run: |
+          bun run generate
+          git diff --exit-code -- apps/api/internal/oapi packages/api-client/src/schema.ts
+
+      - name: Lint
+        run: |
+          bun run lint
+          test -z "$(gofmt -l apps/api)"
+
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run db:migrate
+      - run: bun run build

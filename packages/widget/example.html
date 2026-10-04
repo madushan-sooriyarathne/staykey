@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StayKey widget example</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 420px; margin: 40px auto; padding: 0 16px; }
+    </style>
+  </head>
+  <body>
+    <h1>Kingfisher Villa</h1>
+    <p>An owner's own website with the StayKey widget embedded below.</p>
+
+    <!-- Production embed: drop data-staykey-origin -->
+    <div data-staykey="kingfisher" data-staykey-origin="http://kingfisher.localhost:3001"></div>
+    <script src="./dist/widget.js" async></script>
+
+    <script>
+      document.addEventListener("staykey:event", (e) => console.log("staykey event", e.detail));
+    </script>
+  </body>
+</html>
