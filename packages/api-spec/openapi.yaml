@@ -6,6 +6,10 @@ info:
     Contract for the StayKey backend. Owner endpoints live under /v1, public
     endpoints used by booking pages and the widget live under /v1/public.
     Money is always an integer amount in minor units (cents) with an ISO currency.
+
+    Owner routes take a bearer access token and an X-Account-Id header naming the
+    account to act on. A token for someone who is not a member of that account gets
+    404, the same as an account that does not exist.
 servers:
   - url: https://api.staykey.direct
     description: Production
@@ -14,6 +18,8 @@ servers:
 
 tags:
   - name: system
+  - name: auth
+  - name: accounts
   - name: properties
   - name: public
 
@@ -31,11 +37,185 @@ paths:
               schema:
                 $ref: "#/components/schemas/Health"
 
+  /v1/auth/otp:
+    post:
+      tags: [auth]
+      operationId: requestOtp
+      summary: Text a 6-digit sign-in code to a phone number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OtpRequest"
+      responses:
+        "200":
+          description: The code was sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OtpSent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/auth/verify:
+    post:
+      tags: [auth]
+      operationId: verifyOtp
+      summary: Check a code and sign in, creating the user on first sign-in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyRequest"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignIn"
+        "400":
+          description: |
+            The code is wrong (wrong_code), expired or already used (code_expired), or
+            was guessed wrong too often (too_many_attempts).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshSession
+      summary: Exchange a refresh token for new tokens
+      description: |
+        The refresh token rotates on every call. Presenting one that was already
+        rotated revokes the session, except for a short grace period that lets a
+        client retry a refresh whose response it never received.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: New tokens
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: End the session behind a refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "204":
+          description: Signed out. Unknown tokens are accepted too.
+
+  /v1/me:
+    get:
+      tags: [auth]
+      operationId: getMe
+      summary: The signed-in user and the accounts they belong to
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      tags: [auth]
+      operationId: updateMe
+      summary: Update the signed-in user's profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPatch"
+      responses:
+        "200":
+          description: The updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/accounts:
+    get:
+      tags: [accounts]
+      operationId: listAccounts
+      summary: Accounts the signed-in user belongs to
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Accounts, oldest membership first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [accounts]
+      operationId: createAccount
+      summary: Create an account with the signed-in user as its owner
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewAccount"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /v1/properties:
     get:
       tags: [properties]
       operationId: listProperties
-      summary: List the owner's properties
+      summary: List the properties the caller can see
+      description: Caretakers limited to some properties only see those.
+      security:
+        - bearerAuth: []
+          accountHeader: []
       responses:
         "200":
           description: Properties, newest first
@@ -43,10 +223,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PropertyList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
     post:
       tags: [properties]
       operationId: createProperty
       summary: Create a property and its booking page address
+      description: Owners only, since a property counts towards the plan.
+      security:
+        - bearerAuth: []
+          accountHeader: []
       requestBody:
         required: true
         content:
@@ -62,6 +252,12 @@ paths:
                 $ref: "#/components/schemas/Property"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "409":
           description: The booking page address is already taken
           content:
@@ -91,7 +287,41 @@ paths:
           $ref: "#/components/responses/NotFound"
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token from /v1/auth/verify or /v1/auth/refresh. Lasts 15 minutes.
+    accountHeader:
+      type: apiKey
+      in: header
+      name: X-Account-Id
+      description: The account an owner route acts on. The caller must be an active member.
+
   responses:
+    Unauthorized:
+      description: The access token is missing, invalid, expired or revoked
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: The caller's role does not allow this
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    TooManyRequests:
+      description: Too many requests. Retry after the number of seconds in retryAfter.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
     BadRequest:
       description: The request was invalid
       content:
@@ -116,6 +346,190 @@ components:
         database:
           type: string
           enum: [up, down]
+
+    Phone:
+      type: string
+      description: Phone number with its country code. Returned in E.164, for example +94771234567.
+      example: "+94771234567"
+
+    OtpRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone:
+          $ref: "#/components/schemas/Phone"
+
+    OtpSent:
+      type: object
+      required: [phone, expiresAt, resendAfter]
+      properties:
+        phone:
+          $ref: "#/components/schemas/Phone"
+        expiresAt:
+          type: string
+          format: date-time
+        resendAfter:
+          type: integer
+          description: Seconds before another code can be requested.
+          example: 30
+        devCode:
+          type: string
+          description: The code itself. Development servers only, so test devices can sign in.
+
+    VerifyRequest:
+      type: object
+      required: [phone, code]
+      properties:
+        phone:
+          $ref: "#/components/schemas/Phone"
+        code:
+          type: string
+          pattern: "^[0-9]{6}$"
+          example: "482913"
+        deviceName:
+          type: string
+          maxLength: 80
+          description: Shown in the list of signed-in devices.
+          example: Nimal's iPhone
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    AuthTokens:
+      type: object
+      required: [accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt]
+      properties:
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          type: string
+          format: date-time
+        refreshToken:
+          type: string
+        refreshTokenExpiresAt:
+          type: string
+          format: date-time
+
+    SignIn:
+      type: object
+      required: [tokens, user, accounts, newUser]
+      properties:
+        tokens:
+          $ref: "#/components/schemas/AuthTokens"
+        user:
+          $ref: "#/components/schemas/User"
+        accounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Account"
+        newUser:
+          type: boolean
+          description: True when this sign-in created the user.
+
+    Language:
+      type: string
+      enum: [en, si]
+
+    User:
+      type: object
+      required: [id, phone, name, language, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        phone:
+          $ref: "#/components/schemas/Phone"
+        name:
+          type: string
+        email:
+          type: string
+        language:
+          $ref: "#/components/schemas/Language"
+        createdAt:
+          type: string
+          format: date-time
+
+    UserPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 80
+        email:
+          type: string
+          maxLength: 254
+          description: An empty string clears the email.
+        language:
+          $ref: "#/components/schemas/Language"
+
+    Me:
+      type: object
+      required: [user, accounts]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        accounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Account"
+
+    Role:
+      type: string
+      enum: [owner, manager, caretaker]
+
+    AccountStatus:
+      type: string
+      enum: [trial, active, grace, lapsed, closed]
+
+    Account:
+      type: object
+      description: An account as the signed-in user sees it, with their role in it.
+      required: [id, name, status, role, propertyIds, trialStartedAt, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          $ref: "#/components/schemas/AccountStatus"
+        role:
+          $ref: "#/components/schemas/Role"
+        propertyIds:
+          type: array
+          description: The properties this member is limited to. Empty means every property.
+          items:
+            type: string
+            format: uuid
+        trialStartedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    AccountList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Account"
+
+    NewAccount:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: Kingfisher Villa
 
     Slug:
       type: string
@@ -223,3 +637,10 @@ components:
         message:
           type: string
           example: That booking page address is already taken.
+        field:
+          type: string
+          description: The request field the error is about, when there is one.
+          example: slug
+        retryAfter:
+          type: integer
+          description: Seconds to wait before retrying, on 429 responses.

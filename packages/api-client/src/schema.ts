@@ -21,6 +21,115 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Text a 6-digit sign-in code to a phone number */
+        post: operations["requestOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check a code and sign in, creating the user on first sign-in */
+        post: operations["verifyOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Exchange a refresh token for new tokens
+         * @description The refresh token rotates on every call. Presenting one that was already
+         *     rotated revokes the session, except for a short grace period that lets a
+         *     client retry a refresh whose response it never received.
+         */
+        post: operations["refreshSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End the session behind a refresh token */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in user and the accounts they belong to */
+        get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update the signed-in user's profile */
+        patch: operations["updateMe"];
+        trace?: never;
+    };
+    "/v1/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Accounts the signed-in user belongs to */
+        get: operations["listAccounts"];
+        put?: never;
+        /** Create an account with the signed-in user as its owner */
+        post: operations["createAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/properties": {
         parameters: {
             query?: never;
@@ -28,10 +137,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List the owner's properties */
+        /**
+         * List the properties the caller can see
+         * @description Caretakers limited to some properties only see those.
+         */
         get: operations["listProperties"];
         put?: never;
-        /** Create a property and its booking page address */
+        /**
+         * Create a property and its booking page address
+         * @description Owners only, since a property counts towards the plan.
+         */
         post: operations["createProperty"];
         delete?: never;
         options?: never;
@@ -65,6 +180,101 @@ export interface components {
             status: "ok" | "degraded";
             /** @enum {string} */
             database: "up" | "down";
+        };
+        /**
+         * @description Phone number with its country code. Returned in E.164, for example +94771234567.
+         * @example +94771234567
+         */
+        Phone: string;
+        OtpRequest: {
+            phone: components["schemas"]["Phone"];
+        };
+        OtpSent: {
+            phone: components["schemas"]["Phone"];
+            /** Format: date-time */
+            expiresAt: string;
+            /**
+             * @description Seconds before another code can be requested.
+             * @example 30
+             */
+            resendAfter: number;
+            /** @description The code itself. Development servers only, so test devices can sign in. */
+            devCode?: string;
+        };
+        VerifyRequest: {
+            phone: components["schemas"]["Phone"];
+            /** @example 482913 */
+            code: string;
+            /**
+             * @description Shown in the list of signed-in devices.
+             * @example Nimal's iPhone
+             */
+            deviceName?: string;
+        };
+        RefreshRequest: {
+            refreshToken: string;
+        };
+        AuthTokens: {
+            accessToken: string;
+            /** Format: date-time */
+            accessTokenExpiresAt: string;
+            refreshToken: string;
+            /** Format: date-time */
+            refreshTokenExpiresAt: string;
+        };
+        SignIn: {
+            tokens: components["schemas"]["AuthTokens"];
+            user: components["schemas"]["User"];
+            accounts: components["schemas"]["Account"][];
+            /** @description True when this sign-in created the user. */
+            newUser: boolean;
+        };
+        /** @enum {string} */
+        Language: "en" | "si";
+        User: {
+            /** Format: uuid */
+            id: string;
+            phone: components["schemas"]["Phone"];
+            name: string;
+            email?: string;
+            language: components["schemas"]["Language"];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        UserPatch: {
+            name?: string;
+            /** @description An empty string clears the email. */
+            email?: string;
+            language?: components["schemas"]["Language"];
+        };
+        Me: {
+            user: components["schemas"]["User"];
+            accounts: components["schemas"]["Account"][];
+        };
+        /** @enum {string} */
+        Role: "owner" | "manager" | "caretaker";
+        /** @enum {string} */
+        AccountStatus: "trial" | "active" | "grace" | "lapsed" | "closed";
+        /** @description An account as the signed-in user sees it, with their role in it. */
+        Account: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            status: components["schemas"]["AccountStatus"];
+            role: components["schemas"]["Role"];
+            /** @description The properties this member is limited to. Empty means every property. */
+            propertyIds: string[];
+            /** Format: date-time */
+            trialStartedAt: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AccountList: {
+            items: components["schemas"]["Account"][];
+        };
+        NewAccount: {
+            /** @example Kingfisher Villa */
+            name: string;
         };
         /**
          * @description Lowercase subdomain label used for the booking page, for example "kingfisher" in kingfisher.staykey.direct.
@@ -128,9 +338,44 @@ export interface components {
             code: string;
             /** @example That booking page address is already taken. */
             message: string;
+            /**
+             * @description The request field the error is about, when there is one.
+             * @example slug
+             */
+            field?: string;
+            /** @description Seconds to wait before retrying, on 429 responses. */
+            retryAfter?: number;
         };
     };
     responses: {
+        /** @description The access token is missing, invalid, expired or revoked */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description The caller's role does not allow this */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Too many requests. Retry after the number of seconds in retryAfter. */
+        TooManyRequests: {
+            headers: {
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
         /** @description The request was invalid */
         BadRequest: {
             headers: {
@@ -177,6 +422,209 @@ export interface operations {
             };
         };
     };
+    requestOtp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OtpRequest"];
+            };
+        };
+        responses: {
+            /** @description The code was sent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OtpSent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    verifyOtp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed in */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignIn"];
+                };
+            };
+            /**
+             * @description The code is wrong (wrong_code), expired or already used (code_expired), or
+             *     was guessed wrong too often (too_many_attempts).
+             */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    refreshSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description New tokens */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthTokens"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed out. Unknown tokens are accepted too. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserPatch"];
+            };
+        };
+        responses: {
+            /** @description The updated user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accounts, oldest membership first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewAccount"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
     listProperties: {
         parameters: {
             query?: never;
@@ -195,6 +643,9 @@ export interface operations {
                     "application/json": components["schemas"]["PropertyList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     createProperty: {
@@ -220,6 +671,9 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             /** @description The booking page address is already taken */
             409: {
                 headers: {

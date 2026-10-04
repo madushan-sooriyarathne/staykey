@@ -1,4 +1,8 @@
-// Package store implements persistence for the API on PostgreSQL.
+// Package store implements persistence for the API on PostgreSQL. It is the only package that
+// touches SQL: queries live in internal/db/queries and sqlc turns them into internal/store/queries.
+//
+// Owner data is always read and written through a tenant.Tenant, so every query is scoped to
+// the caller's account.
 package store
 
 import (
@@ -11,29 +15,34 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"staykey.direct/api/internal/domain"
+	"staykey.direct/api/internal/store/queries"
 )
 
 const uniqueViolation = "23505"
 
-const propertyColumns = `id, slug, name, booking_type, coalesce(location, ''), currency, base_rate_minor, created_at`
-
 // Postgres is a store backed by a pgx connection pool.
 type Postgres struct {
 	pool *pgxpool.Pool
+	q    *queries.Queries
 }
 
-// NewPostgres creates a pool for databaseURL. Connections are opened lazily, so
-// the API starts even when the database is briefly unavailable.
+// NewPostgres creates a pool for databaseURL. Connections are opened lazily, so the API starts
+// even when the database is briefly unavailable.
 func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
 	cfg, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse database url: %w", err)
 	}
+	return NewPostgresWithConfig(ctx, cfg)
+}
+
+// NewPostgresWithConfig creates a pool from a parsed config, for callers that need to adjust it.
+func NewPostgresWithConfig(ctx context.Context, cfg *pgxpool.Config) (*Postgres, error) {
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("create pool: %w", err)
 	}
-	return &Postgres{pool: pool}, nil
+	return &Postgres{pool: pool, q: queries.New(pool)}, nil
 }
 
 // Close releases all connections.
@@ -42,57 +51,40 @@ func (s *Postgres) Close() { s.pool.Close() }
 // Ping checks that the database is reachable.
 func (s *Postgres) Ping(ctx context.Context) error { return s.pool.Ping(ctx) }
 
-// ListProperties returns properties, newest first.
-func (s *Postgres) ListProperties(ctx context.Context) ([]domain.Property, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+propertyColumns+` FROM properties ORDER BY created_at DESC LIMIT 200`)
-	if err != nil {
-		return nil, fmt.Errorf("list properties: %w", err)
+// Pool exposes the pool for migrations and tests.
+func (s *Postgres) Pool() *pgxpool.Pool { return s.pool }
+
+type txKey struct{}
+
+// InTx runs fn in a transaction. Store calls made with the ctx passed to fn join it; a nested
+// InTx becomes a savepoint. The transaction commits when fn returns nil.
+func (s *Postgres) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	if tx, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
+		return pgx.BeginFunc(ctx, tx, func(sp pgx.Tx) error {
+			return fn(context.WithValue(ctx, txKey{}, sp))
+		})
 	}
-	return pgx.CollectRows(rows, scanProperty)
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		return fn(context.WithValue(ctx, txKey{}, tx))
+	})
 }
 
-// CreateProperty inserts a property. It returns domain.ErrSlugTaken when the
-// booking page address is already used.
-func (s *Postgres) CreateProperty(ctx context.Context, p domain.NewProperty) (domain.Property, error) {
-	rows, err := s.pool.Query(ctx, `
-		INSERT INTO properties (slug, name, booking_type, location, currency, base_rate_minor)
-		VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6)
-		RETURNING `+propertyColumns,
-		p.Slug, p.Name, string(p.BookingType), p.Location, p.Currency, p.BaseRateMinor)
-	if err != nil {
-		return domain.Property{}, fmt.Errorf("create property: %w", err)
+// db returns queries bound to the transaction in ctx, or to the pool.
+func (s *Postgres) db(ctx context.Context) *queries.Queries {
+	if tx, ok := ctx.Value(txKey{}).(pgx.Tx); ok {
+		return s.q.WithTx(tx)
 	}
-	created, err := pgx.CollectExactlyOneRow(rows, scanProperty)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
-			return domain.Property{}, domain.ErrSlugTaken
-		}
-		return domain.Property{}, fmt.Errorf("create property: %w", err)
-	}
-	return created, nil
+	return s.q
 }
 
-// GetPropertyBySlug returns the property behind a booking page address.
-func (s *Postgres) GetPropertyBySlug(ctx context.Context, slug string) (domain.Property, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+propertyColumns+` FROM properties WHERE slug = $1`, slug)
-	if err != nil {
-		return domain.Property{}, fmt.Errorf("get property: %w", err)
-	}
-	p, err := pgx.CollectExactlyOneRow(rows, scanProperty)
+func notFound(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.Property{}, domain.ErrNotFound
+		return domain.ErrNotFound
 	}
-	if err != nil {
-		return domain.Property{}, fmt.Errorf("get property: %w", err)
-	}
-	return p, nil
+	return err
 }
 
-func scanProperty(row pgx.CollectableRow) (domain.Property, error) {
-	var p domain.Property
-	var bookingType string
-	err := row.Scan(&p.ID, &p.Slug, &p.Name, &bookingType, &p.Location, &p.Currency, &p.BaseRateMinor, &p.CreatedAt)
-	p.BookingType = domain.BookingType(bookingType)
-	return p, err
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation
 }

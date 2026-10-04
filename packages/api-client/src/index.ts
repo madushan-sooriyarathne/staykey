@@ -11,6 +11,17 @@ export type BookingType = Schemas["BookingType"];
 export type Currency = Schemas["Currency"];
 export type ApiError = Schemas["Error"];
 export type Health = Schemas["Health"];
+export type User = Schemas["User"];
+export type UserPatch = Schemas["UserPatch"];
+export type Account = Schemas["Account"];
+export type Role = Schemas["Role"];
+export type Me = Schemas["Me"];
+export type OtpSent = Schemas["OtpSent"];
+export type SignIn = Schemas["SignIn"];
+export type AuthTokens = Schemas["AuthTokens"];
+
+/** Header that names the account an owner route acts on. */
+export const ACCOUNT_HEADER = "X-Account-Id";
 
 export const PRODUCTION_API_URL = "https://api.staykey.direct";
 

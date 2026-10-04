@@ -16,8 +16,13 @@
       "outputs": []
     },
     "generate": {
-      "inputs": ["$TURBO_ROOT$/packages/api-spec/openapi.yaml", "**/oapi-codegen.yaml"],
-      "outputs": ["src/schema.ts", "internal/oapi/**"]
+      "inputs": [
+        "$TURBO_ROOT$/packages/api-spec/openapi.yaml",
+        "**/oapi-codegen.yaml",
+        "sqlc.yaml",
+        "internal/db/**/*.sql"
+      ],
+      "outputs": ["src/schema.ts", "internal/oapi/**", "internal/store/queries/**"]
     },
     "migrate": {
       "cache": false

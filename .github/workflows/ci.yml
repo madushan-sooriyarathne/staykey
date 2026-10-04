@@ -42,7 +42,7 @@ jobs:
       - name: Generated code is up to date
         run: |
           bun run generate
-          git diff --exit-code -- apps/api/internal/oapi packages/api-client/src/schema.ts
+          git diff --exit-code -- apps/api/internal/oapi apps/api/internal/store/queries packages/api-client/src/schema.ts
 
       - name: Lint
         run: |

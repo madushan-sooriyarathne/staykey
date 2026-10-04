@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"staykey.direct/api/internal/auth"
 	"staykey.direct/api/internal/config"
 	"staykey.direct/api/internal/server"
 	"staykey.direct/api/internal/store"
@@ -39,12 +40,26 @@ func run() error {
 	}
 	defer db.Close()
 
-	srv := server.New(db, server.Options{
+	authService, err := auth.New(db, auth.LogSender{Logger: log}, auth.Config{
+		Secret: []byte(cfg.AuthSecret),
+		// Development builds show the code on screen, so a phone can sign in without SMS.
+		ExposeDevCodes: !cfg.IsProduction(),
+		Logger:         log,
+	})
+	if err != nil {
+		return err
+	}
+
+	srv, err := server.New(db, authService, server.Options{
 		BookingDomain:   cfg.BookingDomain,
 		BookingScheme:   cfg.BookingScheme,
 		AllowAllOrigins: !cfg.IsProduction(),
+		ClientIPHeader:  cfg.ClientIPHeader,
 		Logger:          log,
 	})
+	if err != nil {
+		return err
+	}
 
 	httpServer := &http.Server{
 		Addr:              ":" + cfg.Port,
