@@ -16,7 +16,8 @@
     "format": "biome check --write .",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
-    "db:migrate": "turbo run migrate --filter=@staykey/api"
+    "db:migrate": "turbo run migrate --filter=@staykey/api",
+    "db:seed": "turbo run seed --filter=@staykey/api"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

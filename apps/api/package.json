@@ -8,7 +8,8 @@
     "test": "go test ./...",
     "typecheck": "go vet ./...",
     "generate": "go generate ./...",
-    "migrate": "go run ./cmd/migrate up"
+    "migrate": "go run ./cmd/migrate up",
+    "seed": "go run ./cmd/seed"
   },
   "devDependencies": {
     "@staykey/api-spec": "workspace:*"
