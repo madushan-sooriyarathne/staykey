@@ -57,7 +57,7 @@ func (s *Server) CreateProperty(ctx context.Context, req oapi.CreatePropertyRequ
 		var vErr *domain.ValidationError
 		if errors.As(err, &vErr) {
 			return oapi.CreateProperty400JSONResponse{BadRequestJSONResponse: oapi.BadRequestJSONResponse(
-				fieldErr("invalid_"+vErr.Field, vErr.Field, vErr.Error()))}, nil
+				fieldErr("invalid_"+vErr.Field, vErr.Field, sentence(vErr.Message)))}, nil
 		}
 		return nil, err
 	}
