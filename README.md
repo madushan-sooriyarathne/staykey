@@ -42,12 +42,11 @@ Slugs such as `www`, `api`, `app` and `cdn` are reserved. The list lives in `app
 ## Getting started
 
 ```sh
-bun install
-bun run db:up        # start PostgreSQL in Docker
-bun run db:migrate   # apply migrations
-bun run db:seed      # optional: the sample account below
+bun run setup        # once: install, start PostgreSQL in Docker, migrate, seed the sample account
 bun run dev          # API on :8080, booking on :3001, marketing on :3000, Expo on :8081
 ```
+
+The individual steps are `bun install`, `bun run db:up`, `bun run db:migrate` and `bun run db:seed`.
 
 The seed creates an owner (+94 77 000 0001, or `-owner-phone` for your own number) with Kingfisher Villa and Coral Bay House, each fully set up with units, seasons, length discounts, charges, extras, promo codes, bank details and iCal links, plus a manager (+94 77 222 3344) and a caretaker for the villa (+94 71 333 8899). Open a booking page at http://kingfisher.localhost:3001.
 
@@ -99,6 +98,7 @@ Generated files are committed, so a fresh checkout builds without running genera
 
 | Command | Does |
 | --- | --- |
+| `bun run setup` | One-time local setup, safe to rerun |
 | `bun run dev` | Runs every app in watch mode |
 | `bun run build` | Builds everything Turborepo can cache |
 | `bun run typecheck` | `tsc` for TypeScript and `go vet` for Go |
@@ -133,7 +133,7 @@ Built:
 
 How the app gets its data today: sign-in, accounts, properties and every property setting go through the API, with tokens in the secure store and server data through TanStack Query, cached on the device for offline reads (`apps/mobile/src/api`). Bookings, blocks, rate overrides, activity, team and templates still run on an on-device store (`apps/mobile/src/data`) with typed domain models, pricing and availability rules covered by tests, and sample bookings generated around today's date. Screens read the store through small hooks, so moving each area to the API means swapping the store actions for API calls. In development (or with `EXPO_PUBLIC_PROTOTYPE_TOOLS=true`) More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
 
-Next (see `docs/backend-plan.md`):
+Next (the full checklist to launch is `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`):
 - Phase 3: the night inventory ledger, quotes, bookings and the state machine, payments and slips, blocks and rate overrides on the server, replacing the on-device store
 - Team invites, activity, templates and notifications
 - iCal import and export workers, and the booking page on live data
