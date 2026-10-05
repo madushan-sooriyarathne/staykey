@@ -1,0 +1,78 @@
+{
+  "block-dangerous-commands": {
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"/Users/madushan/Developer/staykey/.agents/hooks/block-dangerous-commands.sh\""
+          }
+        ]
+      }
+    ]
+  },
+  "scan-secrets": {
+    "PreToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"/Users/madushan/Developer/staykey/.agents/hooks/scan-secrets.sh\""
+          }
+        ]
+      }
+    ]
+  },
+  "protect-files": {
+    "PreToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"/Users/madushan/Developer/staykey/.agents/hooks/protect-files.sh\""
+          }
+        ]
+      }
+    ]
+  },
+  "warn-large-files": {
+    "PreToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"/Users/madushan/Developer/staykey/.agents/hooks/warn-large-files.sh\""
+          }
+        ]
+      }
+    ]
+  },
+  "format-on-save": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "bash \"/Users/madushan/Developer/staykey/.agents/hooks/format-on-save.sh\""
+      }
+    ]
+  },
+  "typecheck-on-stop": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "bash \"/Users/madushan/Developer/staykey/.agents/hooks/typecheck-on-stop.sh\""
+      }
+    ]
+  },
+  "lint-on-stop": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "bash \"/Users/madushan/Developer/staykey/.agents/hooks/lint-on-stop.sh\""
+      }
+    ]
+  }
+}
