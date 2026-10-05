@@ -13,5 +13,14 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "verbatimModuleSyntax": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    ".agent",
+    ".agents",
+    ".claude",
+    "**/.agent",
+    "**/.agents",
+    "**/.claude"
+  ]
 }
