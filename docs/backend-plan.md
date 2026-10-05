@@ -2,7 +2,7 @@
 
 As of 5 Oct 2026. Live, editable copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d
 
-Status: phases 1 Foundations and 2 Properties and setup are done (see `docs/HANDOVER.md`); phase 3 Bookings core is next.
+Status: phases 1 Foundations, 2 Properties and setup and 3 Bookings core are done (see `docs/HANDOVER.md`); phases 4 Team, activity and messages and 5 Calendar sync and booking page are next, and can run side by side.
 
 ## Goal and scope
 
@@ -117,7 +117,7 @@ Booking statuses (same as the app): requested, awaiting_payment, confirmed, chec
 
 ### How the ledger blocks double bookings
 
-Creating a booking or block runs in one transaction that inserts a `unit_nights` row for every night on the unit and on every related unit (its linked rooms if it is a whole-house unit, or the whole-house unit if it is a room). A clash fails the unique key and the API returns 409 with the conflicting stay. Cancelling or declining deletes the rows. A checkout hold inserts rows with `hold_expires_at`; a job clears expired holds every minute.
+Creating a booking or block runs in one transaction that inserts a `unit_nights` row for every night on the units it holds: a room holds itself, and a whole-house unit holds each room it links. A room and its house then clash on the primary key, while two rooms sold on the same night don't. A clash fails the unique key and the API returns 409 with the conflicting stay. Cancelling or declining deletes the rows. A checkout hold inserts rows with `hold_expires_at`; a job clears expired holds every minute.
 
 ## API surface
 

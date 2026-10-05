@@ -1,12 +1,12 @@
 # StayKey roadmap to launch
 
-As of 5 Oct 2026. Phases 1 Foundations and 2 Properties and setup are done. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
+As of 5 Oct 2026. Phases 1 Foundations, 2 Properties and setup and 3 Bookings core are done. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
 
 The shortest route to a first paying owner is phase 3, phase 5 and the billing half of phase 6. Phases 4 and 5 can run side by side once phase 3 is done.
 
 ## 1. Build phases
 
-### Phase 3 Bookings core (next, critical)
+### Phase 3 Bookings core (done)
 
 - [x] Migration: `guests`, `bookings`, `booking_lines`, `booking_extras`, `payments`, `payment_slips`, `booking_events`, `blocks`, `block_units`, `unit_nights`, `rate_overrides`, `idempotency_keys`, all with `account_id` and composite foreign keys
 - [x] `internal/domain/pricing`: port of `apps/mobile/src/data/pricing.ts`, held in line by shared fixtures in `packages/api-spec/fixtures/pricing.json` run by both `go test` and `bun test`
@@ -16,7 +16,7 @@ The shortest route to a first paying owner is phase 3, phase 5 and the billing h
 - [x] Payments, bank slips (uploads reuse `internal/files` with a new kind), refunds by cancellation policy
 - [x] Blocks and rate overrides, plus `GET /properties/{id}/calendar`
 - [x] Jobs on `river`: request expiry, unpaid cancellation, hold sweep, orphaned upload sweep
-- [ ] App: Today, Calendar, Bookings, booking detail, new and edit booking, record payment, cancel, block and rates sheets move from the on-device store to `src/api/`
+- [x] App: Today, Calendar, Bookings, booking detail, new and edit booking, record payment, cancel, block and rates sheets move from the on-device store to `src/api/`
 - [x] `cmd/seed` creates the sample bookings from `apps/mobile/src/data/seed.ts`
 - [x] New owner routes added to `TestTenantIsolation`
 - [x] **Gate:** exactly one winner out of 50 parallel bookings on overlapping nights for a unit and its whole-house parent
