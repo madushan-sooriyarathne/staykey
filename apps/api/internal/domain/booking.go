@@ -197,8 +197,9 @@ func (in StayInput) Validate(p PropertyDetail) error {
 // Transition rules: who may move a booking from one status to another. Cancelling has its own
 // route, since it refunds; expiry and unpaid cancellation are done by jobs, not people.
 var transitions = map[BookingStatus]map[BookingStatus]Permission{
-	StatusRequested:       {StatusAwaitingPayment: PermManage, StatusConfirmed: PermManage, StatusDeclined: PermManage},
-	StatusAwaitingPayment: {StatusConfirmed: PermManage},
+	StatusRequested: {StatusAwaitingPayment: PermManage, StatusConfirmed: PermManage, StatusDeclined: PermManage},
+	// Guests paying at the property arrive before their stay is confirmed.
+	StatusAwaitingPayment: {StatusConfirmed: PermManage, StatusCheckedIn: ""},
 	StatusConfirmed:       {StatusCheckedIn: ""},
 	StatusCheckedIn:       {StatusCheckedOut: ""},
 }
