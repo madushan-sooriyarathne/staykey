@@ -4,7 +4,10 @@ import { type Draft, OTA_CHANNELS } from "./store";
 
 const minor = (major: string) => Math.round((Number(major) || 0) * 100);
 
-/** Turns what the owner told us during onboarding into the property the app manages. */
+/**
+ * Turns what the owner told us during onboarding into a full property. Publishing sends it to the
+ * API with toNewProperty, where the ids here only tell new units and feeds apart.
+ */
 export function propertyFromDraft(
   d: Draft,
   created: { id: string; slug: string; bookingPageUrl: string },
@@ -67,8 +70,8 @@ export function propertyFromDraft(
       bank: {
         enabled: d.bankOn,
         bankName: d.bankName,
-        accountName: d.accountName.trim(),
-        accountNumber: d.accountNumber,
+        accountName: d.bankOn ? d.accountName.trim() : "",
+        accountNumber: d.bankOn ? d.accountNumber : "",
         payWithinHours: 24,
         cancelIfUnpaid: true,
       },

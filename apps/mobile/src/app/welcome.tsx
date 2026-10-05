@@ -20,6 +20,7 @@ import { IconBox, Tag } from "@/components/brand";
 import { Button, TextLink } from "@/components/controls";
 import { Glow } from "@/components/glow";
 import { font } from "@/components/ui";
+import { useJoining } from "@/features/auth/enter";
 import { useOnboarding } from "@/features/onboarding/store";
 import { haptics } from "@/lib/haptics";
 
@@ -47,6 +48,7 @@ export default function Welcome() {
 
   function start() {
     haptics.step();
+    useJoining.setState({ joining: false });
     router.push("/onboarding");
   }
 
@@ -54,6 +56,7 @@ export default function Welcome() {
     // Sign in uses the same phone and code steps. A number with an account goes straight to the
     // app after the code; one without carries on with property setup.
     haptics.step();
+    useJoining.setState({ joining: false });
     setStep("phone");
     router.push("/onboarding");
   }

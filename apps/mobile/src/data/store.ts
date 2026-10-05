@@ -4,7 +4,7 @@ import { persistentStorage } from "@/lib/storage";
 import { formatRange, today } from "./dates";
 import { DEFAULT_ACCOUNT, DEFAULT_NOTIFICATIONS, DEFAULT_TEMPLATES, uid } from "./defaults";
 import { nextRef, type Overrides } from "./pricing";
-import { sampleData, sampleGuesthouse, sampleTeam, sampleVilla, withSampleSettings } from "./seed";
+import { sampleData, sampleTeam } from "./seed";
 import type {
   Account,
   Activity,
@@ -20,8 +20,11 @@ import type {
   Template,
 } from "./types";
 
+/**
+ * Data the API doesn't hold yet: bookings, blocks, rate overrides, activity, team, templates and
+ * notification settings. Properties and their settings come from the API (src/api/properties).
+ */
 type DataState = {
-  properties: PropertyConfig[];
   bookings: Booking[];
   blocks: Block[];
   /** Per property, per unit, per night. */
@@ -32,18 +35,19 @@ type DataState = {
   notifications: Record<NotificationEvent, { push: boolean; whatsapp: boolean }>;
   account: Account;
 
-  /** First property from onboarding, optionally with sample bookings around it. */
-  start: (p: PropertyConfig, account: Partial<Account>, withSample: boolean) => void;
-  /** Team members land on someone else's sample villa. */
-  startAsTeamMember: () => PropertyConfig;
-  addProperty: (p: PropertyConfig) => void;
-  addSampleGuesthouse: () => void;
-  updateProperty: (
-    id: string,
-    patch: Partial<PropertyConfig> | ((p: PropertyConfig) => PropertyConfig),
+  /** After publishing or signing in: the owner's details, plus sample stays when asked. */
+  startLocal: (
+    p: PropertyConfig | undefined,
+    account: Partial<Account>,
+    withSample: boolean,
   ) => void;
+  /** Prototype only: sample stays for another property, such as the sample guesthouse. */
+  addSample: (p: PropertyConfig, alt?: boolean) => void;
 
-  createBooking: (b: Omit<Booking, "id" | "ref" | "createdAt">) => Booking;
+  createBooking: (
+    b: Omit<Booking, "id" | "ref" | "createdAt">,
+    property?: PropertyConfig,
+  ) => Booking;
   updateBooking: (id: string, patch: Partial<Booking>) => void;
   setStatus: (id: string, status: BookingStatus) => void;
   recordPayment: (id: string, payment: Omit<Payment, "id" | "at">, acceptSlip?: boolean) => void;
@@ -69,7 +73,6 @@ type DataState = {
 };
 
 const empty = {
-  properties: [] as PropertyConfig[],
   bookings: [] as Booking[],
   blocks: [] as Block[],
   overrides: {} as Record<string, Overrides>,
@@ -85,69 +88,41 @@ export const useData = create<DataState>()(
     (set, get) => ({
       ...empty,
 
-      start: (p, account, withSample) => {
-        const property = withSample ? withSampleSettings(p) : p;
-        const sample = withSample
-          ? sampleData(property)
-          : { bookings: [], blocks: [], activity: [] };
+      startLocal: (p, account, withSample) => {
+        const sample = withSample && p ? sampleData(p) : { bookings: [], blocks: [], activity: [] };
         const acc = { ...DEFAULT_ACCOUNT, ...account };
         set({
           ...empty,
           account: acc,
-          properties: [property],
           bookings: sample.bookings,
           blocks: sample.blocks,
           activity: sample.activity,
-          team: withSample
-            ? sampleTeam(acc, property.id)
-            : [
-                {
-                  id: "tm_owner",
-                  name: acc.name,
-                  phone: acc.phone,
-                  role: "owner",
-                  propertyIds: [],
-                  status: "active",
-                },
-              ],
+          team:
+            withSample && p
+              ? sampleTeam(acc, p.id)
+              : [
+                  {
+                    id: "tm_owner",
+                    name: acc.name,
+                    phone: acc.phone,
+                    role: "owner",
+                    propertyIds: [],
+                    status: "active",
+                  },
+                ],
         });
       },
 
-      startAsTeamMember: () => {
-        const villa = sampleVilla();
-        const sample = sampleData(villa);
-        set({
-          ...empty,
-          properties: [villa],
-          bookings: sample.bookings,
-          blocks: sample.blocks,
-          activity: sample.activity.filter((a) => a.kind !== "slip"),
-        });
-        return villa;
-      },
-
-      addProperty: (p) => set((s) => ({ properties: [...s.properties, p] })),
-
-      addSampleGuesthouse: () => {
-        const house = sampleGuesthouse();
-        const sample = sampleData(house, true);
+      addSample: (p, alt = false) => {
+        const sample = sampleData(p, alt);
         set((s) => ({
-          properties: [...s.properties, house],
           bookings: [...s.bookings, ...sample.bookings],
           blocks: [...s.blocks, ...sample.blocks],
           activity: [...sample.activity, ...s.activity].sort((a, b) => b.at.localeCompare(a.at)),
         }));
       },
 
-      updateProperty: (id, patch) =>
-        set((s) => ({
-          properties: s.properties.map((p) =>
-            p.id === id ? (typeof patch === "function" ? patch(p) : { ...p, ...patch }) : p,
-          ),
-        })),
-
-      createBooking: (input) => {
-        const p = get().properties.find((x) => x.id === input.propertyId);
+      createBooking: (input, p) => {
         const booking: Booking = {
           ...input,
           id: uid("bk"),
@@ -302,7 +277,12 @@ export const useData = create<DataState>()(
     {
       name: "staykey.data",
       storage: persistentStorage,
-      version: 1,
+      // Version 2 moved properties to the API.
+      version: 2,
+      migrate: (persisted) => {
+        const { properties: _properties, ...rest } = (persisted ?? {}) as Record<string, unknown>;
+        return rest as unknown as DataState;
+      },
     },
   ),
 );

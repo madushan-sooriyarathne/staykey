@@ -30,7 +30,7 @@ const KEYS = ["extras"] as const;
 /** Add-ons such as transfers, breakfast and tours, priced per stay, night or guest. */
 export default function Extras() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { draft, set, dirty, save, property } = useSettings(id, KEYS);
+  const { draft, set, dirty, save, status, property } = useSettings(id, KEYS);
   const [editing, setEditing] = useState<Extra | null>(null);
   if (!draft || !property)
     return (
@@ -41,7 +41,7 @@ export default function Extras() {
   const cur = property.currency;
 
   return (
-    <SettingsPage title="Extras" dirty={dirty} onSave={save}>
+    <SettingsPage title="Extras" dirty={dirty} onSave={save} status={status}>
       <Hint>Guests can add these during checkout.</Hint>
       {draft.extras.length ? (
         <List>

@@ -493,12 +493,15 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
 export function InfoNote({
   children,
   icon,
+  testID,
 }: {
   children: ReactNode;
   icon?: SymbolViewProps["name"];
+  testID?: string;
 }) {
   return (
     <Animated.View
+      testID={testID}
       entering={FadeIn.duration(220)}
       exiting={FadeOut.duration(150)}
       style={styles.info}

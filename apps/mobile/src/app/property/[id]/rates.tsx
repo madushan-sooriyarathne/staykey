@@ -33,7 +33,7 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 /** Weeknight and weekend rates, an extra-guest fee, seasons and longer-stay discounts. */
 export default function RatesAndSeasons() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { draft, set, dirty, save, property } = useSettings(id, KEYS);
+  const { draft, set, dirty, save, status, property } = useSettings(id, KEYS);
   const [season, setSeason] = useState<Season | null>(null);
   if (!draft || !property)
     return (
@@ -45,7 +45,7 @@ export default function RatesAndSeasons() {
   const m = (n: number) => money(n, cur);
 
   return (
-    <SettingsPage title="Rates and seasons" dirty={dirty} onSave={save}>
+    <SettingsPage title="Rates and seasons" dirty={dirty} onSave={save} status={status}>
       <Card title="Base rates" meta={cur}>
         {draft.units.map((u, i) => (
           <View key={u.id} style={{ gap: 8, paddingTop: i ? 12 : 0 }}>

@@ -4,6 +4,7 @@ import { Text, View } from "react-native";
 import { Field, Pill } from "@/components/controls";
 import { Card, Hint, Page, SectionHeader, ui } from "@/components/kit";
 import { TEMPLATE_VARIABLES } from "@/data/defaults";
+import { useProperties } from "@/data/hooks";
 import { useData } from "@/data/store";
 import { fillTemplate } from "@/lib/contact";
 import { haptics } from "@/lib/haptics";
@@ -12,7 +13,7 @@ import { haptics } from "@/lib/haptics";
 export default function TemplateEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const template = useData((s) => s.templates.find((t) => t.id === id));
-  const property = useData((s) => s.properties[0]);
+  const property = useProperties()[0];
   const booking = useData((s) => s.bookings.find((b) => b.status === "confirmed" && b.guest.phone));
   const updateTemplate = useData((s) => s.updateTemplate);
   const [body, setBody] = useState(template?.body ?? "");

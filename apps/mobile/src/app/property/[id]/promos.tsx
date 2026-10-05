@@ -40,7 +40,7 @@ function statusOf(p: Promo): { label: string; tone: "spark" | "neutral" | "soft"
 /** Discount codes with a value, valid dates and usage limits, and how often each was used. */
 export default function PromoCodes() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { draft, set, dirty, save, property } = useSettings(id, KEYS);
+  const { draft, set, dirty, save, status, property } = useSettings(id, KEYS);
   const [editing, setEditing] = useState<Promo | null>(null);
   if (!draft || !property)
     return (
@@ -63,7 +63,7 @@ export default function PromoCodes() {
   };
 
   return (
-    <SettingsPage title="Promo codes" dirty={dirty} onSave={save}>
+    <SettingsPage title="Promo codes" dirty={dirty} onSave={save} status={status}>
       {draft.promos.length === 0 ? (
         <Hint>Codes guests enter at checkout, like RETURN10 for returning guests.</Hint>
       ) : null}

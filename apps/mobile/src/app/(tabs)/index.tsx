@@ -10,7 +10,7 @@ import { I } from "@/components/icons";
 import { Appear, IconButton, List, money, PropertySwitcher, Two, ui } from "@/components/kit";
 import { font, Screen } from "@/components/ui";
 import { addDays, formatLong, formatRange, formatShort, nightsBetween, today } from "@/data/dates";
-import { useFilter } from "@/data/hooks";
+import { useFilter, useProperties } from "@/data/hooks";
 import { clock, plural } from "@/data/labels";
 import { balanceOf } from "@/data/pricing";
 import { useData } from "@/data/store";
@@ -29,7 +29,7 @@ export default function TodayScreen() {
 }
 
 function useScoped() {
-  const properties = useData((s) => s.properties);
+  const properties = useProperties();
   const bookings = useData((s) => s.bookings);
   const filter = useFilter((s) => s.propertyId);
   const setFilter = useFilter((s) => s.set);

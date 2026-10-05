@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { Tag } from "@/components/brand";
-import { Field, Pill, Stepper } from "@/components/controls";
+import { Field, InfoNote, Pill, Stepper } from "@/components/controls";
+import { I } from "@/components/icons";
 import { Appear, Hint, money, Page, SectionHeader, ui } from "@/components/kit";
 import { font } from "@/components/ui";
 import { uid } from "@/data/defaults";
@@ -13,7 +14,7 @@ import { plural } from "@/data/labels";
 import { physicalUnits } from "@/data/pricing";
 import { useData } from "@/data/store";
 import type { Unit } from "@/data/types";
-import { DashedButton, InlineEditor, MoneyField } from "@/features/property/settings";
+import { DashedButton, InlineEditor, MoneyField, useLiveSave } from "@/features/property/settings";
 import { haptics } from "@/lib/haptics";
 
 /** Bookable rooms or the whole villa. A linked unit blocks its rooms when booked, and the reverse. */
@@ -21,30 +22,31 @@ export default function Units() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const property = useProperty(id);
   const bookings = useData((s) => s.bookings);
-  const update = useData((s) => s.updateProperty);
+  const live = useLiveSave(id);
   const [editing, setEditing] = useState<Unit | null>(null);
   if (!property) return null;
   const rooms = physicalUnits(property);
 
-  function save(u: Unit) {
+  async function save(u: Unit) {
     if (!property) return;
     const exists = property.units.some((x) => x.id === u.id);
-    haptics.success();
-    update(property.id, {
+    const saved = await live.apply({
       units: exists ? property.units.map((x) => (x.id === u.id ? u : x)) : [...property.units, u],
     });
+    if (!saved) return;
+    haptics.success();
     setEditing(null);
   }
 
-  function remove(u: Unit) {
+  async function remove(u: Unit) {
     if (!property) return;
     haptics.warning();
-    update(property.id, {
+    const saved = await live.apply({
       units: property.units
         .filter((x) => x.id !== u.id)
         .map((x) => ({ ...x, linkedUnitIds: x.linkedUnitIds?.filter((l) => l !== u.id) })),
     });
-    setEditing(null);
+    if (saved) setEditing(null);
   }
 
   return (
@@ -52,6 +54,7 @@ export default function Units() {
       title="Units"
       action={{ label: "Add", onPress: () => setEditing(blank()), testID: "units-add" }}
     >
+      {live.error ? <InfoNote icon={I.warning}>{live.error}</InfoNote> : null}
       <Hint>
         {property.name},{" "}
         {property.bookingType === "entire" ? "booked as a whole" : plural(rooms.length, "room")}

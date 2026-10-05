@@ -1,13 +1,15 @@
 import { router } from "expo-router";
+import { useState } from "react";
 import { View } from "react-native";
 import { Tag } from "@/components/brand";
 import { I } from "@/components/icons";
 import { Appear, Avatar, List, ListRow, SectionHeader, Segmented } from "@/components/kit";
 import { Screen } from "@/components/ui";
-import { useCan } from "@/data/hooks";
+import { useCan, useProperties } from "@/data/hooks";
 import { plural } from "@/data/labels";
 import { useData } from "@/data/store";
 import { useOnboarding } from "@/features/onboarding/store";
+import { addSampleGuesthouse } from "@/features/prototype/sample-guesthouse";
 import { signOut } from "@/lib/auth";
 import { haptics } from "@/lib/haptics";
 import { PROTOTYPE } from "@/lib/prototype";
@@ -23,16 +25,16 @@ const ROLE_LABEL: Record<Role, string> = {
 export default function MoreScreen() {
   const { subscription, role, ownerName, setRole, reset: resetSession } = useSession();
   const account = useData((s) => s.account);
-  const properties = useData((s) => s.properties);
+  const properties = useProperties();
   const unread = useData((s) => s.activity.filter((a) => !a.read).length);
-  const addSample = useData((s) => s.addSampleGuesthouse);
+  const [sampleState, setSampleState] = useState<"idle" | "adding" | string>("idle");
   const resetData = useData((s) => s.reset);
   const clearDraft = useOnboarding((s) => s.clear);
   const can = useCan();
   const plan =
     subscription.status === "active" ? PLANS.find((p) => p.id === subscription.plan) : undefined;
   const name = account.name || ownerName || "You";
-  const hasGuesthouse = properties.some((p) => p.slug === "coralbay");
+  const hasGuesthouse = properties.some((p) => p.slug.startsWith("coralbay"));
 
   return (
     <Screen title="More">
@@ -149,10 +151,20 @@ export default function MoreScreen() {
                   testID="more-sample-guesthouse"
                   icon={I.house}
                   title="Add a sample guesthouse"
-                  subtitle="Rooms, a whole-house unit and bookings"
-                  onPress={() => {
-                    haptics.success();
-                    addSample();
+                  subtitle={
+                    sampleState === "adding"
+                      ? "Publishing the sample"
+                      : sampleState === "idle"
+                        ? "Rooms, a whole-house unit and bookings"
+                        : sampleState
+                  }
+                  onPress={async () => {
+                    if (sampleState === "adding") return;
+                    setSampleState("adding");
+                    const error = await addSampleGuesthouse();
+                    if (error) haptics.error();
+                    else haptics.success();
+                    setSampleState(error ?? "idle");
                   }}
                 />
               ) : null}

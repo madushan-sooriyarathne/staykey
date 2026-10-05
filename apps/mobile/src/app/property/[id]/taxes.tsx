@@ -33,7 +33,7 @@ const KEYS = ["charges"] as const;
 /** VAT, service charge and fees, with a preview of the guest's breakdown. */
 export default function TaxesAndCharges() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { draft, set, dirty, save, property } = useSettings(id, KEYS);
+  const { draft, set, dirty, save, status, property } = useSettings(id, KEYS);
   const [editing, setEditing] = useState<Charge | null>(null);
   if (!draft || !property)
     return (
@@ -66,7 +66,7 @@ export default function TaxesAndCharges() {
       : `${money(c.amount, cur)} per ${c.per}`;
 
   return (
-    <SettingsPage title="Taxes and charges" dirty={dirty} onSave={save}>
+    <SettingsPage title="Taxes and charges" dirty={dirty} onSave={save} status={status}>
       <List>
         {draft.charges.map((c) =>
           editing?.id === c.id ? null : (

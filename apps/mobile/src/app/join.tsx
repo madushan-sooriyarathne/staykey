@@ -8,14 +8,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { IconBox, Tag } from "@/components/brand";
 import { Button } from "@/components/controls";
 import { font } from "@/components/ui";
-import { useData } from "@/data/store";
+import { useJoining } from "@/features/auth/enter";
+import { useOnboarding } from "@/features/onboarding/store";
 import { haptics } from "@/lib/haptics";
-import { type Role, useSession } from "@/lib/session";
+import type { Role } from "@/lib/session";
 
 /**
- * Where invited managers and caretakers land. Property setup is skipped entirely.
- * TODO: open from the invite link, verify the phone number with the same code steps as
- * owners, then load the invite from the API instead of this sample.
+ * Where invited managers and caretakers land. Accepting confirms their number with the same code
+ * steps as owners and opens the account they belong to; property setup is skipped entirely.
+ * TODO(phase 4): open from the invite link and load the invite from the API instead of this
+ * sample, and accept it on the server.
  */
 const INVITE: { property: string; invitedBy: string; role: Role; can: string[] } = {
   property: "Kingfisher Villa",
@@ -32,7 +34,6 @@ const INVITE: { property: string; invitedBy: string; role: Role; can: string[] }
 const ease = Easing.out(Easing.cubic);
 
 export default function Join() {
-  const joinTeam = useSession((s) => s.joinTeam);
   const [accepting, setAccepting] = useState(false);
   const initials = INVITE.property
     .split(" ")
@@ -106,12 +107,13 @@ export default function Join() {
             testID="join-accept"
             title="Accept invite"
             loading={accepting}
-            onPress={async () => {
+            onPress={() => {
               setAccepting(true);
-              await new Promise((r) => setTimeout(r, 500));
-              haptics.success();
-              useData.getState().startAsTeamMember();
-              joinTeam({ role: INVITE.role, propertyName: INVITE.property });
+              haptics.step();
+              useJoining.setState({ joining: true });
+              useOnboarding.getState().setStep("phone");
+              router.push("/onboarding");
+              setAccepting(false);
             }}
           />
         </View>

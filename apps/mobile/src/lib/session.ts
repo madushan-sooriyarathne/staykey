@@ -55,7 +55,6 @@ type SessionState = {
   setAccount: (accountId: string, role: Role) => void;
   /** The server ended the session (the refresh token was refused): back to Welcome to sign in. */
   signedOut: () => void;
-  joinTeam: (p: { role: Role; propertyName: string }) => void;
   subscribe: (plan: PlanId, period: Period) => void;
   /** Prototype only: preview the app as another role. */
   setRole: (role: Role) => void;
@@ -86,7 +85,6 @@ export const useSession = create<SessionState>()(
       setUser: (userId) => set({ userId }),
       setAccount: (accountId, role) => set({ accountId, role }),
       signedOut: () => set({ onboarded: false }),
-      joinTeam: ({ role, propertyName }) => set({ onboarded: true, role, propertyName }),
       subscribe: (plan, period) => set({ subscription: { status: "active", plan, period } }),
       setRole: (role) => set({ role }),
       reset: () => set({ ...initial }),
