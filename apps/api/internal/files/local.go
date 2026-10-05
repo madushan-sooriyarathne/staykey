@@ -150,3 +150,40 @@ func (l *Local) sign(key string, expires, size int64, contentType string) string
 func (l *Local) path(key string) string {
 	return filepath.Join(l.Dir, filepath.FromSlash(key))
 }
+
+// WrittenBefore walks the folder for account files.
+func (l *Local) WrittenBefore(_ context.Context, t time.Time) ([]string, error) {
+	var keys []string
+	err := filepath.WalkDir(l.Dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(l.Dir, path)
+		if err != nil {
+			return err
+		}
+		if key := filepath.ToSlash(rel); ValidKey(key) && info.ModTime().Before(t) {
+			keys = append(keys, key)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list files: %w", err)
+	}
+	return keys, nil
+}
+
+// Delete removes the file from disk.
+func (l *Local) Delete(_ context.Context, key string) error {
+	if !ValidKey(key) {
+		return fmt.Errorf("invalid key %q", key)
+	}
+	if err := os.Remove(l.path(key)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("delete file: %w", err)
+	}
+	return nil
+}

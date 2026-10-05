@@ -98,6 +98,8 @@ func (s *Postgres) CreateBooking(ctx context.Context, t tenant.Tenant, in domain
 			OwnerNote:  stay.OwnerNote,
 			PromoID:    in.Price.PromoID,
 			CreatedBy:  &t.UserID,
+
+			RequestExpiresAt: in.RequestExpiresAt,
 		}); err != nil {
 			return fmt.Errorf("insert booking: %w", err)
 		}

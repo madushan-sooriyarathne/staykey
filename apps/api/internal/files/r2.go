@@ -85,3 +85,29 @@ func (r *R2) Exists(ctx context.Context, key string) (bool, error) {
 func (r *R2) URL(_ context.Context, key string) string {
 	return strings.TrimRight(r.cfg.PublicURL, "/") + "/" + key
 }
+
+// WrittenBefore pages through the bucket's account files.
+func (r *R2) WrittenBefore(ctx context.Context, t time.Time) ([]string, error) {
+	var keys []string
+	pages := s3.NewListObjectsV2Paginator(r.client, &s3.ListObjectsV2Input{Bucket: aws.String(r.cfg.Bucket), Prefix: aws.String("accounts/")})
+	for pages.HasMorePages() {
+		page, err := pages.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("list files: %w", err)
+		}
+		for _, o := range page.Contents {
+			if o.LastModified != nil && o.LastModified.Before(t) && ValidKey(aws.ToString(o.Key)) {
+				keys = append(keys, aws.ToString(o.Key))
+			}
+		}
+	}
+	return keys, nil
+}
+
+// Delete removes the object.
+func (r *R2) Delete(ctx context.Context, key string) error {
+	if _, err := r.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(r.cfg.Bucket), Key: aws.String(key)}); err != nil {
+		return fmt.Errorf("delete file: %w", err)
+	}
+	return nil
+}

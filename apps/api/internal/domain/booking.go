@@ -297,6 +297,8 @@ type NewBooking struct {
 	Price        Pricing
 	LedgerUnits  []uuid.UUID
 	FirstPayment *Payment
+	// RequestExpiresAt is when a request the owner hasn't answered is declined.
+	RequestExpiresAt *time.Time
 }
 
 // BookingChange is an edit to a stay the owner made, priced and checked by the caller.
