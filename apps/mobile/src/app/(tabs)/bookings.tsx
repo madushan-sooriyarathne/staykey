@@ -15,9 +15,8 @@ import {
 } from "@/components/kit";
 import { Screen } from "@/components/ui";
 import { addDays, formatMonth, today } from "@/data/dates";
-import { useCan, useFilter, useProperties } from "@/data/hooks";
+import { useBookings, useCan, useFilter, useProperties } from "@/data/hooks";
 import { HOLDING, isOTA } from "@/data/pricing";
-import { useData } from "@/data/store";
 import type { Booking } from "@/data/types";
 import { BookingListRow } from "@/features/bookings/rows";
 
@@ -28,7 +27,7 @@ const ease = Easing.out(Easing.cubic);
 
 export default function BookingsScreen() {
   const properties = useProperties();
-  const all = useData((s) => s.bookings);
+  const all = useBookings();
   const filter = useFilter((s) => s.propertyId);
   const setFilter = useFilter((s) => s.set);
   const can = useCan();

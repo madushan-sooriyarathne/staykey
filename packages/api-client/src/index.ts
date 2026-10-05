@@ -22,6 +22,18 @@ export type SignIn = Schemas["SignIn"];
 export type AuthTokens = Schemas["AuthTokens"];
 export type PropertyPatch = Schemas["PropertyPatch"];
 export type UploadTicket = Schemas["UploadTicket"];
+export type Booking = Schemas["Booking"];
+export type NewBooking = Schemas["NewBooking"];
+export type BookingPatch = Schemas["BookingPatch"];
+export type Transition = Schemas["Transition"];
+export type Cancellation = Schemas["Cancellation"];
+export type NewPayment = Schemas["NewPayment"];
+export type Quote = Schemas["Quote"];
+export type ConflictError = Schemas["ConflictError"];
+export type Block = Schemas["Block"];
+export type NewBlock = Schemas["NewBlock"];
+export type Calendar = Schemas["Calendar"];
+export type RateOverrideInput = Schemas["RateOverrideInput"];
 
 /** Header that names the account an owner route acts on. */
 export const ACCOUNT_HEADER = "X-Account-Id";

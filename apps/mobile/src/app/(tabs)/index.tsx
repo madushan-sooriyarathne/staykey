@@ -4,17 +4,18 @@ import { useMemo } from "react";
 import { Share, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeInDown, FadeOut, LinearTransition } from "react-native-reanimated";
 import { Tag } from "@/components/brand";
-import { Button } from "@/components/controls";
+import { Button, InfoNote } from "@/components/controls";
 import { Glow } from "@/components/glow";
 import { I } from "@/components/icons";
 import { Appear, IconButton, List, money, PropertySwitcher, Two, ui } from "@/components/kit";
 import { font, Screen } from "@/components/ui";
 import { addDays, formatLong, formatRange, formatShort, nightsBetween, today } from "@/data/dates";
-import { useFilter, useProperties } from "@/data/hooks";
+import { useBookings, useFilter, useProperties } from "@/data/hooks";
 import { clock, plural } from "@/data/labels";
 import { balanceOf } from "@/data/pricing";
 import { useData } from "@/data/store";
 import type { Booking, PropertyConfig } from "@/data/types";
+import { useMoveStay } from "@/features/bookings/move";
 import { GuestRow, guestLabel, placeLabel } from "@/features/bookings/rows";
 import { Checklist } from "@/features/today/checklist";
 import { openWhatsApp } from "@/lib/contact";
@@ -30,7 +31,7 @@ export default function TodayScreen() {
 
 function useScoped() {
   const properties = useProperties();
-  const bookings = useData((s) => s.bookings);
+  const bookings = useBookings();
   const filter = useFilter((s) => s.propertyId);
   const setFilter = useFilter((s) => s.set);
   const scoped = filter === "all" ? bookings : bookings.filter((b) => b.propertyId === filter);
@@ -49,7 +50,7 @@ function OwnerToday() {
   const { properties, bookings, filter, setFilter, byId, multi } = useScoped();
   const team = useData((s) => s.team);
   const unread = useData((s) => s.activity.some((a) => !a.read));
-  const setStatus = useData((s) => s.setStatus);
+  const { move, error } = useMoveStay();
   const day = today();
 
   const live = bookings.filter((b) => !["cancelled", "declined"].includes(b.status));
@@ -96,6 +97,11 @@ function OwnerToday() {
       }
     >
       <PropertySwitcher properties={properties} value={filter} onChange={setFilter} allowAll />
+      {error ? (
+        <InfoNote icon={I.warning} testID="today-error">
+          {error}
+        </InfoNote>
+      ) : null}
 
       <View style={s.stats}>
         <Stat
@@ -119,11 +125,11 @@ function OwnerToday() {
           total={requests.length}
           onApprove={(b) => {
             haptics.success();
-            setStatus(b.id, "awaiting_payment");
+            move(b, "awaiting_payment");
           }}
           onDecline={(b) => {
             haptics.warning();
-            setStatus(b.id, "declined");
+            move(b, "declined");
           }}
         />
       ) : null}
@@ -302,7 +308,7 @@ function Stat({ value, label, index }: { value: number; label: string; index: nu
 /** Caretakers see who is arriving and leaving, with notes and contact, and no prices. */
 function CaretakerToday() {
   const { properties, bookings, filter, setFilter, byId, multi } = useScoped();
-  const setStatus = useData((s) => s.setStatus);
+  const { move, error } = useMoveStay();
   const day = today();
   const live = bookings.filter((b) =>
     ["confirmed", "checked_in", "awaiting_payment"].includes(b.status),
@@ -324,6 +330,11 @@ function CaretakerToday() {
       right={<IconButton icon={I.bell} label="Activity" onPress={() => router.push("/activity")} />}
     >
       <PropertySwitcher properties={properties} value={filter} onChange={setFilter} allowAll />
+      {error ? (
+        <InfoNote icon={I.warning} testID="today-error">
+          {error}
+        </InfoNote>
+      ) : null}
       <View style={s.stats}>
         <Stat
           value={arrivals.length}
@@ -382,7 +393,7 @@ function CaretakerToday() {
                     title="Check in"
                     onPress={() => {
                       haptics.success();
-                      setStatus(b.id, "checked_in");
+                      move(b, "checked_in");
                     }}
                   />
                 )}
