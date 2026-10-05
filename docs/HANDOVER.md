@@ -62,7 +62,7 @@ Commits so far:
 | `775549f` | `cmd/seed` creates the sample properties with their full setup |
 | `6c39832` | Phase 2 app: onboarding publish, Properties tab and every settings screen on the API |
 | `1acb93e` | README, plan and handover for phase 2 |
-| (latest) | `docs/ROADMAP.md`, Claude Code setup (`CLAUDE.md`, `.claude/`), `bun run setup` |
+| `d03948f` | `docs/ROADMAP.md`, Claude Code setup (`CLAUDE.md`, `.claude/`), `bun run setup` |
 
 **Phases 1 and 2 are done.** Sign-in, accounts, properties and every property setting run on the API, and onboarding publishes in one call. Bookings, blocks, rate overrides, activity, team and templates still live in the zustand store persisted to AsyncStorage (`apps/mobile/src/data/store.ts`, version 2). Phase 3 moves bookings, blocks and rate overrides; phase 4 the rest.
 
