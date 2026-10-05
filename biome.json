@@ -19,8 +19,9 @@
       "!packages/api-client/src/schema.ts",
       "!apps/api",
       "!docs/design",
-      "!.agents",
-      "!.claude/skills"
+      "!**/.agent",
+      "!**/.agents",
+      "!**/.claude"
     ]
   },
   "formatter": {

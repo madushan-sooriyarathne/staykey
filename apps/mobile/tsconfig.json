@@ -7,5 +7,14 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
-  "exclude": ["**/__tests__/**"]
+  "exclude": [
+    "node_modules",
+    "**/__tests__/**",
+    ".agent",
+    ".agents",
+    ".claude",
+    "**/.agent",
+    "**/.agents",
+    "**/.claude"
+  ]
 }
