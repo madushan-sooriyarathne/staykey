@@ -208,6 +208,8 @@ var (
 	ErrBadTransition = errors.New("booking can't move to that status")
 	// ErrStale means the booking changed since the caller read it.
 	ErrStale = errors.New("booking changed since it was read")
+	// ErrKeyReused means an Idempotency-Key came back with a different request.
+	ErrKeyReused = errors.New("idempotency key reused for another request")
 	// ErrForbidden means the caller's role doesn't allow the action.
 	ErrForbidden = errors.New("forbidden")
 )
@@ -274,4 +276,73 @@ type ConflictError struct {
 
 func (e *ConflictError) Error() string {
 	return "dates taken from " + e.From.Format(time.DateOnly) + " to " + e.To.Format(time.DateOnly)
+}
+
+// Pricing is a stay's price as it will be stored: from the quote, or agreed with the guest.
+type Pricing struct {
+	Lines   []PriceLine
+	Extras  []BookingExtra
+	Total   int64
+	PromoID *uuid.UUID
+}
+
+// NewBooking is everything the store needs to add a stay. LedgerUnits are the units whose
+// nights it holds.
+type NewBooking struct {
+	PropertyID   uuid.UUID
+	Stay         StayInput
+	Status       BookingStatus
+	Currency     string
+	RefPrefix    string
+	Price        Pricing
+	LedgerUnits  []uuid.UUID
+	FirstPayment *Payment
+}
+
+// BookingChange is an edit to a stay the owner made, priced and checked by the caller.
+type BookingChange struct {
+	Version     int
+	Stay        StayInput
+	Price       Pricing
+	LedgerUnits []uuid.UUID
+}
+
+// Block closes nights on some units of a property. To is exclusive, like a check-out date.
+type Block struct {
+	ID         uuid.UUID
+	PropertyID uuid.UUID
+	UnitIDs    []uuid.UUID
+	From       time.Time
+	To         time.Time
+	Reason     string // maintenance, owner or other
+	Note       string
+}
+
+// Validate checks a new block against its property.
+func (b Block) Validate(p PropertyDetail) error {
+	for _, id := range b.UnitIDs {
+		if !slices.ContainsFunc(p.Units, func(u Unit) bool { return u.ID == id }) {
+			return &ValidationError{"unitIds", "must be units of this property"}
+		}
+	}
+	switch n := Nights(b.From, b.To); {
+	case len(b.UnitIDs) == 0:
+		return &ValidationError{"unitIds", "must name at least one unit"}
+	case n < 1 || n > 366:
+		return &ValidationError{"to", "must be between 1 and 366 nights after from"}
+	case b.Reason != "maintenance" && b.Reason != "owner" && b.Reason != "other":
+		return &ValidationError{"reason", "must be maintenance, owner or other"}
+	case len(b.Note) > 500:
+		return &ValidationError{"note", "must be at most 500 characters"}
+	}
+	return nil
+}
+
+// RateOverride is a manual change to one unit's night. Zero price or minimum stay means none.
+type RateOverride struct {
+	UnitID          uuid.UUID
+	Night           time.Time
+	Price           int64
+	MinNights       int
+	ClosedToArrival bool
 }
