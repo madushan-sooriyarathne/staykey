@@ -2,7 +2,7 @@ import type { SignIn } from "@staykey/api-client";
 import * as Device from "expo-device";
 import { create } from "zustand";
 import { authApi } from "@/api/client";
-import { queryClient } from "@/api/query-client";
+import { clearCache } from "@/api/query-client";
 import { clearTokens, loadTokens, saveTokens } from "./tokens";
 
 /**
@@ -74,7 +74,7 @@ export async function verifyCode(phone: string, code: string): Promise<VerifyRes
 export async function signOut(): Promise<void> {
   const tokens = await loadTokens();
   await clearTokens();
-  queryClient.clear();
+  await clearCache();
   if (!tokens) return;
   try {
     await authApi.POST("/v1/auth/logout", { body: { refreshToken: tokens.refreshToken } });

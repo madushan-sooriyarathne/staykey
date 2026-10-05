@@ -15,6 +15,7 @@ import { Glow } from "@/components/glow";
 import { Appear, Card, KV, List, ListRow, Page, ui } from "@/components/kit";
 import { font } from "@/components/ui";
 import { addDays, formatDay, nightsBetween, today, toISO } from "@/data/dates";
+import { useProperties } from "@/data/hooks";
 import { plural } from "@/data/labels";
 import { physicalUnits } from "@/data/pricing";
 import { useData } from "@/data/store";
@@ -26,7 +27,7 @@ const TRIAL_DAYS = 60;
 /** Plan or free-period status, usage against the plan, payment method and billing history. */
 export default function Subscription() {
   const { subscription, startedAt } = useSession();
-  const properties = useData((s) => s.properties);
+  const properties = useProperties();
   const team = useData((s) => s.team);
   const units = properties.reduce((n, p) => n + physicalUnits(p).length, 0);
   const plan =

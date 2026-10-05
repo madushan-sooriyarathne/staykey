@@ -23,7 +23,7 @@ const BANKS = [
 /** Bank transfer details and deadline, pay at property, and card payments for owners who want them. */
 export default function PaymentMethods() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { draft, set, dirty, save, property } = useSettings(id, KEYS);
+  const { draft, set, dirty, save, status, property } = useSettings(id, KEYS);
   const [editBank, setEditBank] = useState(false);
   if (!draft || !property)
     return (
@@ -38,7 +38,7 @@ export default function PaymentMethods() {
   const none = !bank.enabled && !pay.atProperty && pay.cards !== "on";
 
   return (
-    <SettingsPage title="Payment methods" dirty={dirty && !none} onSave={save}>
+    <SettingsPage title="Payment methods" dirty={dirty && !none} onSave={save} status={status}>
       <Card>
         <SwitchRow
           icon={I.bank}

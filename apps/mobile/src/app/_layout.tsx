@@ -5,12 +5,12 @@ import {
   useFonts,
 } from "@expo-google-fonts/dm-sans";
 import { colors } from "@staykey/tokens";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { queryClient } from "@/api/query-client";
+import { persistOptions, queryClient } from "@/api/query-client";
 import { useData } from "@/data/store";
 import { SessionCheck } from "@/features/auth/session-check";
 import { useOnboarding } from "@/features/onboarding/store";
@@ -60,7 +60,9 @@ export default function RootLayout() {
   const onboarded = useSession((s) => s.onboarded);
   const draftHydrated = useHydrated(useOnboarding);
   const dataHydrated = useHydrated(useData);
-  const ready = fontsLoaded && sessionHydrated && draftHydrated && dataHydrated;
+  // Saved server data (properties and settings) restores before the first screen draws.
+  const [cacheRestored, setCacheRestored] = useState(false);
+  const ready = fontsLoaded && sessionHydrated && draftHydrated && dataHydrated && cacheRestored;
 
   useEffect(() => {
     if (fontError) throw fontError;
@@ -70,10 +72,21 @@ export default function RootLayout() {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
-  if (!ready) return null;
-
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={persistOptions}
+      onSuccess={() => setCacheRestored(true)}
+      onError={() => setCacheRestored(true)}
+    >
+      {ready ? <App onboarded={onboarded} /> : null}
+    </PersistQueryClientProvider>
+  );
+}
+
+function App({ onboarded }: { onboarded: boolean }) {
+  return (
+    <>
       <SessionCheck />
       <StatusBar style="dark" />
       <Stack
@@ -99,6 +112,6 @@ export default function RootLayout() {
           <Stack.Screen name="range/rates" options={sheet([0.6, 0.9])} />
         </Stack.Protected>
       </Stack>
-    </QueryClientProvider>
+    </>
   );
 }

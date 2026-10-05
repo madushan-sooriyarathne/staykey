@@ -12,7 +12,7 @@ const SHOW = ["USD", "EUR", "GBP", "AUD", "INR", "LKR"];
 /** Instant book or request to book, the reply window, and the currencies guests see. */
 export default function BookingSettings() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { draft, set, dirty, save, property } = useSettings(id, KEYS);
+  const { draft, set, dirty, save, status, property } = useSettings(id, KEYS);
   if (!draft || !property)
     return (
       <SettingsPage title="Booking settings" missing>
@@ -24,7 +24,7 @@ export default function BookingSettings() {
   const unsynced = draft.ical.filter((f) => f.status !== "ok").map((f) => CHANNEL_LABEL[f.channel]);
 
   return (
-    <SettingsPage title="Booking settings" dirty={dirty} onSave={save}>
+    <SettingsPage title="Booking settings" dirty={dirty} onSave={save} status={status}>
       <SectionHeader title="How guests book" />
       <OptionRow
         title="Instant book"

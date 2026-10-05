@@ -7,15 +7,12 @@ import { useCreateProperty } from "@/api/properties";
 import { Button, ChoiceCard, Field, InfoNote, Pill } from "@/components/controls";
 import { I } from "@/components/icons";
 import { Hint, Page, SectionHeader } from "@/components/kit";
-import { localProperty } from "@/data/from-api";
-import { useData } from "@/data/store";
 import type { Currency } from "@/data/types";
 import { MoneyField } from "@/features/property/settings";
 import { haptics } from "@/lib/haptics";
 
 /** A second property in a minute: the basics, then everything else lives in its settings. */
 export default function NewProperty() {
-  const addProperty = useData((s) => s.addProperty);
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [bookingType, setBookingType] = useState<"entire" | "rooms">("entire");
@@ -41,10 +38,8 @@ export default function NewProperty() {
           currency,
           baseRate: rate,
         });
-        const property = localProperty(created, { location: location.trim() });
-        addProperty(property);
         haptics.success();
-        router.replace({ pathname: "/property/[id]", params: { id: property.id } });
+        router.replace({ pathname: "/property/[id]", params: { id: created.id } });
         return;
       } catch (e) {
         if (e instanceof ApiError && e.code === "slug_taken") continue;

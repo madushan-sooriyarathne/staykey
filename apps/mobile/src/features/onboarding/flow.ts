@@ -1,15 +1,21 @@
+import type { Property } from "@staykey/api-client";
 import { SLUG_PATTERN } from "@staykey/api-client";
 import type { ComponentType } from "react";
 import { createAccount } from "@/api/accounts";
-import { ApiError } from "@/api/errors";
+import { ApiError, OfflineError } from "@/api/errors";
 import { updateMe } from "@/api/me";
-import { createProperty } from "@/api/properties";
+import { createProperty, storeProperty } from "@/api/properties";
+import { queryClient } from "@/api/query-client";
+import { uploadImage } from "@/api/uploads";
+import { toNewProperty } from "@/data/from-api";
+import type { PropertyConfig } from "@/data/types";
 import { useSession } from "@/lib/session";
 import { ChannelsStep, ReviewStep } from "./steps/live";
 import { PaymentStep, PolicyStep, PriceStep } from "./steps/paid";
 import { BasicsStep, PhotosStep, RoomsStep, SpaceStep } from "./steps/property";
 import { isValidPhone, NameStep, PhoneStep, VerifyStep } from "./steps/you";
-import { baseRateMinor, type Draft } from "./store";
+import type { Draft } from "./store";
+import { propertyFromDraft } from "./to-property";
 import type { StageId, StepId, StepProps } from "./types";
 
 export const STAGES: { id: StageId; label: string }[] = [
@@ -170,13 +176,13 @@ export function progressFor(steps: StepDef[], index: number): number {
 }
 
 export type PublishResult =
-  | { ok: true; id: string; slug: string; bookingPageUrl: string }
+  | { ok: true; property: Property }
   | { ok: false; field?: "slug"; reauth?: boolean; message: string };
 
 /**
- * Publishes the owner's setup: creates their account the first time, saves their name, then
- * creates the property, which reserves its booking page address. A retry after a failure reuses
- * the account.
+ * Publishes the owner's setup: creates their account the first time, saves their name, uploads
+ * the photos, then creates the property with everything else in one call, which also reserves
+ * its booking page address. A retry after a failure reuses the account.
  */
 export async function publish(d: Draft): Promise<PublishResult> {
   const session = useSession.getState();
@@ -189,17 +195,18 @@ export async function publish(d: Draft): Promise<PublishResult> {
     const name = `${d.firstName} ${d.lastName}`.trim();
     if (name) await updateMe({ name }).catch(() => undefined);
 
-    const created = await createProperty({
-      name: d.propertyName.trim(),
-      slug: d.slug,
-      bookingType: d.bookingType,
-      location: d.location.trim() || undefined,
-      currency: d.currency,
-      baseRate: baseRateMinor(d),
-    });
-    return { ok: true, id: created.id, slug: created.slug, bookingPageUrl: created.bookingPageUrl };
+    const photos: PropertyConfig["photos"] = [];
+    for (const photo of d.photos) {
+      const { key, url } = await uploadImage(photo.uri, "photo");
+      photos.push({ uri: url, key });
+    }
+
+    const config = propertyFromDraft(d, { id: "draft", slug: d.slug, bookingPageUrl: "" });
+    const created = await createProperty(toNewProperty({ ...config, photos }));
+    storeProperty(queryClient, useSession.getState().accountId, created);
+    return { ok: true, property: created };
   } catch (e) {
-    if (!(e instanceof ApiError)) {
+    if (e instanceof OfflineError || !(e instanceof ApiError)) {
       return {
         ok: false,
         message: "Can't reach StayKey right now. Check your connection and try again.",

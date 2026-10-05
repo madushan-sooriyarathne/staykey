@@ -6,6 +6,7 @@ import { Button, PressScale } from "@/components/controls";
 import { Appear } from "@/components/kit";
 import { font, Screen } from "@/components/ui";
 import { addMonths, formatMonthShort, monthStart, relativeDay, today } from "@/data/dates";
+import { useProperties } from "@/data/hooks";
 import { plural } from "@/data/labels";
 import { nextArrival, occupancy, physicalUnits } from "@/data/pricing";
 import { useData } from "@/data/store";
@@ -13,7 +14,7 @@ import type { PropertyConfig } from "@/data/types";
 import { haptics } from "@/lib/haptics";
 
 export default function PropertiesScreen() {
-  const properties = useData((s) => s.properties);
+  const properties = useProperties();
   return (
     <Screen
       title="Properties"

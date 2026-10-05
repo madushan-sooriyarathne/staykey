@@ -25,7 +25,7 @@ import {
   nightsBetween,
   today,
 } from "@/data/dates";
-import { useCan, useFilter } from "@/data/hooks";
+import { useCan, useFilter, useProperties } from "@/data/hooks";
 import { BLOCK_REASON, plural } from "@/data/labels";
 import { HOLDING, isOTA, nightlyRate, physicalUnits, relatedUnits } from "@/data/pricing";
 import { useData } from "@/data/store";
@@ -77,7 +77,7 @@ function nightsFor(
 }
 
 export default function CalendarScreen() {
-  const properties = useData((s) => s.properties);
+  const properties = useProperties();
   const bookings = useData((s) => s.bookings);
   const blocks = useData((s) => s.blocks);
   const overrides = useData((s) => s.overrides);

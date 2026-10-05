@@ -20,6 +20,8 @@ export type Me = Schemas["Me"];
 export type OtpSent = Schemas["OtpSent"];
 export type SignIn = Schemas["SignIn"];
 export type AuthTokens = Schemas["AuthTokens"];
+export type PropertyPatch = Schemas["PropertyPatch"];
+export type UploadTicket = Schemas["UploadTicket"];
 
 /** Header that names the account an owner route acts on. */
 export const ACCOUNT_HEADER = "X-Account-Id";

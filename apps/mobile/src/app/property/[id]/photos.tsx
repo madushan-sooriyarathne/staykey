@@ -12,23 +12,29 @@ import Animated, {
   ZoomIn,
   ZoomOut,
 } from "react-native-reanimated";
+import { messageFor } from "@/api/errors";
+import { uploadImage } from "@/api/uploads";
 import { Tag } from "@/components/brand";
-import { Button } from "@/components/controls";
+import { Button, InfoNote } from "@/components/controls";
 import { I } from "@/components/icons";
 import { EmptyState, Hint, Page } from "@/components/kit";
 import { useProperty } from "@/data/hooks";
 import { plural } from "@/data/labels";
-import { useData } from "@/data/store";
+import type { PropertyConfig } from "@/data/types";
+import { useLiveSave } from "@/features/property/settings";
 import { haptics } from "@/lib/haptics";
 
 /** Upload, reorder and pick the cover shown on the booking page. Changes save as you go. */
 export default function Photos() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const property = useProperty(id);
-  const update = useData((s) => s.updateProperty);
+  const live = useLiveSave(id);
+  const [uploading, setUploading] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   if (!property) return null;
   const photos = property.photos;
+  const error = uploadError ?? live.error;
 
   async function add() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -37,8 +43,21 @@ export default function Photos() {
       quality: 0.8,
     });
     if (result.canceled) return;
-    haptics.success();
-    update(id, { photos: [...photos, ...result.assets.map((a) => ({ uri: a.uri }))] });
+    setUploadError(null);
+    setUploading(result.assets.length);
+    const added: PropertyConfig["photos"] = [];
+    try {
+      for (const asset of result.assets) {
+        const { key, url } = await uploadImage(asset.uri, "photo");
+        added.push({ uri: url, key });
+        setUploading((n) => n - 1);
+      }
+    } catch (e) {
+      haptics.error();
+      setUploadError(messageFor(e));
+    }
+    setUploading(0);
+    if (added.length && (await live.apply({ photos: [...photos, ...added] }))) haptics.success();
   }
 
   function move(uri: string, to: number) {
@@ -48,7 +67,7 @@ export default function Photos() {
     const [item] = next.splice(from, 1);
     if (item) next.splice(to, 0, item);
     haptics.select();
-    update(id, { photos: next });
+    live.apply({ photos: next });
   }
 
   const index = selected ? photos.findIndex((p) => p.uri === selected) : -1;
@@ -56,7 +75,12 @@ export default function Photos() {
   return (
     <Page
       title="Photos"
-      action={{ label: "Add", onPress: add, testID: "photos-add" }}
+      action={{
+        label: uploading ? "Uploading" : "Add",
+        onPress: add,
+        disabled: uploading > 0,
+        testID: "photos-add",
+      }}
       footer={
         selected && index >= 0 ? (
           <Animated.View
@@ -102,7 +126,7 @@ export default function Photos() {
                 icon={I.trash}
                 onPress={() => {
                   haptics.warning();
-                  update(id, { photos: photos.filter((x) => x.uri !== selected) });
+                  live.apply({ photos: photos.filter((x) => x.uri !== selected) });
                   setSelected(null);
                 }}
               />
@@ -111,7 +135,13 @@ export default function Photos() {
         ) : undefined
       }
     >
-      {photos.length === 0 ? (
+      {error ? <InfoNote icon={I.warning}>{error}</InfoNote> : null}
+      {uploading ? (
+        <Hint>
+          Uploading {plural(uploading, "photo")}. Keep this screen open until they finish.
+        </Hint>
+      ) : null}
+      {photos.length === 0 && !uploading ? (
         <EmptyState
           icon={I.photo}
           title="No photos yet"

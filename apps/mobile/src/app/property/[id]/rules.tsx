@@ -24,7 +24,7 @@ const NOTICE: { value: number | null; label: string }[] = [
 /** Minimum and maximum nights, advance notice, booking window and closed arrival days. */
 export default function StayRules() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { draft, set, dirty, save, property } = useSettings(id, KEYS);
+  const { draft, set, dirty, save, status, property } = useSettings(id, KEYS);
   if (!draft || !property)
     return (
       <SettingsPage title="Stay rules" missing>
@@ -36,7 +36,7 @@ export default function StayRules() {
   const seasonal = draft.seasons.filter((x) => x.minNights);
 
   return (
-    <SettingsPage title="Stay rules" dirty={dirty} onSave={save}>
+    <SettingsPage title="Stay rules" dirty={dirty} onSave={save} status={status}>
       <Card>
         <Stepper
           label="Minimum nights"

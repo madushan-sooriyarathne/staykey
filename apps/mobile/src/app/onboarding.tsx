@@ -21,12 +21,12 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, InfoNote, TextLink } from "@/components/controls";
 import { font } from "@/components/ui";
+import { toPropertyConfig } from "@/data/from-api";
 import { useData } from "@/data/store";
 import { progressFor, publish, STAGES, stepsFor } from "@/features/onboarding/flow";
 import { StageHeader } from "@/features/onboarding/stage-header";
 import { formatPhone } from "@/features/onboarding/steps/you";
 import { baseRateMinor, OTA_CHANNELS, useOnboarding } from "@/features/onboarding/store";
-import { propertyFromDraft } from "@/features/onboarding/to-property";
 import type { StepId } from "@/features/onboarding/types";
 import { requestCode } from "@/lib/auth";
 import { haptics } from "@/lib/haptics";
@@ -158,8 +158,8 @@ export default function Onboarding() {
       setBusy(false);
       if (result.ok) {
         haptics.success();
-        useData.getState().start(
-          propertyFromDraft(draft, result),
+        useData.getState().startLocal(
+          toPropertyConfig(result.property),
           {
             name: `${draft.firstName} ${draft.lastName}`.trim(),
             phone: `${draft.country.dial} ${formatPhone(draft.country, draft.phone)}`,
@@ -168,9 +168,9 @@ export default function Onboarding() {
         );
         publishSession({
           ownerName: draft.firstName.trim(),
-          propertyName: draft.propertyName.trim(),
-          slug: result.slug,
-          bookingPageUrl: result.bookingPageUrl,
+          propertyName: result.property.name,
+          slug: result.property.slug,
+          bookingPageUrl: result.property.bookingPageUrl,
           setup: {
             units:
               draft.bookingType === "entire" ? 1 : draft.rooms.reduce((n, r) => n + r.count, 0),

@@ -22,7 +22,7 @@ const KEYS = [
 /** Name, booking type, description, location, times and amenities. */
 export default function PropertyDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { draft, set, dirty, save, property } = useSettings(id, KEYS);
+  const { draft, set, dirty, save, status, property } = useSettings(id, KEYS);
   if (!draft || !property)
     return (
       <SettingsPage title="Details" missing>
@@ -31,7 +31,12 @@ export default function PropertyDetails() {
     );
 
   return (
-    <SettingsPage title="Details" dirty={dirty && draft.name.trim().length > 1} onSave={save}>
+    <SettingsPage
+      title="Details"
+      dirty={dirty && draft.name.trim().length > 1}
+      onSave={save}
+      status={status}
+    >
       <Field
         testID="details-name"
         label="Property name"

@@ -3,12 +3,14 @@ import { router } from "expo-router";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeInDown, FadeOut, LinearTransition } from "react-native-reanimated";
-import { Button, Field, TextLink } from "@/components/controls";
+import { messageFor } from "@/api/errors";
+import { useUpdateProperty } from "@/api/properties";
+import { Button, Field, InfoNote, TextLink } from "@/components/controls";
 import { I } from "@/components/icons";
 import { EmptyState, Page } from "@/components/kit";
 import { font } from "@/components/ui";
+import { toPatch } from "@/data/from-api";
 import { useProperty } from "@/data/hooks";
-import { useData } from "@/data/store";
 import type { Currency, PropertyConfig } from "@/data/types";
 import { haptics } from "@/lib/haptics";
 
@@ -16,13 +18,18 @@ const ease = Easing.out(Easing.cubic);
 
 type Picked<K extends keyof PropertyConfig> = Pick<PropertyConfig, K>;
 
+/** Where a settings save is: in flight, or failed with a message to show. */
+export type SaveStatus = { saving: boolean; error: string | null };
+
 /**
- * Local draft of some property settings with a dirty flag. Save writes the draft back and
- * returns to the overview, so every settings screen behaves the same way.
+ * Local draft of some property settings with a dirty flag. Save sends the sections that changed
+ * to the API and returns to the overview once the server has them, so every settings screen
+ * behaves the same way.
  */
 export function useSettings<K extends keyof PropertyConfig>(id: string, keys: readonly K[]) {
   const property = useProperty(id);
-  const update = useData((s) => s.updateProperty);
+  const update = useUpdateProperty();
+  const [error, setError] = useState<string | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: keys are static per screen
   const initial = useMemo(
     () => (property ? (Object.fromEntries(keys.map((k) => [k, property[k]])) as Picked<K>) : null),
@@ -39,12 +46,56 @@ export function useSettings<K extends keyof PropertyConfig>(id: string, keys: re
     property,
     draft,
     dirty,
-    set: (patch: Partial<Picked<K>>) => setDraft((d) => (d ? { ...d, ...patch } : d)),
-    save: () => {
-      if (!draft) return;
-      haptics.success();
-      update(id, draft as Partial<PropertyConfig>);
-      router.back();
+    status: { saving: update.isPending, error } satisfies SaveStatus,
+    set: (patch: Partial<Picked<K>>) => {
+      setError(null);
+      setDraft((d) => (d ? { ...d, ...patch } : d));
+    },
+    save: async () => {
+      if (!draft || !initial || update.isPending) return;
+      const changed = keys.filter((k) => JSON.stringify(draft[k]) !== JSON.stringify(initial[k]));
+      if (changed.length === 0) {
+        router.back();
+        return;
+      }
+      setError(null);
+      const changes = Object.fromEntries(
+        changed.map((k) => [k, draft[k]]),
+      ) as Partial<PropertyConfig>;
+      try {
+        await update.mutateAsync({ id, patch: toPatch(changes) });
+        haptics.success();
+        router.back();
+      } catch (e) {
+        haptics.error();
+        setError(messageFor(e));
+      }
+    },
+  };
+}
+
+/**
+ * Saves changes as they happen, for screens without a Save button (units, photos, calendars).
+ * apply resolves to true once the server has the change; failures leave a message in error.
+ */
+export function useLiveSave(id: string) {
+  const update = useUpdateProperty();
+  const [error, setError] = useState<string | null>(null);
+  return {
+    saving: update.isPending,
+    error,
+    clearError: () => setError(null),
+    apply: async (changes: Partial<PropertyConfig>) => {
+      if (update.isPending) return false;
+      setError(null);
+      try {
+        await update.mutateAsync({ id, patch: toPatch(changes) });
+        return true;
+      } catch (e) {
+        haptics.error();
+        setError(messageFor(e));
+        return false;
+      }
     },
   };
 }
@@ -53,6 +104,7 @@ export function SettingsPage({
   title,
   dirty,
   onSave,
+  status,
   children,
   footer,
   missing,
@@ -60,6 +112,7 @@ export function SettingsPage({
   title: string;
   dirty?: boolean;
   onSave?: () => void;
+  status?: SaveStatus;
   children: ReactNode;
   footer?: ReactNode;
   missing?: boolean;
@@ -71,16 +124,27 @@ export function SettingsPage({
       </Page>
     );
   }
+  const saving = status?.saving ?? false;
   return (
     <Page
       title={title}
       action={
         onSave
-          ? { label: "Save", onPress: onSave, disabled: !dirty, testID: "settings-save" }
+          ? {
+              label: saving ? "Saving" : "Save",
+              onPress: onSave,
+              disabled: !dirty || saving,
+              testID: "settings-save",
+            }
           : undefined
       }
       footer={footer}
     >
+      {status?.error ? (
+        <InfoNote icon={I.warning} testID="settings-error">
+          {status.error}
+        </InfoNote>
+      ) : null}
       {children}
     </Page>
   );

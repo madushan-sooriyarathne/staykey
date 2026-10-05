@@ -2,8 +2,11 @@ import { colors, radius } from "@staykey/tokens";
 import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams } from "expo-router";
+import { useState } from "react";
 import { Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
+import { messageFor } from "@/api/errors";
+import { uploadImage } from "@/api/uploads";
 import { Button } from "@/components/controls";
 import { I } from "@/components/icons";
 import { Avatar, List, ListRow, ui } from "@/components/kit";
@@ -17,7 +20,9 @@ const KEYS = ["branding", "photos", "name", "bookingPageUrl"] as const;
 /** Logo, button colour and page address, with a live preview of what guests see. */
 export default function Branding() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { draft, set, dirty, save, property } = useSettings(id, KEYS);
+  const { draft, set, dirty, save, status, property } = useSettings(id, KEYS);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   if (!draft || !property)
     return (
       <SettingsPage title="Booking page" missing>
@@ -30,8 +35,9 @@ export default function Branding() {
   return (
     <SettingsPage
       title="Booking page"
-      dirty={dirty}
+      dirty={dirty && !uploading}
       onSave={save}
+      status={uploadError ? { saving: false, error: uploadError } : status}
       footer={
         <View style={{ flex: 1 }}>
           <Button
@@ -86,16 +92,27 @@ export default function Branding() {
               <Avatar name={draft.name} size={36} tone="dark" />
             )
           }
-          value={draft.branding.logoUri ? "Replace" : "Add"}
+          value={uploading ? "Uploading" : draft.branding.logoUri ? "Replace" : "Add"}
           onPress={async () => {
+            if (uploading) return;
             const result = await ImagePicker.launchImageLibraryAsync({
               mediaTypes: ["images"],
               allowsEditing: true,
               aspect: [1, 1],
               quality: 0.8,
             });
-            if (!result.canceled && result.assets[0])
-              set({ branding: { ...draft.branding, logoUri: result.assets[0].uri } });
+            const asset = !result.canceled ? result.assets[0] : undefined;
+            if (!asset) return;
+            setUploading(true);
+            setUploadError(null);
+            try {
+              const { key, url } = await uploadImage(asset.uri, "logo");
+              set({ branding: { ...draft.branding, logoUri: url, logoKey: key } });
+            } catch (e) {
+              haptics.error();
+              setUploadError(messageFor(e));
+            }
+            setUploading(false);
           }}
         />
         <View style={s.colorRow}>

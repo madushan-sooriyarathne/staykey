@@ -14,7 +14,7 @@ const KEYS = ["policy", "depositPercent", "balanceDueDays", "houseRules"] as con
 /** Cancellation policy, deposit and balance rules, and house rules guests accept at checkout. */
 export default function Policies() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { draft, set, dirty, save, property } = useSettings(id, KEYS);
+  const { draft, set, dirty, save, status, property } = useSettings(id, KEYS);
   const [rule, setRule] = useState("");
   if (!draft || !property)
     return (
@@ -24,7 +24,7 @@ export default function Policies() {
     );
 
   return (
-    <SettingsPage title="Policies" dirty={dirty} onSave={save}>
+    <SettingsPage title="Policies" dirty={dirty} onSave={save} status={status}>
       <SectionHeader title="Cancellation" />
       {(Object.keys(POLICY_TEXT) as Policy[]).map((p) => (
         <OptionRow

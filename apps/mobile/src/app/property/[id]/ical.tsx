@@ -1,11 +1,13 @@
 import { colors, radius } from "@staykey/tokens";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeInDown, LinearTransition } from "react-native-reanimated";
+import { propertyKeys } from "@/api/properties";
 import { IconBox, Tag } from "@/components/brand";
-import { Button, Field, Pill } from "@/components/controls";
+import { Button, Field, InfoNote, Pill } from "@/components/controls";
 import { I } from "@/components/icons";
 import { Appear, Hint, Page, SectionHeader, Two, ui } from "@/components/kit";
 import { font } from "@/components/ui";
@@ -13,16 +15,16 @@ import { formatClock } from "@/data/dates";
 import { uid } from "@/data/defaults";
 import { useProperty } from "@/data/hooks";
 import { CHANNEL_LABEL, plural } from "@/data/labels";
-import { useData } from "@/data/store";
 import type { IcalFeed } from "@/data/types";
+import { useLiveSave } from "@/features/property/settings";
 import { haptics } from "@/lib/haptics";
 
 /** Imported OTA calendars with status and errors, plus the export link for each OTA. */
 export default function IcalSync() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = useProperty(id);
-  const update = useData((s) => s.updateProperty);
-  const log = useData((s) => s.log);
+  const live = useLiveSave(id);
+  const client = useQueryClient();
   const [syncing, setSyncing] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -30,44 +32,30 @@ export default function IcalSync() {
   if (!p) return null;
   const exportUrl = `https://api.staykey.direct/ical/${p.slug}-${p.icalExportToken}.ics`;
 
-  const setFeed = (feedId: string, patch: Partial<IcalFeed>) =>
-    update(p.id, (x) => ({
-      ...x,
-      ical: x.ical.map((f) => (f.id === feedId ? { ...f, ...patch } : f)),
-    }));
-
-  function sync(feed: IcalFeed, url = feed.url) {
+  /** Saves a feed's link. The import worker reads it on its next run and reports back. */
+  async function connect(feed: IcalFeed, url: string) {
+    if (!p) return;
     setSyncing(feed.id);
-    setTimeout(() => {
-      const ok = /^https?:\/\/\S+/.test(url);
-      setFeed(
-        feed.id,
-        ok
-          ? { url, status: "ok", lastSync: new Date().toISOString(), error: undefined }
-          : {
-              url,
-              status: "error",
-              error: "That link doesn't look like a calendar",
-              lastSync: new Date().toISOString(),
-            },
-      );
-      if (ok) {
-        haptics.success();
-        if (feed.status !== "ok")
-          log({
-            kind: "import",
-            title: `${CHANNEL_LABEL[feed.channel]} calendar connected`,
-            subtitle: `${p?.name}, syncing every 15 minutes`,
-            propertyId: p?.id,
-          });
-      } else haptics.error();
-      setSyncing(null);
+    const saved = await live.apply({
+      ical: p.ical.map((f) => (f.id === feed.id ? { ...f, url } : f)),
+    });
+    setSyncing(null);
+    if (saved) {
+      haptics.success();
       setEditing(null);
-    }, 900);
+    }
+  }
+
+  /** Fetches the latest sync status from the server. */
+  async function refresh(feed: IcalFeed) {
+    setSyncing(feed.id);
+    await client.invalidateQueries({ queryKey: propertyKeys.all });
+    setSyncing(null);
   }
 
   return (
     <Page title="iCal sync">
+      {live.error ? <InfoNote icon={I.warning}>{live.error}</InfoNote> : null}
       <SectionHeader title="Calendars you import" />
       {p.ical.map((f, i) => (
         <Appear key={f.id} index={i}>
@@ -85,7 +73,9 @@ export default function IcalSync() {
                     ? `${f.error ?? "Sync failed"}, tried ${f.lastSync ? formatClock(f.lastSync) : "recently"}`
                     : f.status === "ok"
                       ? `Synced ${f.lastSync ? formatClock(f.lastSync) : "just now"}, ${plural(f.upcoming, "upcoming stay")}`
-                      : "Paste your calendar link to connect"}
+                      : f.url
+                        ? "Link saved, waiting for the first sync"
+                        : "Paste your calendar link to connect"}
                 </Text>
               </View>
               {f.status === "error" ? (
@@ -94,9 +84,9 @@ export default function IcalSync() {
                 <Tag tone="spark" label="Synced" />
               ) : null}
             </View>
-            {f.status === "pending" || editing === f.id ? (
+            {(f.status === "pending" && !f.url) || editing === f.id ? (
               <Animated.View entering={FadeInDown.duration(200)} style={{ gap: 10 }}>
-                <FeedLink feed={f} busy={syncing === f.id} onConnect={(url) => sync(f, url)} />
+                <FeedLink feed={f} busy={syncing === f.id} onConnect={(url) => connect(f, url)} />
                 <Hint>
                   In {CHANNEL_LABEL[f.channel]}, open your calendar settings and copy the export or
                   iCal link.
@@ -112,9 +102,9 @@ export default function IcalSync() {
                 />
                 <Button
                   compact
-                  title="Sync now"
+                  title={f.status === "pending" ? "Check status" : "Sync now"}
                   loading={syncing === f.id}
-                  onPress={() => sync(f)}
+                  onPress={() => refresh(f)}
                   testID={`sync-${f.channel}`}
                 />
               </Two>
@@ -125,7 +115,7 @@ export default function IcalSync() {
       {adding ? (
         <AddFeed
           onCancel={() => setAdding(false)}
-          onAdd={(channel, url) => {
+          onAdd={async (channel, url) => {
             const feed: IcalFeed = {
               id: uid("ical"),
               channel,
@@ -133,9 +123,10 @@ export default function IcalSync() {
               status: "pending",
               upcoming: 0,
             };
-            update(p.id, (x) => ({ ...x, ical: [...x.ical, feed] }));
-            setAdding(false);
-            sync(feed, url);
+            if (await live.apply({ ical: [...p.ical, feed] })) {
+              haptics.success();
+              setAdding(false);
+            }
           }}
         />
       ) : (

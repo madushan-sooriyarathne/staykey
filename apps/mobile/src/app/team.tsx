@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import { Tag } from "@/components/brand";
 import { Field, Pill } from "@/components/controls";
 import { Appear, Avatar, Card, List, ListRow, Page, SectionHeader, ui } from "@/components/kit";
+import { useProperties } from "@/data/hooks";
 import { useData } from "@/data/store";
 import type { TeamMember } from "@/data/types";
 import { InlineEditor } from "@/features/property/settings";
@@ -18,7 +19,7 @@ const ROLE: Record<TeamMember["role"], string> = {
 /** Members, pending invites, and each person's role and property access. */
 export default function Team() {
   const team = useData((s) => s.team);
-  const properties = useData((s) => s.properties);
+  const properties = useProperties();
   const invite = useData((s) => s.invite);
   const updateMember = useData((s) => s.updateMember);
   const removeMember = useData((s) => s.removeMember);

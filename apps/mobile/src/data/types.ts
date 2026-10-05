@@ -89,7 +89,8 @@ export type PropertyConfig = {
   amenities: string[];
   checkIn: string;
   checkOut: string;
-  photos: { uri: string; caption?: string }[];
+  /** In display order; the first is the cover. `key` is set once a photo is uploaded. */
+  photos: { uri: string; key?: string; caption?: string }[];
   currency: Currency;
 
   units: Unit[];
@@ -135,7 +136,7 @@ export type PropertyConfig = {
     displayCurrencies: string[];
   };
 
-  branding: { color: string; logoUri?: string };
+  branding: { color: string; logoUri?: string; logoKey?: string };
   ical: IcalFeed[];
   icalExportToken: string;
 };

@@ -10,7 +10,7 @@ import { I } from "@/components/icons";
 import { BrandSwitch, Card, Hint, KV, money, Page, SectionHeader, ui } from "@/components/kit";
 import { font } from "@/components/ui";
 import { addDays, formatShort } from "@/data/dates";
-import { useBooking, useFilter } from "@/data/hooks";
+import { useBooking, useFilter, useProperties } from "@/data/hooks";
 import { METHOD_LABEL, plural } from "@/data/labels";
 import { conflicts, depositFor, isOTA, minNightsFor, quote, SOURCE_LABEL } from "@/data/pricing";
 import { useData } from "@/data/store";
@@ -36,7 +36,7 @@ export default function BookingForm() {
     to?: string;
   }>();
   const existing = useBooking(params.id);
-  const properties = useData((s) => s.properties);
+  const properties = useProperties();
   const bookings = useData((s) => s.bookings);
   const blocks = useData((s) => s.blocks);
   const overrides = useData((s) => s.overrides);
@@ -151,25 +151,28 @@ export default function BookingForm() {
       return;
     }
     const amount = Math.round(Number(deposit || 0) * 100);
-    const created = createBooking({
-      propertyId: property.id,
-      unitId: unit.id,
-      source,
-      status: "confirmed",
-      guest,
-      adults,
-      children,
-      checkIn: from,
-      checkOut: to,
-      lines,
-      total,
-      payments:
-        depositOn && amount > 0
-          ? [{ id: `pay_${Date.now()}`, amount, method, at: new Date().toISOString() }]
-          : [],
-      extras,
-      ownerNote: note.trim() || undefined,
-    });
+    const created = createBooking(
+      {
+        propertyId: property.id,
+        unitId: unit.id,
+        source,
+        status: "confirmed",
+        guest,
+        adults,
+        children,
+        checkIn: from,
+        checkOut: to,
+        lines,
+        total,
+        payments:
+          depositOn && amount > 0
+            ? [{ id: `pay_${Date.now()}`, amount, method, at: new Date().toISOString() }]
+            : [],
+        extras,
+        ownerNote: note.trim() || undefined,
+      },
+      property,
+    );
     log({
       kind: "booking",
       title: `You added ${created.guest.name}`,
