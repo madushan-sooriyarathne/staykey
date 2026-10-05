@@ -3,7 +3,9 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { Button, Field, Pill } from "@/components/controls";
+import { useRecordPayment, useRejectSlip } from "@/api/bookings";
+import { messageFor } from "@/api/errors";
+import { Button, Field, InfoNote, Pill } from "@/components/controls";
 import { I } from "@/components/icons";
 import {
   Avatar,
@@ -18,6 +20,7 @@ import {
 } from "@/components/kit";
 import { font } from "@/components/ui";
 import { formatClock, formatRange } from "@/data/dates";
+import { uid } from "@/data/defaults";
 import { useBooking, useProperty } from "@/data/hooks";
 import { METHOD_LABEL } from "@/data/labels";
 import { balanceOf } from "@/data/pricing";
@@ -31,17 +34,36 @@ export default function RecordPayment() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const booking = useBooking(id);
   const property = useProperty(booking?.propertyId);
-  const record = useData((s) => s.recordPayment);
-  const reject = useData((s) => s.rejectSlip);
+  const record = useRecordPayment();
+  const reject = useRejectSlip();
+  // One key per visit, so a retried tap never records the payment twice.
+  const [key] = useState(() => uid("pay"));
+  const [error, setError] = useState<string | null>(null);
+  const log = useData((s) => s.log);
+  const markRead = useData((s) => s.markRead);
   const slip = booking?.slip?.status === "pending" ? booking.slip : undefined;
   const balance = booking ? balanceOf(booking) : 0;
   const [amount, setAmount] = useState(
     ((slip?.amount ?? balance) / 100).toFixed(2).replace(/\.00$/, ""),
   );
-  const [method, setMethod] = useState<Payment["method"]>(slip ? "bank" : "cash");
+  const [method, setMethod] = useState<Exclude<Payment["method"], "refund">>(
+    slip ? "bank" : "cash",
+  );
 
   if (!booking || !property) return null;
   const minor = Math.round(Number(amount || 0) * 100);
+  const busy = record.isPending || reject.isPending;
+
+  async function send(action: () => Promise<unknown>) {
+    setError(null);
+    try {
+      await action();
+      router.back();
+    } catch (e) {
+      haptics.error();
+      setError(messageFor(e));
+    }
+  }
   const symbol = property.currency === "USD" ? "$" : "LKR";
 
   return (
@@ -55,10 +77,10 @@ export default function RecordPayment() {
               <Button
                 variant="ghost"
                 title="Reject slip"
+                disabled={busy}
                 onPress={() => {
                   haptics.warning();
-                  reject(booking.id);
-                  router.back();
+                  send(() => reject.mutateAsync({ id: booking.id, slipId: slip.id }));
                 }}
               />
             </View>
@@ -67,17 +89,37 @@ export default function RecordPayment() {
             <Button
               testID="payment-record"
               title={`Record ${money(minor, property.currency)}`}
-              disabled={minor <= 0}
+              disabled={minor <= 0 || busy}
               onPress={() => {
                 haptics.success();
-                record(booking.id, { amount: minor, method }, !!slip);
-                router.back();
+                send(async () => {
+                  await record.mutateAsync({
+                    id: booking.id,
+                    key,
+                    amount: minor,
+                    method,
+                    slipId: slip?.id,
+                  });
+                  log({
+                    kind: "payment",
+                    title: `Payment from ${booking.guest.name}`,
+                    subtitle: `${booking.ref}, recorded by you`,
+                    bookingId: booking.id,
+                    propertyId: booking.propertyId,
+                  });
+                  markRead(undefined, booking.id);
+                });
               }}
             />
           </View>
         </>
       }
     >
+      {error ? (
+        <InfoNote icon={I.warning} testID="payment-error">
+          {error}
+        </InfoNote>
+      ) : null}
       <List>
         <ListRow
           leading={<Avatar name={booking.guest.name} />}

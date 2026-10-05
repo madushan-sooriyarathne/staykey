@@ -16,14 +16,16 @@ type apiError struct {
 	code       string
 	message    string
 	retryAfter int
+	field      string
+	clash      *oapi.Clash
 }
 
 func (e *apiError) Error() string { return e.code + ": " + e.message }
 
 var (
-	errUnauthorized = &apiError{http.StatusUnauthorized, "unauthorized", "Sign in again to continue.", 0}
-	errNoAccount    = &apiError{http.StatusNotFound, "account_not_found", "That account doesn't exist or you're not a member of it.", 0}
-	errForbidden    = &apiError{http.StatusForbidden, "forbidden", "Your role doesn't allow this. Ask the account owner.", 0}
+	errUnauthorized = &apiError{status: http.StatusUnauthorized, code: "unauthorized", message: "Sign in again to continue."}
+	errNoAccount    = &apiError{status: http.StatusNotFound, code: "account_not_found", message: "That account doesn't exist or you're not a member of it."}
+	errForbidden    = &apiError{status: http.StatusForbidden, code: "forbidden", message: "Your role doesn't allow this. Ask the account owner."}
 )
 
 // writeAPIError writes err as JSON when it is an apiError, and as a generic 500 otherwise. It
@@ -34,12 +36,17 @@ func writeAPIError(w http.ResponseWriter, err error) bool {
 		writeError(w, http.StatusInternalServerError, "internal_error", "Something went wrong on our side.")
 		return false
 	}
-	body := oapi.Error{Code: e.code, Message: e.message}
+	w.Header().Set("Content-Type", "application/json")
+	if e.status == http.StatusConflict {
+		w.WriteHeader(e.status)
+		_ = json.NewEncoder(w).Encode(oapi.ConflictError{Code: oapi.ConflictErrorCode(e.code), Message: e.message, Clash: e.clash})
+		return true
+	}
+	body := oapi.Error{Code: e.code, Message: e.message, Field: optional(e.field)}
 	if e.retryAfter > 0 {
 		body.RetryAfter = &e.retryAfter
 		w.Header().Set("Retry-After", strconv.Itoa(e.retryAfter))
 	}
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(e.status)
 	_ = json.NewEncoder(w).Encode(body)
 	return true

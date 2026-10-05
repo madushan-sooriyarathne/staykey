@@ -29,8 +29,8 @@ export type AfterSignIn =
 /**
  * Decides where a verified sign-in goes. Someone with an account (a returning owner, or a team
  * member) goes straight to the app with that account's properties loaded; a new owner carries on
- * with setup. Bookings and the rest of the on-device data are kept when the same person signs
- * back in, and dropped when it's someone else.
+ * with setup. The on-device data (alerts, team and templates until phase 4) is kept when the same
+ * person signs back in, and dropped when it's someone else.
  */
 export async function afterSignIn(signIn: SignIn): Promise<AfterSignIn> {
   const session = useSession.getState();
@@ -79,7 +79,7 @@ export async function afterSignIn(signIn: SignIn): Promise<AfterSignIn> {
   if (properties.length === 0 && account.role === "owner" && !joining) return { to: "setup" };
 
   const first = properties[0] ? toPropertyConfig(properties[0]) : undefined;
-  if (!sameUser || useData.getState().bookings.length === 0) {
+  if (!sameUser || useData.getState().team.length === 0) {
     useData
       .getState()
       .startLocal(first, { name: signIn.user.name, phone: signIn.user.phone }, PROTOTYPE);

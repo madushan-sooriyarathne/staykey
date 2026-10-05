@@ -30,7 +30,7 @@ func (q *Queries) AddMembershipProperty(ctx context.Context, arg AddMembershipPr
 
 const createAccount = `-- name: CreateAccount :one
 INSERT INTO accounts (id, name) VALUES ($1, $2)
-RETURNING id, name, status, trial_started_at, first_direct_booking_at, created_at, updated_at
+RETURNING id, name, status, trial_started_at, first_direct_booking_at, created_at, updated_at, booking_seq
 `
 
 type CreateAccountParams struct {
@@ -49,6 +49,7 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (A
 		&i.FirstDirectBookingAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BookingSeq,
 	)
 	return i, err
 }

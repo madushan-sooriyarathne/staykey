@@ -8,8 +8,8 @@ import { useSession } from "@/lib/session";
 
 /**
  * Prototype tool: publishes the sample guesthouse (rooms, a whole-house unit, seasons, extras and
- * promo codes) to the signed-in account, then adds sample stays for it on this device. Returns
- * an error message, or null when it worked.
+ * promo codes) to the signed-in account, then adds sample alerts for it on this device. Sample
+ * stays come from cmd/seed on the server. Returns an error message, or null when it worked.
  */
 export async function addSampleGuesthouse(): Promise<string | null> {
   const house = sampleGuesthouse();

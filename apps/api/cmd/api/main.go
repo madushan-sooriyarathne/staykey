@@ -16,6 +16,7 @@ import (
 	"staykey.direct/api/internal/auth"
 	"staykey.direct/api/internal/config"
 	"staykey.direct/api/internal/files"
+	"staykey.direct/api/internal/jobs"
 	"staykey.direct/api/internal/secret"
 	"staykey.direct/api/internal/server"
 	"staykey.direct/api/internal/store"
@@ -49,6 +50,11 @@ func run() error {
 	defer db.Close()
 
 	fileStore, media, err := newFileStore(cfg)
+	if err != nil {
+		return err
+	}
+
+	jobClient, err := jobs.Start(ctx, db.Pool(), db, fileStore, log)
 	if err != nil {
 		return err
 	}
@@ -103,7 +109,7 @@ func run() error {
 	log.Info("shutting down")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return httpServer.Shutdown(shutdownCtx)
+	return errors.Join(httpServer.Shutdown(shutdownCtx), jobClient.Stop(shutdownCtx))
 }
 
 // newFileStore returns R2 in production and a folder served by the API in development.

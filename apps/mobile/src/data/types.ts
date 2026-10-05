@@ -1,7 +1,7 @@
 /**
  * Domain shapes for the owner app. Money is always an integer in minor units next to an ISO
- * currency code, and calendar dates are local "YYYY-MM-DD" strings. These mirror what the API
- * will serve once bookings, units and rates move server side.
+ * currency code, and calendar dates are local "YYYY-MM-DD" strings. Properties, bookings, blocks
+ * and rates come from the API and are converted to these in from-api.ts.
  */
 
 export type Currency = "USD" | "LKR";
@@ -187,13 +187,15 @@ export type Booking = {
   lines: PriceLine[];
   total: number;
   payments: Payment[];
-  slip?: { amount: number; at: string; status: "pending" | "accepted" | "rejected" };
+  slip?: { id: string; amount: number; at: string; status: "pending" | "accepted" | "rejected" };
   extras: string[];
   guestNote?: string;
   ownerNote?: string;
   createdAt: string;
   requestExpiresAt?: string;
   cancel?: { reason: string; refund: number; at: string };
+  /** Sent back with changes, so an edit made on a stale copy is refused. */
+  version: number;
 };
 
 export type Block = {

@@ -10,6 +10,7 @@ import Animated, {
   SlideOutDown,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useCalendar, useDeleteBlock } from "@/api/calendar";
 import { MonthGrid, MonthNav } from "@/components/calendar";
 import { Button, Pill } from "@/components/controls";
 import { I } from "@/components/icons";
@@ -25,10 +26,9 @@ import {
   nightsBetween,
   today,
 } from "@/data/dates";
-import { useCan, useFilter, useProperties } from "@/data/hooks";
+import { useBookings, useCan, useFilter, useProperties } from "@/data/hooks";
 import { BLOCK_REASON, plural } from "@/data/labels";
 import { HOLDING, isOTA, nightlyRate, physicalUnits, relatedUnits } from "@/data/pricing";
-import { useData } from "@/data/store";
 import type { Block, Booking, Currency, ISODate, PropertyConfig } from "@/data/types";
 import { guestLabel } from "@/features/bookings/rows";
 import { haptics } from "@/lib/haptics";
@@ -78,14 +78,13 @@ function nightsFor(
 
 export default function CalendarScreen() {
   const properties = useProperties();
-  const bookings = useData((s) => s.bookings);
-  const blocks = useData((s) => s.blocks);
-  const overrides = useData((s) => s.overrides);
-  const removeBlock = useData((s) => s.removeBlock);
+  const bookings = useBookings();
+  const removeBlock = useDeleteBlock();
   const filter = useFilter((s) => s.propertyId);
   const setFilter = useFilter((s) => s.set);
   const can = useCan();
   const property = properties.find((p) => p.id === filter) ?? properties[0];
+  const { blocks, overrides } = useCalendar(property?.id);
   const units = property
     ? physicalUnits(property).concat(property.units.filter((u) => u.linkedUnitIds?.length))
     : [];
@@ -214,9 +213,9 @@ export default function CalendarScreen() {
                 const between = sel?.end && d > sel.start && d < sel.end;
                 const price =
                   !kind && !past && inMonth && canEdit
-                    ? nightlyRate(property, unit.id, d, overrides[property.id])
+                    ? nightlyRate(property, unit.id, d, overrides)
                     : 0;
-                const hasOverride = overrides[property.id]?.[unit.id]?.[d]?.price != null;
+                const hasOverride = overrides[unit.id]?.[d]?.price != null;
                 return (
                   <Pressable
                     accessibilityLabel={`${formatShort(d)}${kind ? `, ${kind}` : ""}`}
@@ -364,7 +363,7 @@ export default function CalendarScreen() {
             title="Open these nights"
             onPress={() => {
               haptics.success();
-              removeBlock(blockTap.id);
+              removeBlock.mutate({ id: blockTap.id, propertyId: blockTap.propertyId });
               setBlockTap(null);
             }}
           />

@@ -18,7 +18,9 @@
       "!**/expo-env.d.ts",
       "!packages/api-client/src/schema.ts",
       "!apps/api",
-      "!docs/design"
+      "!docs/design",
+      "!.agents",
+      "!.claude/skills"
     ]
   },
   "formatter": {

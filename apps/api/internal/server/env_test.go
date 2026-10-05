@@ -101,6 +101,7 @@ type call struct {
 	as      *session
 	account string // X-Account-Id
 	raw     []byte // sent as is instead of body
+	headers map[string]string
 }
 
 func (e *env) do(c call) *httptest.ResponseRecorder {
@@ -123,6 +124,9 @@ func (e *env) do(c call) *httptest.ResponseRecorder {
 	}
 	if c.account != "" {
 		req.Header.Set("X-Account-Id", c.account)
+	}
+	for k, v := range c.headers {
+		req.Header.Set(k, v)
 	}
 	rec := httptest.NewRecorder()
 	e.h.ServeHTTP(rec, req)
@@ -183,6 +187,17 @@ func (e *env) createProperty(s *session, account, name string) oapi.Property {
 		body: map[string]any{"name": name, "bookingType": "entire", "currency": "USD", "baseRate": 18000}})
 	e.expect(rec, http.StatusCreated)
 	return decode[oapi.Property](e.t, rec)
+}
+
+// createBooking adds a stay on a property's first unit through the API.
+func (e *env) createBooking(s *session, account string, p oapi.Property, from, to string) oapi.Booking {
+	e.t.Helper()
+	rec := e.do(call{method: http.MethodPost, path: "/v1/bookings", as: s, account: account, body: map[string]any{
+		"propertyId": p.Id, "unitId": p.Units[0].Id, "checkIn": from, "checkOut": to, "adults": 2,
+		"guest": map[string]any{"name": "Nimali Perera", "phone": "+94770000001"}, "source": "whatsapp",
+	}})
+	e.expect(rec, http.StatusCreated)
+	return decode[oapi.Booking](e.t, rec)
 }
 
 func (e *env) refresh(token string) *httptest.ResponseRecorder {
