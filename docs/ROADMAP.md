@@ -15,9 +15,9 @@ The shortest route to a first paying owner is phase 3, phase 5 and the billing h
 - [x] `POST /v1/quote`, bookings (list, create, get, edit, transitions, cancel) with `Idempotency-Key` and a `version` for stale writes
 - [x] Payments, bank slips (uploads reuse `internal/files` with a new kind), refunds by cancellation policy
 - [x] Blocks and rate overrides, plus `GET /properties/{id}/calendar`
-- [ ] Jobs on `river`: request expiry, unpaid cancellation, hold sweep, orphaned upload sweep
+- [x] Jobs on `river`: request expiry, unpaid cancellation, hold sweep, orphaned upload sweep
 - [ ] App: Today, Calendar, Bookings, booking detail, new and edit booking, record payment, cancel, block and rates sheets move from the on-device store to `src/api/`
-- [ ] `cmd/seed` creates the sample bookings from `apps/mobile/src/data/seed.ts`
+- [x] `cmd/seed` creates the sample bookings from `apps/mobile/src/data/seed.ts`
 - [x] New owner routes added to `TestTenantIsolation`
 - [x] **Gate:** exactly one winner out of 50 parallel bookings on overlapping nights for a unit and its whole-house parent
 
