@@ -206,6 +206,257 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Price a stay
+         * @description The breakdown the booking would store, priced with the property's rates, seasons,
+         *     rate overrides, discounts, extras and charges. Owners and managers only.
+         */
+        post: operations["createQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stays the caller can see, by arrival
+         * @description Stays that overlap [from, to), ordered by check-in. Pass nextCursor back as cursor
+         *     for the next page. Caretakers see the properties they look after, without money.
+         */
+        get: operations["listBookings"];
+        put?: never;
+        /**
+         * Add a stay the owner took directly
+         * @description Prices the stay (or takes customTotal), holds its nights and confirms it, with an
+         *     optional first payment. Nights another stay or a block holds give 409 with the
+         *     clash. Owners and managers only.
+         */
+        post: operations["createBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bookings/{bookingId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        /** One stay with its price lines, payments and slips */
+        get: operations["getBooking"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change a stay
+         * @description Send the version you read and the fields that changed. A change of unit, dates,
+         *     guests or extras prices the stay again unless customTotal is sent. A stale version
+         *     gives 409 with code stale. Owners and managers only.
+         */
+        patch: operations["updateBooking"];
+        trace?: never;
+    };
+    "/v1/bookings/{bookingId}/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move a stay to its next status
+         * @description Approve or decline a request, confirm, check in or check out. Every role can check
+         *     guests in and out; the rest is for owners and managers. Declining frees the nights.
+         */
+        post: operations["transitionBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bookings/{bookingId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a stay and record any refund
+         * @description Frees the nights. The refund is up to the owner, up to what was paid; the
+         *     cancellation policy only suggests it. Owners and managers only.
+         */
+        post: operations["cancelBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bookings/{bookingId}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record money the guest paid
+         * @description Send slipId to accept the guest's bank slip with the payment. A payment on a stay
+         *     awaiting payment confirms it. Owners and managers only.
+         */
+        post: operations["recordPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/slips/{slipId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slipId: components["parameters"]["SlipId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn down a bank slip the guest uploaded
+         * @description Owners and managers only.
+         */
+        post: operations["rejectSlip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/properties/{id}/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Blocks and rate overrides for a stretch of nights
+         * @description Nights in [from, to), the next twelve months by default. Stays come from
+         *     /v1/bookings with the same propertyId, from and to.
+         */
+        get: operations["getCalendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close nights on some units
+         * @description Nights a stay or another block holds give 409. Owners and managers only.
+         */
+        post: operations["createBlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/blocks/{blockId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blockId: components["parameters"]["BlockId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Open a block's nights again
+         * @description Owners and managers only.
+         */
+        delete: operations["deleteBlock"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rate-overrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or clear the price and stay rules for some nights
+         * @description Replaces the overrides on every unit and night in [from, to). Leave out price and
+         *     minNights and send closedToArrival false to go back to the usual rates. Owners and
+         *     managers only.
+         */
+        put: operations["setRateOverrides"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/public/properties/{slug}": {
         parameters: {
             query?: never;
@@ -701,6 +952,261 @@ export interface components {
             /** Format: int64 */
             baseRate: number;
         };
+        /** @enum {string} */
+        BookingStatus: "requested" | "awaiting_payment" | "confirmed" | "checked_in" | "checked_out" | "cancelled" | "declined";
+        /**
+         * @description Where the stay came from. airbnb, booking, agoda and expedia arrive by iCal.
+         * @enum {string}
+         */
+        BookingSource: "page" | "widget" | "whatsapp" | "phone" | "walkin" | "other" | "airbnb" | "booking" | "agoda" | "expedia";
+        /** @enum {string} */
+        PaymentMethod: "bank" | "cash" | "card";
+        /**
+         * Format: int64
+         * @description An amount in minor units that may be negative, such as a discount.
+         */
+        Signed: number;
+        Guest: {
+            name: string;
+            phone?: string;
+            email?: string;
+            /** @description ISO 3166 two-letter code. */
+            country?: string;
+        };
+        PriceLine: {
+            label: string;
+            amount: components["schemas"]["Signed"];
+            /** @enum {string} */
+            kind?: "discount" | "charge" | "extra";
+        };
+        Payment: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "payment" | "refund";
+            method: components["schemas"]["PaymentMethod"];
+            amount: components["schemas"]["Money"];
+            note: string;
+            /** Format: date-time */
+            receivedAt: string;
+        };
+        Slip: {
+            /** Format: uuid */
+            id: string;
+            amount: components["schemas"]["Money"];
+            /** @enum {string} */
+            status: "pending" | "accepted" | "rejected";
+            /** Format: date-time */
+            uploadedAt: string;
+            /** Format: uri */
+            url: string;
+        };
+        /**
+         * @description A stay. Money fields (total, lines, payments, slips, paid, balance) are left out for
+         *     caretakers.
+         */
+        Booking: {
+            /** Format: uuid */
+            id: string;
+            /** @example KV-2041 */
+            ref: string;
+            /** Format: uuid */
+            propertyId: string;
+            /** Format: uuid */
+            unitId: string;
+            source: components["schemas"]["BookingSource"];
+            status: components["schemas"]["BookingStatus"];
+            guest: components["schemas"]["Guest"];
+            adults: number;
+            children: number;
+            checkIn: components["schemas"]["Day"];
+            checkOut: components["schemas"]["Day"];
+            currency: components["schemas"]["Currency"];
+            total?: components["schemas"]["Money"];
+            lines?: components["schemas"]["PriceLine"][];
+            /** @description Ids of the extras booked. */
+            extras: string[];
+            payments?: components["schemas"]["Payment"][];
+            slips?: components["schemas"]["Slip"][];
+            paid?: components["schemas"]["Signed"];
+            balance?: components["schemas"]["Money"];
+            guestNote: string;
+            ownerNote: string;
+            /** Format: date-time */
+            requestExpiresAt?: string;
+            /** Format: date-time */
+            paymentDueAt?: string;
+            cancel?: {
+                reason: string;
+                /** Format: date-time */
+                at: string;
+            };
+            /** @description Send back on changes; it moves on with every change. */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        BookingList: {
+            items: components["schemas"]["Booking"][];
+            /** @description Present when there are more stays. */
+            nextCursor?: string;
+        };
+        NewBooking: {
+            /** Format: uuid */
+            propertyId: string;
+            /** Format: uuid */
+            unitId: string;
+            checkIn: components["schemas"]["Day"];
+            checkOut: components["schemas"]["Day"];
+            adults: number;
+            children?: number;
+            guest: components["schemas"]["Guest"];
+            source: components["schemas"]["BookingSource"];
+            extras?: string[];
+            customTotal?: components["schemas"]["Money"];
+            ownerNote?: string;
+            /** @description A first payment taken with the booking, such as a deposit. */
+            payment?: {
+                /** Format: int64 */
+                amount: number;
+                method: components["schemas"]["PaymentMethod"];
+            };
+        };
+        BookingPatch: {
+            version: number;
+            /** Format: uuid */
+            unitId?: string;
+            checkIn?: components["schemas"]["Day"];
+            checkOut?: components["schemas"]["Day"];
+            adults?: number;
+            children?: number;
+            guest?: components["schemas"]["Guest"];
+            source?: components["schemas"]["BookingSource"];
+            extras?: string[];
+            customTotal?: components["schemas"]["Money"];
+            ownerNote?: string;
+        };
+        Transition: {
+            /** @enum {string} */
+            to: "awaiting_payment" | "confirmed" | "declined" | "checked_in" | "checked_out";
+            version: number;
+            reason?: string;
+        };
+        Cancellation: {
+            version: number;
+            reason: string;
+            refund?: {
+                /** Format: int64 */
+                amount: number;
+                method: components["schemas"]["PaymentMethod"];
+            };
+        };
+        NewPayment: {
+            /** Format: int64 */
+            amount: number;
+            method: components["schemas"]["PaymentMethod"];
+            note?: string;
+            /**
+             * Format: date-time
+             * @description Defaults to now.
+             */
+            receivedAt?: string;
+            /**
+             * Format: uuid
+             * @description The pending slip this payment accepts.
+             */
+            slipId?: string;
+        };
+        QuoteRequest: {
+            /** Format: uuid */
+            propertyId: string;
+            /** Format: uuid */
+            unitId: string;
+            checkIn: components["schemas"]["Day"];
+            checkOut: components["schemas"]["Day"];
+            adults: number;
+            children?: number;
+            extras?: string[];
+            promo?: string;
+        };
+        Quote: {
+            nights: number;
+            nightly: {
+                night: components["schemas"]["Day"];
+                price: components["schemas"]["Money"];
+            }[];
+            lines: components["schemas"]["PriceLine"][];
+            total: components["schemas"]["Signed"];
+            currency: components["schemas"]["Currency"];
+            /** @description The shortest stay allowed for this check-in. */
+            minNights: number;
+            deposit: components["schemas"]["Signed"];
+        };
+        /** @description The first night already taken, and what holds it. */
+        Clash: {
+            night: components["schemas"]["Day"];
+            from: components["schemas"]["Day"];
+            to: components["schemas"]["Day"];
+            /** Format: uuid */
+            bookingId?: string;
+            ref?: string;
+            guestName?: string;
+            /** Format: uuid */
+            blockId?: string;
+        };
+        ConflictError: {
+            /** @enum {string} */
+            code: "dates_taken" | "stale" | "bad_status";
+            message: string;
+            clash?: components["schemas"]["Clash"];
+        };
+        /** @enum {string} */
+        BlockReason: "maintenance" | "owner" | "other";
+        Block: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            propertyId: string;
+            unitIds: string[];
+            from: components["schemas"]["Day"];
+            to: components["schemas"]["Day"];
+            reason: components["schemas"]["BlockReason"];
+            note: string;
+        };
+        NewBlock: {
+            /** Format: uuid */
+            propertyId: string;
+            unitIds: string[];
+            from: components["schemas"]["Day"];
+            to: components["schemas"]["Day"];
+            reason: components["schemas"]["BlockReason"];
+            note?: string;
+        };
+        RateOverride: {
+            /** Format: uuid */
+            unitId: string;
+            night: components["schemas"]["Day"];
+            price?: components["schemas"]["Money"];
+            minNights?: number;
+            closedToArrival: boolean;
+        };
+        RateOverrideInput: {
+            /** Format: uuid */
+            propertyId: string;
+            unitIds: string[];
+            from: components["schemas"]["Day"];
+            to: components["schemas"]["Day"];
+            /** Format: int64 */
+            price?: number;
+            minNights?: number;
+            closedToArrival?: boolean;
+        };
+        Calendar: {
+            blocks: components["schemas"]["Block"][];
+            rateOverrides: components["schemas"]["RateOverride"][];
+        };
         Error: {
             /** @example slug_taken */
             code: string;
@@ -762,8 +1268,40 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /**
+         * @description The nights are taken (code dates_taken, with the clash), the stay changed since it
+         *     was read (code stale), or its status doesn't allow this (code bad_status).
+         */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ConflictError"];
+            };
+        };
+        /** @description The Idempotency-Key was already used for a different request */
+        KeyReused: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
     };
-    parameters: never;
+    parameters: {
+        Id: string;
+        BookingId: string;
+        SlipId: string;
+        BlockId: string;
+        /**
+         * @description Any unique string, such as a UUID made when the form opened. A retry with the same
+         *     key and body gets the first reply; the same key with another body gets 422. Keys
+         *     last 24 hours.
+         */
+        IdempotencyKey: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -1128,6 +1666,396 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UploadTicket"];
                 };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuoteRequest"];
+            };
+        };
+        responses: {
+            /** @description The price */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Quote"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listBookings: {
+        parameters: {
+            query?: {
+                propertyId?: string;
+                from?: components["schemas"]["Day"];
+                to?: components["schemas"]["Day"];
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of stays */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createBooking: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Any unique string, such as a UUID made when the form opened. A retry with the same
+                 *     key and body gets the first reply; the same key with another body gets 422. Keys
+                 *     last 24 hours.
+                 */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewBooking"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["KeyReused"];
+        };
+    };
+    getBooking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The stay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateBooking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingPatch"];
+            };
+        };
+        responses: {
+            /** @description The changed stay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    transitionBooking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Transition"];
+            };
+        };
+        responses: {
+            /** @description The stay in its new status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    cancelBooking: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Any unique string, such as a UUID made when the form opened. A retry with the same
+                 *     key and body gets the first reply; the same key with another body gets 422. Keys
+                 *     last 24 hours.
+                 */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Cancellation"];
+            };
+        };
+        responses: {
+            /** @description The cancelled stay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["KeyReused"];
+        };
+    };
+    recordPayment: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Any unique string, such as a UUID made when the form opened. A retry with the same
+                 *     key and body gets the first reply; the same key with another body gets 422. Keys
+                 *     last 24 hours.
+                 */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewPayment"];
+            };
+        };
+        responses: {
+            /** @description The stay with the payment */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["KeyReused"];
+        };
+    };
+    rejectSlip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slipId: components["parameters"]["SlipId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The stay the slip belongs to */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getCalendar: {
+        parameters: {
+            query?: {
+                from?: components["schemas"]["Day"];
+                to?: components["schemas"]["Day"];
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The calendar */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Calendar"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createBlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewBlock"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Block"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    deleteBlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                blockId: components["parameters"]["BlockId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setRateOverrides: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RateOverrideInput"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];

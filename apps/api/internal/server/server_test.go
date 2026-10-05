@@ -135,7 +135,7 @@ func TestCaretakerSeesOnlyAssignedProperties(t *testing.T) {
 	rec = e.do(call{method: http.MethodGet, path: "/v1/accounts", as: caretaker})
 	e.expect(rec, http.StatusOK)
 	accounts := decode[oapi.AccountList](t, rec)
-	if len(accounts.Items) != 1 || accounts.Items[0].Role != oapi.Caretaker || len(accounts.Items[0].PropertyIds) != 1 {
+	if len(accounts.Items) != 1 || accounts.Items[0].Role != oapi.RoleCaretaker || len(accounts.Items[0].PropertyIds) != 1 {
 		t.Fatalf("caretaker accounts = %+v", accounts.Items)
 	}
 }

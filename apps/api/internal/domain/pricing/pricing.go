@@ -241,3 +241,15 @@ func pluralWord(n int, one, many string) string {
 	}
 	return many
 }
+
+// FromList indexes a property's overrides by unit and night.
+func FromList(list []domain.RateOverride) Overrides {
+	o := Overrides{}
+	for _, r := range list {
+		if o[r.UnitID] == nil {
+			o[r.UnitID] = map[string]Override{}
+		}
+		o[r.UnitID][r.Night.Format(time.DateOnly)] = Override{Price: r.Price, MinNights: r.MinNights, ClosedToArrival: r.ClosedToArrival}
+	}
+	return o
+}
