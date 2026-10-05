@@ -8,18 +8,18 @@ The shortest route to a first paying owner is phase 3, phase 5 and the billing h
 
 ### Phase 3 Bookings core (next, critical)
 
-- [ ] Migration: `guests`, `bookings`, `booking_lines`, `booking_extras`, `payments`, `payment_slips`, `booking_events`, `blocks`, `block_units`, `unit_nights`, `rate_overrides`, `idempotency_keys`, all with `account_id` and composite foreign keys
-- [ ] `internal/domain/pricing`: port of `apps/mobile/src/data/pricing.ts`, held in line by shared fixtures in `packages/api-spec/fixtures/pricing.json` run by both `go test` and `bun test`
-- [ ] Night ledger: a `unit_nights` row per night for the unit and its related units, so a clash fails the unique key and returns 409 with the conflicting stay
-- [ ] Booking state machine per status and role, with `booking_events` as the audit trail
-- [ ] `POST /v1/quote`, bookings (list, create, get, edit, transitions, cancel) with `Idempotency-Key` and a `version` for stale writes
-- [ ] Payments, bank slips (uploads reuse `internal/files` with a new kind), refunds by cancellation policy
-- [ ] Blocks and rate overrides, plus `GET /properties/{id}/calendar`
+- [x] Migration: `guests`, `bookings`, `booking_lines`, `booking_extras`, `payments`, `payment_slips`, `booking_events`, `blocks`, `block_units`, `unit_nights`, `rate_overrides`, `idempotency_keys`, all with `account_id` and composite foreign keys
+- [x] `internal/domain/pricing`: port of `apps/mobile/src/data/pricing.ts`, held in line by shared fixtures in `packages/api-spec/fixtures/pricing.json` run by both `go test` and `bun test`
+- [x] Night ledger: a `unit_nights` row per night for the unit and its related units, so a clash fails the unique key and returns 409 with the conflicting stay
+- [x] Booking state machine per status and role, with `booking_events` as the audit trail
+- [x] `POST /v1/quote`, bookings (list, create, get, edit, transitions, cancel) with `Idempotency-Key` and a `version` for stale writes
+- [x] Payments, bank slips (uploads reuse `internal/files` with a new kind), refunds by cancellation policy
+- [x] Blocks and rate overrides, plus `GET /properties/{id}/calendar`
 - [ ] Jobs on `river`: request expiry, unpaid cancellation, hold sweep, orphaned upload sweep
 - [ ] App: Today, Calendar, Bookings, booking detail, new and edit booking, record payment, cancel, block and rates sheets move from the on-device store to `src/api/`
 - [ ] `cmd/seed` creates the sample bookings from `apps/mobile/src/data/seed.ts`
-- [ ] New owner routes added to `TestTenantIsolation`
-- [ ] **Gate:** exactly one winner out of 50 parallel bookings on overlapping nights for a unit and its whole-house parent
+- [x] New owner routes added to `TestTenantIsolation`
+- [x] **Gate:** exactly one winner out of 50 parallel bookings on overlapping nights for a unit and its whole-house parent
 
 ### Phase 4 Team, activity and messages
 
