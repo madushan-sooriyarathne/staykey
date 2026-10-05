@@ -299,6 +299,8 @@ type NewBooking struct {
 	FirstPayment *Payment
 	// RequestExpiresAt is when a request the owner hasn't answered is declined.
 	RequestExpiresAt *time.Time
+	// GuestNote is what the guest wrote when booking.
+	GuestNote string
 }
 
 // BookingChange is an edit to a stay the owner made, priced and checked by the caller.

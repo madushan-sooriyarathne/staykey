@@ -96,6 +96,7 @@ func (s *Postgres) CreateBooking(ctx context.Context, t tenant.Tenant, in domain
 			Currency:   in.Currency,
 			Total:      in.Price.Total,
 			OwnerNote:  stay.OwnerNote,
+			GuestNote:  in.GuestNote,
 			PromoID:    in.Price.PromoID,
 			CreatedBy:  &t.UserID,
 
