@@ -346,3 +346,13 @@ type RateOverride struct {
 	MinNights       int
 	ClosedToArrival bool
 }
+
+// BookingFilter narrows a list of stays to those overlapping [From, To). AfterCheckIn and
+// AfterID, when set, continue after the stay with that check-in and id.
+type BookingFilter struct {
+	PropertyID   *uuid.UUID
+	From, To     *time.Time
+	AfterCheckIn *time.Time
+	AfterID      *uuid.UUID
+	Limit        int
+}

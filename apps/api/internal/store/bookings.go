@@ -15,18 +15,8 @@ import (
 	"staykey.direct/api/internal/tenant"
 )
 
-// BookingFilter narrows a list of stays. After, when set, continues from the stay with that
-// check-in and id.
-type BookingFilter struct {
-	PropertyID   *uuid.UUID
-	From, To     *time.Time
-	AfterCheckIn *time.Time
-	AfterID      *uuid.UUID
-	Limit        int
-}
-
 // ListBookings returns the stays the tenant can see that overlap [From, To), by check-in.
-func (s *Postgres) ListBookings(ctx context.Context, t tenant.Tenant, f BookingFilter) ([]domain.Booking, error) {
+func (s *Postgres) ListBookings(ctx context.Context, t tenant.Tenant, f domain.BookingFilter) ([]domain.Booking, error) {
 	scope := t.PropertyScope()
 	if f.PropertyID != nil {
 		if !t.CanSeeProperty(*f.PropertyID) {
@@ -525,4 +515,18 @@ func deref[T any](v *T) T {
 		return zero
 	}
 	return *v
+}
+
+// AddSlip records a bank slip a guest uploaded for a stay.
+func (s *Postgres) AddSlip(ctx context.Context, t tenant.Tenant, bookingID uuid.UUID, fileKey string, amount int64, uploadedAt time.Time) (uuid.UUID, error) {
+	if _, err := s.GetBooking(ctx, t, bookingID); err != nil {
+		return uuid.Nil, err
+	}
+	id := domain.NewID()
+	if err := s.db(ctx).InsertSlip(ctx, queries.InsertSlipParams{
+		ID: id, AccountID: t.AccountID, BookingID: bookingID, FileKey: fileKey, Amount: amount, UploadedAt: uploadedAt,
+	}); err != nil {
+		return uuid.Nil, fmt.Errorf("insert slip: %w", err)
+	}
+	return id, nil
 }
