@@ -1,8 +1,8 @@
 # StayKey backend and data plan
 
-As of 4 Oct 2026. Live, editable copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d
+As of 5 Oct 2026. Live, editable copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d
 
-Status: phase 1 Foundations is done (see `docs/HANDOVER.md`); phase 2 is next.
+Status: phases 1 Foundations and 2 Properties and setup are done (see `docs/HANDOVER.md`); phase 3 Bookings core is next.
 
 ## Goal and scope
 
@@ -127,8 +127,8 @@ REST under `/v1`, spec-first in `packages/api-spec/openapi.yaml`, Go handlers (o
 | --- | --- | --- |
 | Auth | `POST /auth/otp`, `POST /auth/verify`, `POST /auth/refresh`, `POST /auth/logout`, `GET/PATCH/DELETE /me` | Onboarding phone steps, Profile |
 | Accounts and team | `GET /accounts`, `GET/POST /team`, `PATCH/DELETE /team/{id}`, `POST /invites/{token}/accept` | Team, Join |
-| Onboarding | `POST /onboarding/publish` (property, units, prices, payment settings, feeds in one transaction) | You're live |
-| Properties | `GET/POST /properties`, `GET/PATCH /properties/{id}`, sub-resources `/units`, `/photos` (presign, confirm, reorder), `/seasons`, `/rate-overrides`, `/discounts`, `/charges`, `/extras`, `/promos`, `/payment-settings`, `/ical-feeds` (+ `/sync`) | Properties tab, 14 settings screens |
+| Onboarding | `POST /properties` with `setup` (property, units, photos, prices, payment settings, feeds in one transaction) | You're live |
+| Properties | `GET/POST /properties`, `GET/PATCH /properties/{id}` (the full setup; a sectioned patch replaces only the sections sent, in one transaction), `POST /uploads` (presigned PUT); `POST /ical-feeds/{id}/sync` arrives in phase 5 | Properties tab, 14 settings screens |
 | Calendar | `GET /properties/{id}/calendar?from&to`, `POST /blocks`, `DELETE /blocks/{id}`, `PUT /rate-overrides` | Calendar, Block dates, Edit rates |
 | Bookings | `GET /bookings`, `POST /bookings`, `GET/PATCH /bookings/{id}`, `POST /bookings/{id}/transitions`, `POST /bookings/{id}/cancel`, `POST /quote` | Today, Bookings, detail, forms |
 | Payments | `POST /bookings/{id}/payments`, `POST /slips/{id}/accept`, `POST /slips/{id}/reject` | Record payment |
@@ -154,7 +154,8 @@ One Go binary with an API mode and a worker mode. Handlers stay thin; rules live
 | `internal/server` | oapi-codegen strict handlers |
 | `internal/jobs` | river workers |
 | `internal/notify` | Expo push, WhatsApp Cloud API, email, log sender for dev |
-| `internal/files` | R2 presign and confirm |
+| `internal/files` | R2 and local presigned uploads, key ownership, existence checks |
+| `internal/secret` | AES-GCM for sensitive columns such as bank account numbers |
 | `internal/ical` | Feed fetch and parse, export writer |
 
 Jobs: request expiry, unpaid cancellation, hold sweep (every minute), iCal import (every 15 minutes with backoff), notifications fan-out and 7:00 morning summary, reminders from templates, trial check (free period ends 7 days after first direct booking or at 60 days).
@@ -165,9 +166,9 @@ Jobs: request expiry, unpaid cancellation, hold sweep (every minute), iCal impor
 2. Query layer: `src/api/` with one file per area exporting query keys, hooks and mutations; cache persisted to AsyncStorage.
 3. Optimistic writes for approve, decline, check in, record payment, block dates. Booking create and edit wait for the server.
 4. Pricing parity: `packages/api-spec/fixtures/pricing.json` run by both `bun test` and `go test`.
-5. Settings: `useSettings` save becomes a `PATCH` to the matching sub-resource.
-6. Uploads: presign, upload to R2, confirm.
-7. Onboarding publish sends the whole draft to `POST /onboarding/publish`.
+5. Settings: `useSettings` save sends a `PATCH` with the screen's section (done in phase 2).
+6. Uploads: presign, upload straight to R2, then save the key on the property, which checks the file exists (done in phase 2).
+7. Onboarding publish sends the whole draft to `POST /properties` with `setup` (done in phase 2).
 8. The on-device seed leaves app builds; `cmd/seed` creates the same demo data server side.
 9. Push token registered after sign-in; tapped notifications route to the booking or Activity.
 
@@ -198,7 +199,7 @@ Phases 4 and 5 can run side by side after phase 3. Order inside each phase: migr
 
 - [ ] SMS provider for OTP: a Sri Lankan gateway or Twilio?
 - [ ] Hosting and region: Fly.io or Railway in Singapore or Mumbai, managed Postgres in the same region?
-- [ ] File storage: Cloudflare R2 or S3?
+- [x] File storage: Cloudflare R2 (default taken in phase 2; swappable through the S3 API)
 - [ ] WhatsApp: register a WhatsApp Business number now?
 - [ ] OTA stays: bookings with an OTA source (as the app does today) or a separate imported-events table?
 - [ ] Row-level security in phase 6 or from the first migration?
