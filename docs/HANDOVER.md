@@ -1,14 +1,19 @@
 # StayKey handover
 
-Paste the prompt below into a new chat and attach `staykey.zip` (the full repo with git history). Everything else the new chat needs is inside the repo under `docs/`.
+Development continues in Claude Code on your own machine. The repo carries everything it needs: `CLAUDE.md` (loaded automatically), this handover, `docs/ROADMAP.md`, the plan, project permissions in `.claude/settings.json`, and two commands, `/next-phase` and `/verify`.
 
 ---
 
-## Prompt for the new chat
+## Getting started in Claude Code
 
-I'm building StayKey (staykey.direct), a direct booking SaaS for small Sri Lankan villa and guesthouse owners. The attached `staykey.zip` is the monorepo with full git history. Unzip it, read `docs/HANDOVER.md`, `docs/backend-plan.md`, `CLAUDE.md` and `apps/mobile/AGENTS.md`, then start **phase 3 Bookings core** from the plan. Ask me the open questions listed in the handover first if any of them block phase 3; otherwise use the defaults given there and flag them.
+1. Unzip `staykey.zip` and open a terminal in the `staykey` folder. Git history comes with it.
+2. Optional: push to your own GitHub repository so CI runs: `git remote add origin git@github.com:<you>/staykey.git && git push -u origin main`.
+3. Run `bun run setup`. It checks for Bun, Go, Node and Docker, installs dependencies, creates `apps/mobile/.env`, starts Postgres, migrates and seeds the sample account.
+4. Run `claude` in the same folder and paste the prompt below, or simply type `/next-phase`.
 
-Working style: no em dashes, smooth sentence flow, concise and direct, understated professional tone. Commit after each meaningful step.
+### Prompt
+
+I'm continuing StayKey (staykey.direct), a direct booking SaaS for small Sri Lankan villa and guesthouse owners. This repo is the monorepo with full git history, and phases 1 and 2 are done. Read `docs/HANDOVER.md`, `docs/ROADMAP.md`, `docs/backend-plan.md`, `CLAUDE.md` and `apps/mobile/AGENTS.md`, run `/verify` to confirm the starting point is green, then start **phase 3 Bookings core**. Ask me the open questions in the handover first only if any of them block phase 3; otherwise use the defaults given there and flag them. Working style: no em dashes, smooth sentence flow, concise and direct, understated professional tone. Commit after each meaningful step, and tick the roadmap as items land.
 
 ---
 
@@ -56,6 +61,8 @@ Commits so far:
 | `79a46b4` | Phase 2 API: migration 00005, full property setup, sectioned `PATCH`, uploads |
 | `775549f` | `cmd/seed` creates the sample properties with their full setup |
 | `6c39832` | Phase 2 app: onboarding publish, Properties tab and every settings screen on the API |
+| `1acb93e` | README, plan and handover for phase 2 |
+| (latest) | `docs/ROADMAP.md`, Claude Code setup (`CLAUDE.md`, `.claude/`), `bun run setup` |
 
 **Phases 1 and 2 are done.** Sign-in, accounts, properties and every property setting run on the API, and onboarding publishes in one call. Bookings, blocks, rate overrides, activity, team and templates still live in the zustand store persisted to AsyncStorage (`apps/mobile/src/data/store.ts`, version 2). Phase 3 moves bookings, blocks and rate overrides; phase 4 the rest.
 
@@ -101,10 +108,8 @@ Commits so far:
 ## 4. Running it
 
 ```sh
-bun install
-bun run db:up          # Postgres 17 in Docker (or point DATABASE_URL at any Postgres 16+)
-bun run db:migrate
-bun run db:seed        # sample owner +94770000001, manager +94772223344, caretaker +94713338899
+bun run setup          # once: install, Postgres 17 in Docker, migrate, seed
+                       # sample owner +94770000001, manager +94772223344, caretaker +94713338899
 bun run dev            # API :8080, booking :3001, marketing :3000, Expo :8081
 ```
 
@@ -140,7 +145,7 @@ All of these pass at the latest commit (20 app tests; 30 Go tests, 19 of them in
 
 ## 6. Next step: phase 3 Bookings core
 
-Full plan: `docs/backend-plan.md` (live copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d). PRD: https://claude.ai/code/artifact/5bc88e13-3f9b-41f5-8aa9-db852d6bd55d
+Everything left before launch, phase by phase and including accounts and store release, is in `docs/ROADMAP.md`. Full plan: `docs/backend-plan.md` (live copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d). PRD: https://claude.ai/code/artifact/5bc88e13-3f9b-41f5-8aa9-db852d6bd55d
 
 Backend: add `guests`, `bookings`, `booking_lines`, `booking_extras`, `payments`, `payment_slips`, `booking_events`, `blocks`, `block_units`, `unit_nights` and `rate_overrides`, all with `account_id` and composite foreign keys. Port `pricing.ts` to `internal/domain/pricing` and check both against shared fixtures in `packages/api-spec/fixtures/pricing.json`. Add the booking state machine per status and role, `POST /v1/quote`, bookings with `Idempotency-Key` and a `version` for stale writes, payments and slips (slip uploads reuse `internal/files` with a new kind), cancel with policy refunds, blocks and rate overrides. The ledger inserts a `unit_nights` row for every night on the unit and its related units, so a clash fails the unique key and returns 409. App: Today, Calendar, Bookings, booking detail, new and edit booking, record payment, cancel, and the block and rates sheets move from the on-device store to `src/api/`. Add each new owner route's path parameters to `TestTenantIsolation`. Extend `cmd/seed` with the sample bookings from `data/seed.ts`.
 
