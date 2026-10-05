@@ -30,7 +30,7 @@ export const persister = createAsyncStoragePersister({
 });
 
 /** Bump buster when cached shapes change, so old caches are dropped instead of misread. */
-export const persistOptions = { persister, maxAge: WEEK, buster: "phase-2" };
+export const persistOptions = { persister, maxAge: WEEK, buster: "phase-3" };
 
 /** Forgets every cached response, on this device too. */
 export async function clearCache() {

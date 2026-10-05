@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { useProperties } from "@/api/properties";
 import { useSession } from "@/lib/session";
-import { useData } from "./store";
 
+export { useBooking, useBookings } from "@/api/bookings";
 export { useProperties } from "@/api/properties";
 
 /** Which property the Today, Bookings and Calendar tabs are showing. Not persisted. */
@@ -15,7 +15,6 @@ export const useFilter = create<{
 }));
 
 export const useProperty = (id?: string) => useProperties().find((p) => p.id === id);
-export const useBooking = (id?: string) => useData((s) => s.bookings.find((b) => b.id === id));
 
 /** The property for single-property screens: the filtered one, else the first. */
 export function useFocusedProperty() {

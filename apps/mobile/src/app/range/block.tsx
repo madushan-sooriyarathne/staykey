@@ -2,15 +2,16 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
+import { useCalendar, useCreateBlock } from "@/api/calendar";
+import { messageFor } from "@/api/errors";
 import { RangePicker } from "@/components/calendar";
 import { Button, Field, InfoNote, Pill } from "@/components/controls";
 import { I } from "@/components/icons";
 import { Hint, SectionHeader, SheetPage, ui } from "@/components/kit";
 import { formatShort, nightsBetween } from "@/data/dates";
-import { useProperty } from "@/data/hooks";
+import { useBookings, useProperty } from "@/data/hooks";
 import { BLOCK_REASON, plural } from "@/data/labels";
 import { conflicts } from "@/data/pricing";
-import { useData } from "@/data/store";
 import type { Block } from "@/data/types";
 import { haptics } from "@/lib/haptics";
 
@@ -23,9 +24,10 @@ export default function BlockDates() {
     to: string;
   }>();
   const property = useProperty(params.propertyId);
-  const bookings = useData((s) => s.bookings);
-  const blocks = useData((s) => s.blocks);
-  const addBlock = useData((s) => s.addBlock);
+  const bookings = useBookings();
+  const { blocks } = useCalendar(params.propertyId);
+  const addBlock = useCreateBlock();
+  const [error, setError] = useState<string | null>(null);
   const [from, setFrom] = useState<string | null>(params.from ?? null);
   const [to, setTo] = useState<string | null>(params.to ?? null);
   const [editing, setEditing] = useState(false);
@@ -106,7 +108,11 @@ export default function BlockDates() {
         onChangeText={setNote}
         placeholder="Pool resurfacing"
       />
-      {clash.length ? (
+      {error ? (
+        <InfoNote icon={I.warning} testID="block-error">
+          {error}
+        </InfoNote>
+      ) : clash.length ? (
         <InfoNote icon={I.warning}>
           {clash[0]?.guest.name} is booked on some of these nights. Move or cancel that stay before
           blocking.
@@ -119,19 +125,32 @@ export default function BlockDates() {
       <Button
         testID="block-confirm"
         title={`Block ${plural(nights, "night")}`}
-        disabled={!from || !to || nights <= 0 || units.length === 0 || clash.length > 0}
-        onPress={() => {
+        disabled={
+          !from ||
+          !to ||
+          nights <= 0 ||
+          units.length === 0 ||
+          clash.length > 0 ||
+          addBlock.isPending
+        }
+        onPress={async () => {
           if (!from || !to) return;
-          haptics.success();
-          addBlock({
-            propertyId: property.id,
-            unitIds: units,
-            from,
-            to,
-            reason,
-            note: note.trim() || undefined,
-          });
-          router.back();
+          setError(null);
+          try {
+            await addBlock.mutateAsync({
+              propertyId: property.id,
+              unitIds: units,
+              from,
+              to,
+              reason,
+              note: note.trim() || undefined,
+            });
+            haptics.success();
+            router.back();
+          } catch (e) {
+            haptics.error();
+            setError(messageFor(e));
+          }
         }}
       />
     </SheetPage>

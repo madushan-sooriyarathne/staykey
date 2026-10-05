@@ -24,8 +24,8 @@ import { formatShort, nightsBetween, today } from "@/data/dates";
 import { useBooking, useCan, useProperty } from "@/data/hooks";
 import { clock, METHOD_LABEL, plural } from "@/data/labels";
 import { balanceOf, isOTA, paidOf, SOURCE_LABEL } from "@/data/pricing";
-import { useData } from "@/data/store";
 import type { Booking, PropertyConfig } from "@/data/types";
+import { type Next, useMoveStay } from "@/features/bookings/move";
 import { guestLabel, placeLabel } from "@/features/bookings/rows";
 import { call, email, openWhatsApp } from "@/lib/contact";
 import { haptics } from "@/lib/haptics";
@@ -37,7 +37,7 @@ export default function BookingDetail() {
   const booking = useBooking(id);
   const property = useProperty(booking?.propertyId);
   const can = useCan();
-  const setStatus = useData((s) => s.setStatus);
+  const { move: moveStay, error } = useMoveStay();
   const [menu, setMenu] = useState(false);
 
   if (!booking || !property) {
@@ -65,9 +65,9 @@ export default function BookingDetail() {
     .filter(Boolean) as string[];
   const active = !["cancelled", "declined", "checked_out"].includes(b.status);
 
-  function move(status: Booking["status"]) {
+  function move(to: Next) {
     haptics.success();
-    setStatus(b.id, status);
+    moveStay(b, to);
   }
 
   const push = (
@@ -120,6 +120,12 @@ export default function BookingDetail() {
             : []),
         ]}
       />
+
+      {error ? (
+        <InfoNote icon={I.warning} testID="booking-error">
+          {error}
+        </InfoNote>
+      ) : null}
 
       <Appear index={0} style={{ gap: 6 }}>
         <Animated.View key={b.status} entering={FadeIn.duration(220)} style={s.tags}>
@@ -349,7 +355,7 @@ function OwnerActions({
 }: {
   booking: Booking;
   due: number;
-  onMove: (s: Booking["status"]) => void;
+  onMove: (to: Next) => void;
   onPush: (p: "/booking/payment" | "/booking/cancel" | "/booking/contact" | "/booking/new") => void;
 }) {
   const day = today();
@@ -411,13 +417,7 @@ function OwnerActions({
   );
 }
 
-function StayActions({
-  booking: b,
-  onMove,
-}: {
-  booking: Booking;
-  onMove: (s: Booking["status"]) => void;
-}) {
+function StayActions({ booking: b, onMove }: { booking: Booking; onMove: (to: Next) => void }) {
   const day = today();
   if (b.status === "checked_in")
     return (

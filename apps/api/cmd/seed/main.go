@@ -11,10 +11,10 @@
 // Sign in on the app with the owner's number, or with the manager or caretaker numbers printed
 // at the end, to see the account from each role. Development servers show the code on screen.
 //
-// It covers what the API holds so far: the account, people and memberships, and both properties
+// It covers what the API holds so far: the account, people and memberships, both properties
 // with their full setup (units, a linked whole-house unit, seasons, discounts, charges, extras,
-// promo codes, payments and calendar links), mirroring withSampleSettings in seed.ts. Sample
-// bookings join when bookings move to the server in phase 3.
+// promo codes, payments and calendar links), mirroring withSampleSettings in seed.ts, and the
+// sample stays, slips and block from sampleData.
 package main
 
 import (
@@ -145,6 +145,18 @@ func run(ownerPhone, ownerName string, reset bool) error {
 			summary = append(summary, fmt.Sprintf("  %-9s %-17s %s", m.role, m.name, m.phone))
 		}
 
+		stays := 0
+		for _, sample := range []struct {
+			p   domain.PropertyDetail
+			alt bool
+		}{{villa, false}, {house, true}} {
+			n, err := seedStays(ctx, db, t, sample.p, sample.alt)
+			if err != nil {
+				return err
+			}
+			stays += n
+		}
+
 		token, hash, err := inviteToken()
 		if err != nil {
 			return err
@@ -162,7 +174,7 @@ func run(ownerPhone, ownerName string, reset bool) error {
 		}, summary...)
 		summary = append(summary,
 			fmt.Sprintf("  invited   caretaker         %s (staykey://join?token=%s)", pendingInvite.phone, token),
-			fmt.Sprintf("Properties: %s (%s), %s (%s)", villa.Name, villa.Slug, house.Name, house.Slug),
+			fmt.Sprintf("Properties: %s (%s), %s (%s), with %d sample stays", villa.Name, villa.Slug, house.Name, house.Slug, stays),
 		)
 		return nil
 	})

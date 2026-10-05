@@ -54,7 +54,7 @@ func TestSignInFlow(t *testing.T) {
 	rec = e.do(call{method: http.MethodPost, path: "/v1/accounts", body: oapi.NewAccount{Name: "Kingfisher Villa"}, as: s})
 	e.expect(rec, http.StatusCreated)
 	account := decode[oapi.Account](t, rec)
-	if account.Role != oapi.Owner || account.Status != oapi.Trial {
+	if account.Role != oapi.RoleOwner || account.Status != oapi.Trial {
 		t.Errorf("new account = %+v", account)
 	}
 

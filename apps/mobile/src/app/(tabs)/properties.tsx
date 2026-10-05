@@ -6,10 +6,9 @@ import { Button, PressScale } from "@/components/controls";
 import { Appear } from "@/components/kit";
 import { font, Screen } from "@/components/ui";
 import { addMonths, formatMonthShort, monthStart, relativeDay, today } from "@/data/dates";
-import { useProperties } from "@/data/hooks";
+import { useBookings, useProperties } from "@/data/hooks";
 import { plural } from "@/data/labels";
 import { nextArrival, occupancy, physicalUnits } from "@/data/pricing";
-import { useData } from "@/data/store";
 import type { PropertyConfig } from "@/data/types";
 import { haptics } from "@/lib/haptics";
 
@@ -39,7 +38,7 @@ export default function PropertiesScreen() {
 }
 
 function PropertyCard({ property: p }: { property: PropertyConfig }) {
-  const bookings = useData((s) => s.bookings);
+  const bookings = useBookings();
   const start = monthStart(today());
   const occ = occupancy(p, bookings, start, addMonths(start, 1));
   const next = nextArrival(p.id, bookings);

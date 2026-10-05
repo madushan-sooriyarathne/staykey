@@ -89,6 +89,7 @@
         "zustand": "^5.0.15",
       },
       "devDependencies": {
+        "@staykey/api-spec": "workspace:*",
         "@types/react": "~19.2.2",
         "typescript": "~6.0.3",
       },

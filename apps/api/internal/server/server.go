@@ -34,6 +34,22 @@ type Store interface {
 	UpdateProperty(ctx context.Context, t tenant.Tenant, id uuid.UUID, p domain.PropertyPatch) (domain.PropertyDetail, error)
 
 	GetPropertyBySlug(ctx context.Context, slug string) (domain.Property, error)
+
+	ListBookings(ctx context.Context, t tenant.Tenant, f domain.BookingFilter) ([]domain.Booking, error)
+	GetBooking(ctx context.Context, t tenant.Tenant, id uuid.UUID) (domain.Booking, error)
+	CreateBooking(ctx context.Context, t tenant.Tenant, in domain.NewBooking, now time.Time) (domain.Booking, error)
+	UpdateBooking(ctx context.Context, t tenant.Tenant, id uuid.UUID, c domain.BookingChange) (domain.Booking, error)
+	TransitionBooking(ctx context.Context, t tenant.Tenant, id uuid.UUID, version int, to domain.BookingStatus, reason string, now time.Time) (domain.Booking, error)
+	CancelBooking(ctx context.Context, t tenant.Tenant, id uuid.UUID, version int, reason string, refund *domain.Payment, now time.Time) (domain.Booking, error)
+	RecordPayment(ctx context.Context, t tenant.Tenant, id uuid.UUID, p domain.Payment) (domain.Booking, error)
+	RejectSlip(ctx context.Context, t tenant.Tenant, slipID uuid.UUID, now time.Time) (domain.Booking, error)
+	Idempotent(ctx context.Context, t tenant.Tenant, key string, requestHash []byte, status int, now time.Time, fn func(ctx context.Context) ([]byte, error)) ([]byte, error)
+
+	Calendar(ctx context.Context, t tenant.Tenant, propertyID uuid.UUID, from, to time.Time) ([]domain.Block, []domain.RateOverride, error)
+	RateOverrides(ctx context.Context, t tenant.Tenant, propertyID uuid.UUID, from, to time.Time) ([]domain.RateOverride, error)
+	SetRateOverrides(ctx context.Context, t tenant.Tenant, propertyID uuid.UUID, units []uuid.UUID, from, to time.Time, o domain.RateOverride) error
+	CreateBlock(ctx context.Context, t tenant.Tenant, b domain.Block, ledgerUnits []uuid.UUID) (domain.Block, error)
+	DeleteBlock(ctx context.Context, t tenant.Tenant, id uuid.UUID) error
 }
 
 // Options configures a Server.

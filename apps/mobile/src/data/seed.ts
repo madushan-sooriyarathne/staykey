@@ -488,12 +488,13 @@ function buildSample(p: PropertyConfig): {
         ? new Date(Date.now() + plan.expiresInHours * 3_600_000).toISOString()
         : undefined,
       slip: plan.slip
-        ? { amount: total - paid, at: daysAgo(1, 21, 12), status: "pending" }
+        ? { id: uid("slip"), amount: total - paid, at: daysAgo(1, 21, 12), status: "pending" }
         : undefined,
       cancel:
         plan.status === "cancelled"
           ? { reason: "Guest changed plans", refund: 0, at: daysAgo(3, 16, 5) }
           : undefined,
+      version: 1,
     };
     bookings.push(b);
   }
@@ -564,6 +565,7 @@ function buildSample(p: PropertyConfig): {
             ],
         extras: [],
         createdAt: new Date(`${addDays(checkIn, -21)}T10:00:00`).toISOString(),
+        version: 1,
       });
     }
   }

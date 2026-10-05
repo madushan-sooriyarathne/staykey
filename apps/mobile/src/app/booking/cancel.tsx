@@ -2,10 +2,14 @@ import { colors } from "@staykey/tokens";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { Button, Field, Pill, Radio } from "@/components/controls";
+import { useCancelBooking } from "@/api/bookings";
+import { messageFor } from "@/api/errors";
+import { Button, Field, InfoNote, Pill, Radio } from "@/components/controls";
+import { I } from "@/components/icons";
 import { Avatar, Card, List, ListRow, money, Page, SwitchRow, ui } from "@/components/kit";
 import { font } from "@/components/ui";
 import { formatRange } from "@/data/dates";
+import { uid } from "@/data/defaults";
 import { useBooking, useProperty } from "@/data/hooks";
 import { plural } from "@/data/labels";
 import { POLICY_TEXT, paidOf, suggestedRefund } from "@/data/pricing";
@@ -25,7 +29,10 @@ export default function CancelBooking() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const booking = useBooking(id);
   const property = useProperty(booking?.propertyId);
-  const cancel = useData((s) => s.cancelBooking);
+  const cancel = useCancelBooking();
+  const log = useData((s) => s.log);
+  const [key] = useState(() => uid("cancel"));
+  const [error, setError] = useState<string | null>(null);
   const suggestion =
     booking && property
       ? suggestedRefund(property.policy, booking)
@@ -40,6 +47,35 @@ export default function CancelBooking() {
   const first = booking.guest.name.split(" ")[0];
   const symbol = property.currency === "USD" ? "$" : "LKR";
   const set = (n: number) => setRefund((n / 100).toFixed(2).replace(/\.00$/, ""));
+  // Refunds go back the way the guest last paid.
+  const paidBy = booking.payments.findLast((p) => p.method !== "refund")?.method;
+  const method = paidBy && paidBy !== "refund" ? paidBy : "bank";
+
+  async function confirm() {
+    if (!booking) return;
+    haptics.warning();
+    setError(null);
+    try {
+      await cancel.mutateAsync({
+        id: booking.id,
+        key,
+        version: booking.version,
+        reason,
+        refund: minor > 0 ? { amount: minor, method } : undefined,
+      });
+      log({
+        kind: "cancellation",
+        title: `${booking.guest.name}'s booking cancelled`,
+        subtitle: `${formatRange(booking.checkIn, booking.checkOut)}, dates are open again`,
+        bookingId: booking.id,
+        propertyId: booking.propertyId,
+      });
+      router.back();
+    } catch (e) {
+      haptics.error();
+      setError(messageFor(e));
+    }
+  }
 
   return (
     <Page
@@ -54,17 +90,18 @@ export default function CancelBooking() {
             <Button
               testID="cancel-confirm"
               title="Cancel booking"
-              disabled={minor > paid}
-              onPress={() => {
-                haptics.warning();
-                cancel(booking.id, { reason, refund: minor });
-                router.back();
-              }}
+              disabled={minor > paid || cancel.isPending}
+              onPress={confirm}
             />
           </View>
         </>
       }
     >
+      {error ? (
+        <InfoNote icon={I.warning} testID="cancel-error">
+          {error}
+        </InfoNote>
+      ) : null}
       <List>
         <ListRow
           leading={<Avatar name={booking.guest.name} />}

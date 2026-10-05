@@ -22,6 +22,8 @@ tags:
   - name: accounts
   - name: properties
   - name: uploads
+  - name: bookings
+  - name: calendar
   - name: public
 
 paths:
@@ -365,6 +367,449 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /v1/quote:
+    post:
+      tags: [bookings]
+      operationId: createQuote
+      summary: Price a stay
+      description: |
+        The breakdown the booking would store, priced with the property's rates, seasons,
+        rate overrides, discounts, extras and charges. Owners and managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteRequest"
+      responses:
+        "200":
+          description: The price
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/bookings:
+    get:
+      tags: [bookings]
+      operationId: listBookings
+      summary: Stays the caller can see, by arrival
+      description: |
+        Stays that overlap [from, to), ordered by check-in. Pass nextCursor back as cursor
+        for the next page. Caretakers see the properties they look after, without money.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      parameters:
+        - name: propertyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          schema:
+            $ref: "#/components/schemas/Day"
+        - name: to
+          in: query
+          schema:
+            $ref: "#/components/schemas/Day"
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 200
+      responses:
+        "200":
+          description: A page of stays
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [bookings]
+      operationId: createBooking
+      summary: Add a stay the owner took directly
+      description: |
+        Prices the stay (or takes customTotal), holds its nights and confirms it, with an
+        optional first payment. Nights another stay or a block holds give 409 with the
+        clash. Owners and managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewBooking"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/KeyReused"
+
+  /v1/bookings/{bookingId}:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    get:
+      tags: [bookings]
+      operationId: getBooking
+      summary: One stay with its price lines, payments and slips
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The stay
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [bookings]
+      operationId: updateBooking
+      summary: Change a stay
+      description: |
+        Send the version you read and the fields that changed. A change of unit, dates,
+        guests or extras prices the stay again unless customTotal is sent. A stale version
+        gives 409 with code stale. Owners and managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingPatch"
+      responses:
+        "200":
+          description: The changed stay
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/bookings/{bookingId}/transitions:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    post:
+      tags: [bookings]
+      operationId: transitionBooking
+      summary: Move a stay to its next status
+      description: |
+        Approve or decline a request, confirm, check in or check out. Every role can check
+        guests in and out; the rest is for owners and managers. Declining frees the nights.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Transition"
+      responses:
+        "200":
+          description: The stay in its new status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/bookings/{bookingId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    post:
+      tags: [bookings]
+      operationId: cancelBooking
+      summary: Cancel a stay and record any refund
+      description: |
+        Frees the nights. The refund is up to the owner, up to what was paid; the
+        cancellation policy only suggests it. Owners and managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Cancellation"
+      responses:
+        "200":
+          description: The cancelled stay
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/KeyReused"
+
+  /v1/bookings/{bookingId}/payments:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    post:
+      tags: [bookings]
+      operationId: recordPayment
+      summary: Record money the guest paid
+      description: |
+        Send slipId to accept the guest's bank slip with the payment. A payment on a stay
+        awaiting payment confirms it. Owners and managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewPayment"
+      responses:
+        "201":
+          description: The stay with the payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/KeyReused"
+
+  /v1/slips/{slipId}/reject:
+    parameters:
+      - $ref: "#/components/parameters/SlipId"
+    post:
+      tags: [bookings]
+      operationId: rejectSlip
+      summary: Turn down a bank slip the guest uploaded
+      description: Owners and managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The stay the slip belongs to
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/properties/{id}/calendar:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [calendar]
+      operationId: getCalendar
+      summary: Blocks and rate overrides for a stretch of nights
+      description: |
+        Nights in [from, to), the next twelve months by default. Stays come from
+        /v1/bookings with the same propertyId, from and to.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      parameters:
+        - name: from
+          in: query
+          schema:
+            $ref: "#/components/schemas/Day"
+        - name: to
+          in: query
+          schema:
+            $ref: "#/components/schemas/Day"
+      responses:
+        "200":
+          description: The calendar
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Calendar"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/blocks:
+    post:
+      tags: [calendar]
+      operationId: createBlock
+      summary: Close nights on some units
+      description: Nights a stay or another block holds give 409. Owners and managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewBlock"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Block"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/blocks/{blockId}:
+    parameters:
+      - $ref: "#/components/parameters/BlockId"
+    delete:
+      tags: [calendar]
+      operationId: deleteBlock
+      summary: Open a block's nights again
+      description: Owners and managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/rate-overrides:
+    put:
+      tags: [calendar]
+      operationId: setRateOverrides
+      summary: Set or clear the price and stay rules for some nights
+      description: |
+        Replaces the overrides on every unit and night in [from, to). Leave out price and
+        minNights and send closedToArrival false to go back to the usual rates. Owners and
+        managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RateOverrideInput"
+      responses:
+        "204":
+          description: Saved
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /v1/public/properties/{slug}:
     get:
       tags: [public]
@@ -399,6 +844,47 @@ components:
       name: X-Account-Id
       description: The account an owner route acts on. The caller must be an active member.
 
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BookingId:
+      name: bookingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SlipId:
+      name: slipId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BlockId:
+      name: blockId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      description: |
+        Any unique string, such as a UUID made when the form opened. A retry with the same
+        key and body gets the first reply; the same key with another body gets 422. Keys
+        last 24 hours.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 200
+
   responses:
     Unauthorized:
       description: The access token is missing, invalid, expired or revoked
@@ -430,6 +916,21 @@ components:
             $ref: "#/components/schemas/Error"
     NotFound:
       description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    Conflict:
+      description: |
+        The nights are taken (code dates_taken, with the clash), the stay changed since it
+        was read (code stale), or its status doesn't allow this (code bad_status).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ConflictError"
+    KeyReused:
+      description: The Idempotency-Key was already used for a different request
       content:
         application/json:
           schema:
@@ -1383,6 +1884,536 @@ components:
         baseRate:
           type: integer
           format: int64
+
+    BookingStatus:
+      type: string
+      enum: [requested, awaiting_payment, confirmed, checked_in, checked_out, cancelled, declined]
+
+    BookingSource:
+      type: string
+      description: Where the stay came from. airbnb, booking, agoda and expedia arrive by iCal.
+      enum: [page, widget, whatsapp, phone, walkin, other, airbnb, booking, agoda, expedia]
+
+    PaymentMethod:
+      type: string
+      enum: [bank, cash, card]
+
+    Signed:
+      type: integer
+      format: int64
+      description: An amount in minor units that may be negative, such as a discount.
+
+    Guest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        phone:
+          type: string
+          maxLength: 32
+        email:
+          type: string
+          maxLength: 254
+        country:
+          type: string
+          description: ISO 3166 two-letter code.
+          maxLength: 2
+
+    PriceLine:
+      type: object
+      required: [label, amount]
+      properties:
+        label:
+          type: string
+        amount:
+          $ref: "#/components/schemas/Signed"
+        kind:
+          type: string
+          enum: [discount, charge, extra]
+
+    Payment:
+      type: object
+      required: [id, kind, method, amount, note, receivedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [payment, refund]
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+        amount:
+          $ref: "#/components/schemas/Money"
+        note:
+          type: string
+        receivedAt:
+          type: string
+          format: date-time
+
+    Slip:
+      type: object
+      required: [id, amount, status, uploadedAt, url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount:
+          $ref: "#/components/schemas/Money"
+        status:
+          type: string
+          enum: [pending, accepted, rejected]
+        uploadedAt:
+          type: string
+          format: date-time
+        url:
+          type: string
+          format: uri
+
+    Booking:
+      type: object
+      description: |
+        A stay. Money fields (total, lines, payments, slips, paid, balance) are left out for
+        caretakers.
+      required: [id, ref, propertyId, unitId, source, status, guest, adults, children, checkIn,
+                 checkOut, currency, extras, guestNote, ownerNote, version, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ref:
+          type: string
+          example: KV-2041
+        propertyId:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        source:
+          $ref: "#/components/schemas/BookingSource"
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        guest:
+          $ref: "#/components/schemas/Guest"
+        adults:
+          type: integer
+        children:
+          type: integer
+        checkIn:
+          $ref: "#/components/schemas/Day"
+        checkOut:
+          $ref: "#/components/schemas/Day"
+        currency:
+          $ref: "#/components/schemas/Currency"
+        total:
+          $ref: "#/components/schemas/Money"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/PriceLine"
+        extras:
+          type: array
+          description: Ids of the extras booked.
+          items:
+            type: string
+            format: uuid
+        payments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
+        slips:
+          type: array
+          items:
+            $ref: "#/components/schemas/Slip"
+        paid:
+          $ref: "#/components/schemas/Signed"
+        balance:
+          $ref: "#/components/schemas/Money"
+        guestNote:
+          type: string
+        ownerNote:
+          type: string
+        requestExpiresAt:
+          type: string
+          format: date-time
+        paymentDueAt:
+          type: string
+          format: date-time
+        cancel:
+          type: object
+          required: [reason, at]
+          properties:
+            reason:
+              type: string
+            at:
+              type: string
+              format: date-time
+        version:
+          type: integer
+          description: Send back on changes; it moves on with every change.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BookingList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+        nextCursor:
+          type: string
+          description: Present when there are more stays.
+
+    NewBooking:
+      type: object
+      required: [propertyId, unitId, checkIn, checkOut, adults, guest, source]
+      properties:
+        propertyId:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        checkIn:
+          $ref: "#/components/schemas/Day"
+        checkOut:
+          $ref: "#/components/schemas/Day"
+        adults:
+          type: integer
+          minimum: 1
+          maximum: 30
+        children:
+          type: integer
+          minimum: 0
+          maximum: 30
+        guest:
+          $ref: "#/components/schemas/Guest"
+        source:
+          $ref: "#/components/schemas/BookingSource"
+        extras:
+          type: array
+          items:
+            type: string
+            format: uuid
+        customTotal:
+          $ref: "#/components/schemas/Money"
+        ownerNote:
+          type: string
+          maxLength: 2000
+        payment:
+          type: object
+          description: A first payment taken with the booking, such as a deposit.
+          required: [amount, method]
+          properties:
+            amount:
+              type: integer
+              format: int64
+              minimum: 1
+            method:
+              $ref: "#/components/schemas/PaymentMethod"
+
+    BookingPatch:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+        unitId:
+          type: string
+          format: uuid
+        checkIn:
+          $ref: "#/components/schemas/Day"
+        checkOut:
+          $ref: "#/components/schemas/Day"
+        adults:
+          type: integer
+          minimum: 1
+          maximum: 30
+        children:
+          type: integer
+          minimum: 0
+          maximum: 30
+        guest:
+          $ref: "#/components/schemas/Guest"
+        source:
+          $ref: "#/components/schemas/BookingSource"
+        extras:
+          type: array
+          items:
+            type: string
+            format: uuid
+        customTotal:
+          $ref: "#/components/schemas/Money"
+        ownerNote:
+          type: string
+          maxLength: 2000
+
+    Transition:
+      type: object
+      required: [to, version]
+      properties:
+        to:
+          type: string
+          enum: [awaiting_payment, confirmed, declined, checked_in, checked_out]
+        version:
+          type: integer
+        reason:
+          type: string
+          maxLength: 500
+
+    Cancellation:
+      type: object
+      required: [version, reason]
+      properties:
+        version:
+          type: integer
+        reason:
+          type: string
+          maxLength: 500
+        refund:
+          type: object
+          required: [amount, method]
+          properties:
+            amount:
+              type: integer
+              format: int64
+              minimum: 1
+            method:
+              $ref: "#/components/schemas/PaymentMethod"
+
+    NewPayment:
+      type: object
+      required: [amount, method]
+      properties:
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+        note:
+          type: string
+          maxLength: 500
+        receivedAt:
+          type: string
+          format: date-time
+          description: Defaults to now.
+        slipId:
+          type: string
+          format: uuid
+          description: The pending slip this payment accepts.
+
+    QuoteRequest:
+      type: object
+      required: [propertyId, unitId, checkIn, checkOut, adults]
+      properties:
+        propertyId:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        checkIn:
+          $ref: "#/components/schemas/Day"
+        checkOut:
+          $ref: "#/components/schemas/Day"
+        adults:
+          type: integer
+          minimum: 1
+          maximum: 30
+        children:
+          type: integer
+          minimum: 0
+          maximum: 30
+        extras:
+          type: array
+          items:
+            type: string
+            format: uuid
+        promo:
+          type: string
+
+    Quote:
+      type: object
+      required: [nights, nightly, lines, total, currency, minNights, deposit]
+      properties:
+        nights:
+          type: integer
+        nightly:
+          type: array
+          items:
+            type: object
+            required: [night, price]
+            properties:
+              night:
+                $ref: "#/components/schemas/Day"
+              price:
+                $ref: "#/components/schemas/Money"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/PriceLine"
+        total:
+          $ref: "#/components/schemas/Signed"
+        currency:
+          $ref: "#/components/schemas/Currency"
+        minNights:
+          type: integer
+          description: The shortest stay allowed for this check-in.
+        deposit:
+          $ref: "#/components/schemas/Signed"
+
+    Clash:
+      type: object
+      description: The first night already taken, and what holds it.
+      required: [night, from, to]
+      properties:
+        night:
+          $ref: "#/components/schemas/Day"
+        from:
+          $ref: "#/components/schemas/Day"
+        to:
+          $ref: "#/components/schemas/Day"
+        bookingId:
+          type: string
+          format: uuid
+        ref:
+          type: string
+        guestName:
+          type: string
+        blockId:
+          type: string
+          format: uuid
+
+    ConflictError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [dates_taken, stale, bad_status]
+        message:
+          type: string
+        clash:
+          $ref: "#/components/schemas/Clash"
+
+    BlockReason:
+      type: string
+      enum: [maintenance, owner, other]
+
+    Block:
+      type: object
+      required: [id, propertyId, unitIds, from, to, reason, note]
+      properties:
+        id:
+          type: string
+          format: uuid
+        propertyId:
+          type: string
+          format: uuid
+        unitIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        from:
+          $ref: "#/components/schemas/Day"
+        to:
+          $ref: "#/components/schemas/Day"
+        reason:
+          $ref: "#/components/schemas/BlockReason"
+        note:
+          type: string
+
+    NewBlock:
+      type: object
+      required: [propertyId, unitIds, from, to, reason]
+      properties:
+        propertyId:
+          type: string
+          format: uuid
+        unitIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        from:
+          $ref: "#/components/schemas/Day"
+        to:
+          $ref: "#/components/schemas/Day"
+        reason:
+          $ref: "#/components/schemas/BlockReason"
+        note:
+          type: string
+          maxLength: 500
+
+    RateOverride:
+      type: object
+      required: [unitId, night, closedToArrival]
+      properties:
+        unitId:
+          type: string
+          format: uuid
+        night:
+          $ref: "#/components/schemas/Day"
+        price:
+          $ref: "#/components/schemas/Money"
+        minNights:
+          type: integer
+        closedToArrival:
+          type: boolean
+
+    RateOverrideInput:
+      type: object
+      required: [propertyId, unitIds, from, to]
+      properties:
+        propertyId:
+          type: string
+          format: uuid
+        unitIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        from:
+          $ref: "#/components/schemas/Day"
+        to:
+          $ref: "#/components/schemas/Day"
+        price:
+          type: integer
+          format: int64
+          minimum: 1
+        minNights:
+          type: integer
+          minimum: 1
+          maximum: 365
+        closedToArrival:
+          type: boolean
+
+    Calendar:
+      type: object
+      required: [blocks, rateOverrides]
+      properties:
+        blocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Block"
+        rateOverrides:
+          type: array
+          items:
+            $ref: "#/components/schemas/RateOverride"
 
     Error:
       type: object

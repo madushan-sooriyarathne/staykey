@@ -1,15 +1,20 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/google/uuid"
 
+	"staykey.direct/api/internal/domain"
 	"staykey.direct/api/internal/oapi"
+	"staykey.direct/api/internal/tenant"
 )
 
 // ownerRoute is an operation from the contract that acts on an account.
@@ -75,12 +80,26 @@ func TestTenantIsolation(t *testing.T) {
 	bob, bobAccount := e.owner("+94773000002", "Bob's guesthouse")
 	aliceVilla := e.createProperty(alice, aliceAccount, "Alice Villa")
 	bobHouse := e.createProperty(bob, bobAccount, "Bob House")
+	aliceStay := e.createBooking(alice, aliceAccount, aliceVilla, "2026-11-02", "2026-11-04")
+	rec := e.do(call{method: http.MethodPost, path: "/v1/blocks", as: alice, account: aliceAccount, body: map[string]any{
+		"propertyId": aliceVilla.Id, "unitIds": []any{aliceVilla.Units[0].Id}, "from": "2026-12-01", "to": "2026-12-03", "reason": "owner",
+	}})
+	e.expect(rec, http.StatusCreated)
+	aliceBlock := decode[oapi.Block](t, rec)
+	aliceTenant := tenant.Tenant{AccountID: uuid.MustParse(aliceAccount), UserID: alice.userID, Role: domain.RoleOwner}
+	aliceSlip, err := e.store.AddSlip(context.Background(), aliceTenant, aliceStay.Id, "accounts/slip.jpg", 5000, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Alice's records, by the path parameter names routes use for them. Later phases add units,
-	// bookings, blocks and so on here as their routes arrive.
+	// team members and so on here as their routes arrive.
 	aliceIDs := map[string]string{
 		"id":         aliceVilla.Id.String(),
 		"propertyId": aliceVilla.Id.String(),
+		"bookingId":  aliceStay.Id.String(),
+		"blockId":    aliceBlock.Id.String(),
+		"slipId":     aliceSlip.String(),
 	}
 
 	routes := ownerRoutes(t)

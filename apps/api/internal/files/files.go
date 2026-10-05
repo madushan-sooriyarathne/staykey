@@ -1,4 +1,4 @@
-// Package files stores photos and logos. The app uploads straight to storage with a presigned
+// Package files stores photos, logos and bank slips. The app uploads straight to storage with a presigned
 // URL, then sends the key back; the API keeps keys, never the files themselves.
 //
 // Production uses Cloudflare R2 through its S3 API. Development uses a folder on disk served by
@@ -21,10 +21,12 @@ type Kind string
 const (
 	KindPhoto Kind = "photo"
 	KindLogo  Kind = "logo"
+	// KindSlip is a bank transfer receipt a guest uploads from the booking page.
+	KindSlip Kind = "slip"
 )
 
 // MaxBytes is the largest upload for each kind.
-var MaxBytes = map[Kind]int64{KindPhoto: 15 << 20, KindLogo: 5 << 20}
+var MaxBytes = map[Kind]int64{KindPhoto: 15 << 20, KindLogo: 5 << 20, KindSlip: 10 << 20}
 
 // extensions maps accepted content types to the key's file extension.
 var extensions = map[string]string{
@@ -55,6 +57,10 @@ type Store interface {
 	Exists(ctx context.Context, key string) (bool, error)
 	// URL is where a stored file is served.
 	URL(ctx context.Context, key string) string
+	// WrittenBefore lists the keys of files last written before t.
+	WrittenBefore(ctx context.Context, t time.Time) ([]string, error)
+	// Delete removes a file. A missing file is not an error.
+	Delete(ctx context.Context, key string) error
 }
 
 // NewKey returns a fresh key for an account's file. It fails for unsupported content types.
@@ -66,7 +72,7 @@ func NewKey(accountID uuid.UUID, kind Kind, contentType string) (string, error) 
 	return fmt.Sprintf("accounts/%s/%ss/%s.%s", accountID, kind, uuid.Must(uuid.NewV7()), ext), nil
 }
 
-var keyPattern = regexp.MustCompile(`^accounts/[0-9a-f-]{36}/(photo|logo)s/[0-9a-f-]{36}\.(jpg|png|webp|heic)$`)
+var keyPattern = regexp.MustCompile(`^accounts/[0-9a-f-]{36}/(photo|logo|slip)s/[0-9a-f-]{36}\.(jpg|png|webp|heic)$`)
 
 // ValidKey reports whether key has the shape NewKey produces. It also rules out path tricks.
 func ValidKey(key string) bool { return keyPattern.MatchString(key) }

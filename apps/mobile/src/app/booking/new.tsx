@@ -4,13 +4,17 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeInDown, FadeOut, LinearTransition } from "react-native-reanimated";
+import { useCreateBooking, useUpdateBooking } from "@/api/bookings";
+import { useCalendar } from "@/api/calendar";
+import { messageFor } from "@/api/errors";
 import { RangePicker } from "@/components/calendar";
 import { Button, Field, InfoNote, Pill, Stepper } from "@/components/controls";
 import { I } from "@/components/icons";
 import { BrandSwitch, Card, Hint, KV, money, Page, SectionHeader, ui } from "@/components/kit";
 import { font } from "@/components/ui";
 import { addDays, formatShort } from "@/data/dates";
-import { useBooking, useFilter, useProperties } from "@/data/hooks";
+import { uid } from "@/data/defaults";
+import { useBooking, useBookings, useFilter, useProperties } from "@/data/hooks";
 import { METHOD_LABEL, plural } from "@/data/labels";
 import { conflicts, depositFor, isOTA, minNightsFor, quote, SOURCE_LABEL } from "@/data/pricing";
 import { useData } from "@/data/store";
@@ -37,12 +41,14 @@ export default function BookingForm() {
   }>();
   const existing = useBooking(params.id);
   const properties = useProperties();
-  const bookings = useData((s) => s.bookings);
-  const blocks = useData((s) => s.blocks);
-  const overrides = useData((s) => s.overrides);
-  const createBooking = useData((s) => s.createBooking);
-  const updateBooking = useData((s) => s.updateBooking);
+  const bookings = useBookings();
+  const create = useCreateBooking();
+  const update = useUpdateBooking();
+  const busy = create.isPending || update.isPending;
   const log = useData((s) => s.log);
+  // One key per form, so a retried save never adds the stay twice.
+  const [key] = useState(() => uid("bk"));
+  const [error, setError] = useState<string | null>(null);
   const filter = useFilter((s) => s.propertyId);
 
   const [propertyId, setPropertyId] = useState(
@@ -52,6 +58,7 @@ export default function BookingForm() {
       "",
   );
   const property = properties.find((p) => p.id === propertyId) ?? properties[0];
+  const { blocks, overrides } = useCalendar(property?.id);
   const [unitId, setUnitId] = useState(
     existing?.unitId ?? params.unitId ?? property?.units[0]?.id ?? "",
   );
@@ -70,7 +77,7 @@ export default function BookingForm() {
   const [customTotal, setCustomTotal] = useState("");
   const [depositOn, setDepositOn] = useState(false);
   const [deposit, setDeposit] = useState("");
-  const [method, setMethod] = useState<Payment["method"]>("bank");
+  const [method, setMethod] = useState<Exclude<Payment["method"], "refund">>("bank");
   const [note, setNote] = useState(existing?.ownerNote ?? "");
 
   const q = useMemo(
@@ -83,7 +90,7 @@ export default function BookingForm() {
             adults,
             children,
             extras,
-            overrides: overrides[property.id],
+            overrides,
           })
         : null,
     [property, unit, from, to, adults, children, extras, overrides],
@@ -99,8 +106,7 @@ export default function BookingForm() {
       : null;
   const clashing = !!clash && (clash.bookings.length > 0 || clash.blocks.length > 0);
   const total = custom ? Math.round(Number(customTotal || 0) * 100) : (q?.total ?? 0);
-  const minNights =
-    property && unit && from ? minNightsFor(property, unit.id, from, overrides[property.id]) : 1;
+  const minNights = property && unit && from ? minNightsFor(property, unit.id, from, overrides) : 1;
   const ready =
     !!property && !!unit && !!from && !!to && name.trim().length > 1 && !clashing && total >= 0;
 
@@ -122,65 +128,58 @@ export default function BookingForm() {
     );
   };
 
-  function save() {
-    if (!ready || !from || !to || !property || !unit) return;
-    const lines = custom
-      ? [{ label: `${plural(q?.nights ?? 0, "night")}, agreed price`, amount: total }]
-      : (q?.lines ?? []);
+  async function save() {
+    if (!ready || !from || !to || !property || !unit || busy) return;
     const guest = {
       name: name.trim(),
       phone: phone.trim() || undefined,
       email: mail.trim() || undefined,
     };
-    haptics.success();
-    if (existing) {
-      updateBooking(existing.id, {
-        unitId: unit.id,
-        checkIn: from,
-        checkOut: to,
-        adults,
-        children,
-        guest: { ...existing.guest, ...guest },
-        extras,
-        lines,
-        total,
-        ownerNote: note.trim() || undefined,
-        source,
+    const stay = {
+      unitId: unit.id,
+      checkIn: from,
+      checkOut: to,
+      adults,
+      children,
+      guest,
+      source,
+      extras,
+      ownerNote: note.trim(),
+      customTotal: custom ? total : undefined,
+    };
+    setError(null);
+    try {
+      if (existing) {
+        await update.mutateAsync({
+          id: existing.id,
+          patch: { ...stay, guest: { ...existing.guest, ...guest }, version: existing.version },
+        });
+        haptics.success();
+        router.back();
+        return;
+      }
+      const amount = Math.round(Number(deposit || 0) * 100);
+      const created = await create.mutateAsync({
+        key,
+        body: {
+          ...stay,
+          propertyId: property.id,
+          payment: depositOn && amount > 0 ? { amount, method } : undefined,
+        },
       });
-      router.back();
-      return;
-    }
-    const amount = Math.round(Number(deposit || 0) * 100);
-    const created = createBooking(
-      {
+      haptics.success();
+      log({
+        kind: "booking",
+        title: `You added ${created.guest.name}`,
+        subtitle: `${unit.name}, ${SOURCE_LABEL[source]} booking`,
+        bookingId: created.id,
         propertyId: property.id,
-        unitId: unit.id,
-        source,
-        status: "confirmed",
-        guest,
-        adults,
-        children,
-        checkIn: from,
-        checkOut: to,
-        lines,
-        total,
-        payments:
-          depositOn && amount > 0
-            ? [{ id: `pay_${Date.now()}`, amount, method, at: new Date().toISOString() }]
-            : [],
-        extras,
-        ownerNote: note.trim() || undefined,
-      },
-      property,
-    );
-    log({
-      kind: "booking",
-      title: `You added ${created.guest.name}`,
-      subtitle: `${unit.name}, ${SOURCE_LABEL[source]} booking`,
-      bookingId: created.id,
-      propertyId: property.id,
-    });
-    router.replace({ pathname: "/booking/[id]", params: { id: created.id } });
+      });
+      router.replace({ pathname: "/booking/[id]", params: { id: created.id } });
+    } catch (e) {
+      haptics.error();
+      setError(messageFor(e));
+    }
   }
 
   return (
@@ -192,7 +191,7 @@ export default function BookingForm() {
           <Button
             testID="booking-save"
             title={editing ? "Save changes" : "Save booking"}
-            disabled={!ready}
+            disabled={!ready || busy}
             onPress={save}
           />
         </View>
@@ -272,6 +271,12 @@ export default function BookingForm() {
             }}
           />
         </Animated.View>
+      ) : null}
+
+      {error ? (
+        <InfoNote icon={I.warning} testID="booking-form-error">
+          {error}
+        </InfoNote>
       ) : null}
 
       {clashing && clash ? (

@@ -19,6 +19,38 @@ type Account struct {
 	FirstDirectBookingAt *time.Time
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
+	BookingSeq           int32
+}
+
+type Booking struct {
+	ID               uuid.UUID
+	AccountID        uuid.UUID
+	PropertyID       uuid.UUID
+	UnitID           uuid.UUID
+	Ref              string
+	Source           string
+	Status           string
+	GuestID          uuid.UUID
+	Adults           int16
+	Children         int16
+	CheckIn          time.Time
+	CheckOut         time.Time
+	Currency         string
+	Total            int64
+	GuestNote        string
+	OwnerNote        string
+	RequestExpiresAt *time.Time
+	HoldExpiresAt    *time.Time
+	PaymentDueAt     *time.Time
+	CancelReason     *string
+	CancelledAt      *time.Time
+	ExternalUid      *string
+	FeedID           *uuid.UUID
+	PromoID          *uuid.UUID
+	CreatedBy        *uuid.UUID
+	Version          int32
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 type Membership struct {

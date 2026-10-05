@@ -1,0 +1,440 @@
+{
+  "description": "Pricing cases both implementations must agree on: apps/api/internal/domain/pricing and apps/mobile/src/data/pricing.ts. Properties carry only the fields pricing reads. Amounts are minor units.",
+  "properties": {
+    "villa": {
+      "units": [
+        {
+          "id": "0190a000-0000-7000-8000-000000000001",
+          "rate": 18000,
+          "weekendRate": 22000
+        }
+      ],
+      "extraGuest": {
+        "above": 4,
+        "amount": 2500
+      },
+      "seasons": [
+        {
+          "start": "12-15",
+          "end": "01-15",
+          "prices": {
+            "0190a000-0000-7000-8000-000000000001": 32000
+          },
+          "minNights": 3
+        }
+      ],
+      "lengthDiscounts": [
+        {
+          "nights": 3,
+          "percent": 5
+        },
+        {
+          "nights": 7,
+          "percent": 10
+        }
+      ],
+      "promos": [
+        {
+          "id": "0190a000-0000-7000-8000-0000000000a1",
+          "code": "SPRING",
+          "kind": "percent",
+          "amount": 15
+        },
+        {
+          "id": "0190a000-0000-7000-8000-0000000000a2",
+          "code": "FIFTY",
+          "kind": "fixed",
+          "amount": 5000
+        }
+      ],
+      "extras": [
+        {
+          "id": "0190a000-0000-7000-8000-0000000000e1",
+          "name": "Airport transfer",
+          "price": 4000,
+          "per": "trip"
+        },
+        {
+          "id": "0190a000-0000-7000-8000-0000000000e2",
+          "name": "Breakfast",
+          "price": 850,
+          "per": "guestNight"
+        },
+        {
+          "id": "0190a000-0000-7000-8000-0000000000e3",
+          "name": "Bikes",
+          "price": 500,
+          "per": "night"
+        },
+        {
+          "id": "0190a000-0000-7000-8000-0000000000e4",
+          "name": "Welcome pack",
+          "price": 1200,
+          "per": "guest"
+        }
+      ],
+      "charges": [
+        {
+          "name": "Service charge",
+          "kind": "percent",
+          "amount": 10,
+          "per": "stay",
+          "enabled": true
+        },
+        {
+          "name": "Cleaning fee",
+          "kind": "fixed",
+          "amount": 3000,
+          "per": "stay",
+          "enabled": true
+        },
+        {
+          "name": "Tourism levy",
+          "kind": "fixed",
+          "amount": 150,
+          "per": "night",
+          "enabled": true
+        },
+        {
+          "name": "Linen",
+          "kind": "fixed",
+          "amount": 333,
+          "per": "guest",
+          "enabled": true
+        },
+        {
+          "name": "VAT",
+          "kind": "percent",
+          "amount": 18,
+          "per": "stay",
+          "enabled": false
+        }
+      ]
+    },
+    "plain": {
+      "units": [
+        {
+          "id": "0190a000-0000-7000-8000-000000000002",
+          "rate": 12345
+        }
+      ],
+      "extraGuest": null,
+      "seasons": [],
+      "lengthDiscounts": [],
+      "promos": [],
+      "extras": [],
+      "charges": [
+        {
+          "name": "VAT",
+          "kind": "percent",
+          "amount": 18,
+          "per": "stay",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "cases": [
+    {
+      "name": "weeknights at the base rate",
+      "property": "plain",
+      "input": {
+        "unitId": "0190a000-0000-7000-8000-000000000002",
+        "from": "2026-03-02",
+        "to": "2026-03-04",
+        "adults": 2
+      },
+      "expect": {
+        "nights": 2,
+        "lines": [
+          {
+            "label": "2 nights",
+            "amount": 24690
+          },
+          {
+            "label": "VAT 18%",
+            "amount": 4444,
+            "kind": "charge"
+          }
+        ],
+        "total": 29134
+      }
+    },
+    {
+      "name": "no nights",
+      "property": "plain",
+      "input": {
+        "unitId": "0190a000-0000-7000-8000-000000000002",
+        "from": "2026-03-02",
+        "to": "2026-03-02",
+        "adults": 2
+      },
+      "expect": {
+        "nights": 0,
+        "lines": [],
+        "total": 0
+      }
+    },
+    {
+      "name": "a Thursday at the base rate and a Friday at the weekend rate",
+      "property": "villa",
+      "input": {
+        "unitId": "0190a000-0000-7000-8000-000000000001",
+        "from": "2026-03-05",
+        "to": "2026-03-07",
+        "adults": 2
+      },
+      "expect": {
+        "nights": 2,
+        "lines": [
+          {
+            "label": "2 nights",
+            "amount": 40000
+          },
+          {
+            "label": "Service charge 10%",
+            "amount": 4000,
+            "kind": "charge"
+          },
+          {
+            "label": "Cleaning fee",
+            "amount": 3000,
+            "kind": "charge"
+          },
+          {
+            "label": "Tourism levy",
+            "amount": 300,
+            "kind": "charge"
+          },
+          {
+            "label": "Linen",
+            "amount": 666,
+            "kind": "charge"
+          }
+        ],
+        "total": 47966
+      }
+    },
+    {
+      "name": "season across the new year with a length discount",
+      "property": "villa",
+      "input": {
+        "unitId": "0190a000-0000-7000-8000-000000000001",
+        "from": "2026-12-28",
+        "to": "2027-01-04",
+        "adults": 2
+      },
+      "expect": {
+        "nights": 7,
+        "lines": [
+          {
+            "label": "7 nights",
+            "amount": 224000
+          },
+          {
+            "label": "7+ nights, 10% off",
+            "amount": -22400,
+            "kind": "discount"
+          },
+          {
+            "label": "Service charge 10%",
+            "amount": 20160,
+            "kind": "charge"
+          },
+          {
+            "label": "Cleaning fee",
+            "amount": 3000,
+            "kind": "charge"
+          },
+          {
+            "label": "Tourism levy",
+            "amount": 1050,
+            "kind": "charge"
+          },
+          {
+            "label": "Linen",
+            "amount": 666,
+            "kind": "charge"
+          }
+        ],
+        "total": 226476
+      }
+    },
+    {
+      "name": "percent promo, extra guests and every extra",
+      "property": "villa",
+      "input": {
+        "unitId": "0190a000-0000-7000-8000-000000000001",
+        "from": "2026-04-01",
+        "to": "2026-04-05",
+        "adults": 5,
+        "children": 1,
+        "extras": [
+          "0190a000-0000-7000-8000-0000000000e1",
+          "0190a000-0000-7000-8000-0000000000e2",
+          "0190a000-0000-7000-8000-0000000000e3",
+          "0190a000-0000-7000-8000-0000000000e4"
+        ],
+        "promo": "SPRING"
+      },
+      "expect": {
+        "nights": 4,
+        "lines": [
+          {
+            "label": "4 nights",
+            "amount": 80000
+          },
+          {
+            "label": "3+ nights, 5% off",
+            "amount": -4000,
+            "kind": "discount"
+          },
+          {
+            "label": "Code SPRING",
+            "amount": -11400,
+            "kind": "discount"
+          },
+          {
+            "label": "2 extra guests",
+            "amount": 20000
+          },
+          {
+            "label": "Airport transfer",
+            "amount": 4000,
+            "kind": "extra"
+          },
+          {
+            "label": "Breakfast",
+            "amount": 20400,
+            "kind": "extra"
+          },
+          {
+            "label": "Bikes",
+            "amount": 2000,
+            "kind": "extra"
+          },
+          {
+            "label": "Welcome pack",
+            "amount": 7200,
+            "kind": "extra"
+          },
+          {
+            "label": "Service charge 10%",
+            "amount": 8460,
+            "kind": "charge"
+          },
+          {
+            "label": "Cleaning fee",
+            "amount": 3000,
+            "kind": "charge"
+          },
+          {
+            "label": "Tourism levy",
+            "amount": 600,
+            "kind": "charge"
+          },
+          {
+            "label": "Linen",
+            "amount": 1998,
+            "kind": "charge"
+          }
+        ],
+        "total": 132258
+      }
+    },
+    {
+      "name": "fixed promo and a price override",
+      "property": "villa",
+      "input": {
+        "unitId": "0190a000-0000-7000-8000-000000000001",
+        "from": "2026-05-04",
+        "to": "2026-05-06",
+        "adults": 2,
+        "promo": "FIFTY",
+        "overrides": {
+          "0190a000-0000-7000-8000-000000000001": {
+            "2026-05-04": {
+              "price": 9999
+            }
+          }
+        }
+      },
+      "expect": {
+        "nights": 2,
+        "lines": [
+          {
+            "label": "2 nights",
+            "amount": 27999
+          },
+          {
+            "label": "Code FIFTY",
+            "amount": -5000,
+            "kind": "discount"
+          },
+          {
+            "label": "Service charge 10%",
+            "amount": 2300,
+            "kind": "charge"
+          },
+          {
+            "label": "Cleaning fee",
+            "amount": 3000,
+            "kind": "charge"
+          },
+          {
+            "label": "Tourism levy",
+            "amount": 300,
+            "kind": "charge"
+          },
+          {
+            "label": "Linen",
+            "amount": 666,
+            "kind": "charge"
+          }
+        ],
+        "total": 29265
+      }
+    },
+    {
+      "name": "unknown promo code is ignored",
+      "property": "villa",
+      "input": {
+        "unitId": "0190a000-0000-7000-8000-000000000001",
+        "from": "2026-05-04",
+        "to": "2026-05-05",
+        "adults": 1,
+        "promo": "NOPE"
+      },
+      "expect": {
+        "nights": 1,
+        "lines": [
+          {
+            "label": "1 night",
+            "amount": 18000
+          },
+          {
+            "label": "Service charge 10%",
+            "amount": 1800,
+            "kind": "charge"
+          },
+          {
+            "label": "Cleaning fee",
+            "amount": 3000,
+            "kind": "charge"
+          },
+          {
+            "label": "Tourism levy",
+            "amount": 150,
+            "kind": "charge"
+          },
+          {
+            "label": "Linen",
+            "amount": 333,
+            "kind": "charge"
+          }
+        ],
+        "total": 23283
+      }
+    }
+  ]
+}

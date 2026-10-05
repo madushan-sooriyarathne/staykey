@@ -13,9 +13,8 @@ import { Tag } from "@/components/brand";
 import { Appear, Card, money, Page, PropertySwitcher, Segmented, ui } from "@/components/kit";
 import { font } from "@/components/ui";
 import { addMonths, eachNight, formatMonthShort, monthStart, today } from "@/data/dates";
-import { useFilter, useProperties } from "@/data/hooks";
+import { useBookings, useFilter, useProperties } from "@/data/hooks";
 import { HOLDING, isOTA, occupancy } from "@/data/pricing";
-import { useData } from "@/data/store";
 import type { Booking, Source } from "@/data/types";
 
 const ease = Easing.out(Easing.cubic);
@@ -25,7 +24,7 @@ type Period = { from: string; to: string; label: string };
 /** Revenue, occupancy, average nightly rate and booking sources by month or year. */
 export default function Insights() {
   const properties = useProperties();
-  const all = useData((s) => s.bookings);
+  const all = useBookings();
   const filter = useFilter((s) => s.propertyId);
   const setFilter = useFilter((s) => s.set);
   const [view, setView] = useState<"month" | "year">("month");

@@ -1,5 +1,12 @@
-import type { NewProperty, Property, PropertyPatch } from "@staykey/api-client";
-import type { Currency, PropertyConfig } from "./types";
+import type {
+  Booking as ApiBooking,
+  Calendar,
+  NewProperty,
+  Property,
+  PropertyPatch,
+} from "@staykey/api-client";
+import type { Overrides } from "./pricing";
+import type { Block, Booking, Currency, PropertyConfig } from "./types";
 
 /**
  * Conversions between the API's property and the model the screens use. Screens keep reading
@@ -176,4 +183,63 @@ export function toNewProperty(p: PropertyConfig): NewProperty {
     currency: p.currency,
     setup,
   };
+}
+
+/**
+ * A stay from the API as the screens see it. Caretakers get no money fields, which read as
+ * zero. The app shows one slip per stay: the pending one, else the latest.
+ */
+export function toBooking(b: ApiBooking): Booking {
+  const payments = (b.payments ?? []).map((p) => ({
+    id: p.id,
+    amount: p.amount,
+    method: p.kind === "refund" ? ("refund" as const) : p.method,
+    at: p.receivedAt,
+    note: p.note || undefined,
+  }));
+  const slips = b.slips ?? [];
+  const slip = slips.find((x) => x.status === "pending") ?? slips[slips.length - 1];
+  return {
+    id: b.id,
+    ref: b.ref,
+    propertyId: b.propertyId,
+    unitId: b.unitId,
+    source: b.source,
+    status: b.status,
+    guest: b.guest,
+    adults: b.adults,
+    children: b.children,
+    checkIn: b.checkIn,
+    checkOut: b.checkOut,
+    lines: b.lines ?? [],
+    total: b.total ?? 0,
+    payments,
+    slip: slip && { id: slip.id, amount: slip.amount, at: slip.uploadedAt, status: slip.status },
+    extras: b.extras,
+    guestNote: b.guestNote || undefined,
+    ownerNote: b.ownerNote || undefined,
+    createdAt: b.createdAt,
+    requestExpiresAt: b.requestExpiresAt,
+    cancel: b.cancel && {
+      reason: b.cancel.reason,
+      at: b.cancel.at,
+      refund: payments.reduce((n, p) => n + (p.method === "refund" ? p.amount : 0), 0),
+    },
+    version: b.version,
+  };
+}
+
+/** A property's blocks and rate overrides as the calendar and pricing read them. */
+export function toCalendar(c: Calendar): { blocks: Block[]; overrides: Overrides } {
+  const overrides: Overrides = {};
+  for (const o of c.rateOverrides) {
+    const unit = overrides[o.unitId] ?? {};
+    unit[o.night] = {
+      price: o.price,
+      minNights: o.minNights,
+      closedToArrival: o.closedToArrival || undefined,
+    };
+    overrides[o.unitId] = unit;
+  }
+  return { blocks: c.blocks.map((b) => ({ ...b, note: b.note || undefined })), overrides };
 }

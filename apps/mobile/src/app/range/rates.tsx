@@ -2,6 +2,7 @@ import { colors } from "@staykey/tokens";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Text, View } from "react-native";
+import { useCalendar, useSetRateOverrides } from "@/api/calendar";
 import { Button, Field, Stepper, TextLink } from "@/components/controls";
 import { Card, Hint, money, SheetPage, SwitchRow } from "@/components/kit";
 import { font } from "@/components/ui";
@@ -9,7 +10,6 @@ import { eachNight, formatShort } from "@/data/dates";
 import { useProperty } from "@/data/hooks";
 import { plural } from "@/data/labels";
 import { minNightsFor, nightlyRate } from "@/data/pricing";
-import { useData } from "@/data/store";
 import { haptics } from "@/lib/haptics";
 
 /** Sets the price and minimum stay for selected nights without opening the full rate settings. */
@@ -21,23 +21,19 @@ export default function EditRates() {
     to: string;
   }>();
   const property = useProperty(params.propertyId);
-  const overrides = useData((s) => s.overrides);
-  const setOverride = useData((s) => s.setOverride);
+  const { overrides } = useCalendar(params.propertyId);
+  const setOverrides = useSetRateOverrides();
   const nights = params.from && params.to ? eachNight(params.from, params.to) : [];
   const current = property
-    ? nights.map((n) => nightlyRate(property, params.unitId, n, overrides[property.id]))
+    ? nights.map((n) => nightlyRate(property, params.unitId, n, overrides))
     : [];
   const low = Math.min(...current);
   const high = Math.max(...current);
   const [price, setPrice] = useState(current.length ? String(Math.round(high / 100)) : "");
   const [minStay, setMinStay] = useState(
-    property && params.from
-      ? minNightsFor(property, params.unitId, params.from, overrides[property.id])
-      : 1,
+    property && params.from ? minNightsFor(property, params.unitId, params.from, overrides) : 1,
   );
-  const [closed, setClosed] = useState(
-    !!overrides[params.propertyId]?.[params.unitId]?.[params.from]?.closedToArrival,
-  );
+  const [closed, setClosed] = useState(!!overrides[params.unitId]?.[params.from]?.closedToArrival);
 
   if (!property) return null;
   const unit = property.units.find((u) => u.id === params.unitId);
@@ -83,7 +79,12 @@ export default function EditRates() {
         disabled={minor <= 0 || nights.length === 0}
         onPress={() => {
           haptics.success();
-          setOverride(property.id, [params.unitId], nights, {
+          // The calendar shows the change at once and puts it back if the server refuses.
+          setOverrides.mutate({
+            propertyId: property.id,
+            unitIds: [params.unitId],
+            from: params.from,
+            to: params.to,
             price: minor,
             minNights: minStay,
             closedToArrival: closed,
@@ -95,10 +96,11 @@ export default function EditRates() {
         title="Go back to my usual rates"
         onPress={() => {
           haptics.select();
-          setOverride(property.id, [params.unitId], nights, {
-            price: undefined,
-            minNights: undefined,
-            closedToArrival: undefined,
+          setOverrides.mutate({
+            propertyId: property.id,
+            unitIds: [params.unitId],
+            from: params.from,
+            to: params.to,
           });
           router.back();
         }}
