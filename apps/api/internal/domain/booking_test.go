@@ -21,7 +21,8 @@ func TestCanTransition(t *testing.T) {
 		{"caretaker can't approve", RoleCaretaker, StatusRequested, StatusAwaitingPayment, ErrForbidden},
 		{"caretaker checks a guest in", RoleCaretaker, StatusConfirmed, StatusCheckedIn, nil},
 		{"caretaker checks a guest out", RoleCaretaker, StatusCheckedIn, StatusCheckedOut, nil},
-		{"no check-in before confirming", RoleOwner, StatusAwaitingPayment, StatusCheckedIn, ErrBadTransition},
+		{"caretaker checks in a guest paying at the property", RoleCaretaker, StatusAwaitingPayment, StatusCheckedIn, nil},
+		{"no check-out before checking in", RoleOwner, StatusConfirmed, StatusCheckedOut, ErrBadTransition},
 		{"no way back from checked out", RoleOwner, StatusCheckedOut, StatusCheckedIn, ErrBadTransition},
 		{"cancelling has its own route", RoleOwner, StatusConfirmed, StatusCancelled, ErrBadTransition},
 	}
