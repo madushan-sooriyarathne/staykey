@@ -57,6 +57,10 @@ type Store interface {
 	Exists(ctx context.Context, key string) (bool, error)
 	// URL is where a stored file is served.
 	URL(ctx context.Context, key string) string
+	// WrittenBefore lists the keys of files last written before t.
+	WrittenBefore(ctx context.Context, t time.Time) ([]string, error)
+	// Delete removes a file. A missing file is not an error.
+	Delete(ctx context.Context, key string) error
 }
 
 // NewKey returns a fresh key for an account's file. It fails for unsupported content types.
