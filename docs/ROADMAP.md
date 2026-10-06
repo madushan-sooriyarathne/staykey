@@ -53,7 +53,8 @@ The shortest route to a first paying owner is phase 3, phase 5 and the billing h
 
 ## 2. Accounts and decisions (owner)
 
-- [ ] SMS provider for sign-in codes: a Sri Lankan gateway or Twilio. Production won't start without one
+- [x] SMS provider for sign-in codes: oZone Sender for Sri Lankan numbers. Production won't start without one
+- [ ] International SMS gateway (international numbers are refused until then)
 - [ ] Hosting: default is Fly.io in Singapore with managed Postgres alongside
 - [ ] Cloudflare R2 bucket and media domain (`media.staykey.direct`); test uploads against the real bucket
 - [ ] WhatsApp Business number for alerts and invites
@@ -70,7 +71,7 @@ The shortest route to a first paying owner is phase 3, phase 5 and the billing h
 - [ ] End-to-end tests: Playwright on web against a seeded API, Maestro on iOS and Android
 - [ ] Load test booking creation and the public availability route
 - [ ] Error tracking, uptime monitoring and log retention
-- [ ] Production secrets set: `STAYKEY_AUTH_SECRET`, `STAYKEY_DATA_KEY`, `STAYKEY_SMS_PROVIDER`, the R2 keys. Keep a safe copy of the data key, since losing it makes stored bank details unreadable
+- [ ] Production secrets set: `STAYKEY_AUTH_SECRET`, `STAYKEY_DATA_KEY`, `STAYKEY_SMS_PROVIDER` with the `STAYKEY_OZONE_*` credentials, the R2 keys. Keep a safe copy of the data key, since losing it makes stored bank details unreadable
 - [ ] EAS builds for iOS and Android, store listings, screenshots, app privacy details
 - [ ] A reviewer test account with a working sign-in for Apple and Google review
 - [ ] Terms of service and privacy policy, reviewed against Sri Lanka's Personal Data Protection Act

@@ -22,8 +22,10 @@ type Config struct {
 
 	// AuthSecret signs access tokens and keys sign-in code hashes. At least 32 bytes.
 	AuthSecret string
-	// SMSProvider sends sign-in codes. Only "log" exists so far: codes are written to the log.
+	// SMSProvider sends sign-in codes to Sri Lankan numbers: "log" writes them to the log,
+	// "ozone" texts them through oZone Sender. Other countries are not supported yet.
 	SMSProvider string
+	Ozone       Ozone
 	// ClientIPHeader names the header a trusted proxy puts the client address in, for example
 	// Fly-Client-IP. Empty uses the connection's address.
 	ClientIPHeader string
@@ -37,6 +39,13 @@ type Config struct {
 	Storage  string
 	MediaDir string // for local storage
 	R2       R2
+}
+
+// Ozone holds the oZone Sender credentials from its documentation page.
+type Ozone struct {
+	UserID   string
+	APIKey   string
+	SenderID string
 }
 
 // R2 reaches the Cloudflare R2 bucket for photos and logos.
@@ -66,6 +75,11 @@ func Load() (Config, error) {
 		ClientIPHeader: os.Getenv("STAYKEY_CLIENT_IP_HEADER"),
 		PublicURL:      os.Getenv("STAYKEY_PUBLIC_URL"),
 		MediaDir:       getenv("STAYKEY_MEDIA_DIR", ".media"),
+		Ozone: Ozone{
+			UserID:   os.Getenv("STAYKEY_OZONE_USER_ID"),
+			APIKey:   os.Getenv("STAYKEY_OZONE_API_KEY"),
+			SenderID: os.Getenv("STAYKEY_OZONE_SENDER_ID"),
+		},
 		R2: R2{
 			Endpoint:        os.Getenv("STAYKEY_R2_ENDPOINT"),
 			Bucket:          os.Getenv("STAYKEY_R2_BUCKET"),
@@ -108,8 +122,15 @@ func Load() (Config, error) {
 }
 
 func (c Config) validate() error {
-	if c.SMSProvider != "log" {
-		return fmt.Errorf("unknown STAYKEY_SMS_PROVIDER %q (supported: log)", c.SMSProvider)
+	switch c.SMSProvider {
+	case "log":
+	case "ozone":
+		o := c.Ozone
+		if o.UserID == "" || o.APIKey == "" || o.SenderID == "" {
+			return errors.New("ozone sms needs STAYKEY_OZONE_USER_ID, STAYKEY_OZONE_API_KEY and STAYKEY_OZONE_SENDER_ID")
+		}
+	default:
+		return fmt.Errorf("unknown STAYKEY_SMS_PROVIDER %q (supported: log, ozone)", c.SMSProvider)
 	}
 	switch c.Storage {
 	case "local":

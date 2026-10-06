@@ -19,6 +19,7 @@ import (
 	"staykey.direct/api/internal/jobs"
 	"staykey.direct/api/internal/secret"
 	"staykey.direct/api/internal/server"
+	"staykey.direct/api/internal/sms"
 	"staykey.direct/api/internal/store"
 )
 
@@ -59,7 +60,11 @@ func run() error {
 		return err
 	}
 
-	authService, err := auth.New(db, auth.LogSender{Logger: log}, auth.Config{
+	var lk auth.SMSSender = auth.LogSender{Logger: log}
+	if cfg.SMSProvider == "ozone" {
+		lk = sms.Ozone{UserID: cfg.Ozone.UserID, APIKey: cfg.Ozone.APIKey, SenderID: cfg.Ozone.SenderID}
+	}
+	authService, err := auth.New(db, sms.Router{LK: lk}, auth.Config{
 		Secret: []byte(cfg.AuthSecret),
 		// Development builds show the code on screen, so a phone can sign in without SMS.
 		ExposeDevCodes: !cfg.IsProduction(),

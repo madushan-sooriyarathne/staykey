@@ -52,7 +52,7 @@ The seed creates an owner (+94 77 000 0001, or `-owner-phone` for your own numbe
 
 ### Signing in
 
-Owners sign in with a 6-digit code sent to their phone. No SMS provider is connected yet, so in development the code is written to the API log and returned by the API, and development builds of the app show it under the code boxes. To sign in on a phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your computer's LAN address, tap "I have an account" and use one of the seeded numbers.
+Owners sign in with a 6-digit code sent to their phone. Codes reach Sri Lankan numbers through oZone Sender when `STAYKEY_SMS_PROVIDER=ozone` and its credentials are set (see `apps/api/.env.example`); other countries are not supported yet. In development the default `log` provider writes the code to the API log, the API returns it, and development builds of the app show it under the code boxes. To sign in on a phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your computer's LAN address, tap "I have an account" and use one of the seeded numbers.
 
 From the command line:
 
@@ -137,4 +137,4 @@ How the app gets its data today: sign-in, accounts, properties, every property s
 Next (the full checklist to launch is `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`):
 - Phase 4: team invites, activity, templates and notifications, retiring the on-device store
 - iCal import and export workers, and the booking page on live data
-- An SMS provider for codes, and RevenueCat for in-app subscriptions
+- An international SMS gateway, and RevenueCat for in-app subscriptions

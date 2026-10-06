@@ -197,7 +197,7 @@ Phases 4 and 5 can run side by side after phase 3. Order inside each phase: migr
 
 ## Open questions
 
-- [ ] SMS provider for OTP: a Sri Lankan gateway or Twilio?
+- [x] SMS provider for OTP: oZone Sender for Sri Lankan numbers; an international gateway is still open
 - [ ] Hosting and region: Fly.io or Railway in Singapore or Mumbai, managed Postgres in the same region?
 - [x] File storage: Cloudflare R2 (default taken in phase 2; swappable through the S3 API)
 - [ ] WhatsApp: register a WhatsApp Business number now?
