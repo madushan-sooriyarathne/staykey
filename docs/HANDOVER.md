@@ -85,7 +85,8 @@ Commits so far:
 ### API today
 
 - `apps/api/cmd/api`, `cmd/migrate`, `cmd/seed`.
-- `internal/auth`: codes (HMAC-hashed, 5 min, 5 attempts; 1 per 30 s and 5 per hour per number, 20 per hour per IP), 15 min HS256 access tokens checked against their session, refresh tokens `<session id>.<secret>` stored as SHA-256 and rotated on every use. A stale refresh token revokes the session, except within 30 s of a rotation (a retried, lost response). `SMSSender` with `LogSender` only; dev servers return `devCode`.
+- `internal/auth`: codes (HMAC-hashed, 5 min, 5 attempts; 1 per 30 s and 5 per hour per number, 20 per hour per IP), 15 min HS256 access tokens checked against their session, refresh tokens `<session id>.<secret>` stored as SHA-256 and rotated on every use. A stale refresh token revokes the session, except within 30 s of a rotation (a retried, lost response). `SMSSender`, with `LogSender` for development; dev servers return `devCode`.
+- `internal/sms`: `Router` sends Sri Lankan numbers (+94) through the configured sender and refuses other countries with a 400 on `phone` ("International numbers are not supported yet."). `Ozone` texts through oZone Sender (`STAYKEY_SMS_PROVIDER=ozone` plus `STAYKEY_OZONE_USER_ID`, `STAYKEY_OZONE_API_KEY`, `STAYKEY_OZONE_SENDER_ID`); its codes 203 and 205 come back as a 400 on `phone`, any other non-204 code as a 500.
 - `internal/tenant`: `Tenant` (account, user, membership, role, property scope) and `Resolve` for `X-Account-Id`. Unknown account or no membership is 404.
 - `internal/domain/booking.go`: statuses and sources, `StayInput` with validation, the transition table (`CanTransition`: approve, decline and confirm need `PermManage`; check in and out are open to every role, including from `awaiting_payment` for guests paying at the property), `LedgerUnits`, `RefPrefix`, `ConflictError`, `ErrStale`, `ErrBadTransition`, `ErrKeyReused`.
 - `internal/domain/pricing`: port of `pricing.ts` (`Price`, `NightlyRate`, `MinNights`, `Deposit`, `Refund`, `CustomLines`). Integer maths; `percentOf` rounds half up like `Math.round`.
@@ -173,7 +174,7 @@ Phase 4 retires the on-device store: invites by WhatsApp link, the team list, ac
 
 | Question | Default for now |
 | --- | --- |
-| SMS provider for OTP | Log sender only; production refuses to start without `STAYKEY_SMS_PROVIDER` |
+| SMS provider for OTP | oZone Sender for Sri Lankan numbers; international numbers are refused until a second gateway is chosen. Production refuses to start without `STAYKEY_SMS_PROVIDER` |
 | Hosting region | Fly.io in Singapore with managed Postgres alongside (`STAYKEY_CLIENT_IP_HEADER=Fly-Client-IP`) |
 | File storage | Cloudflare R2, now in use through the S3 API (so swappable). Not yet tried against a real bucket |
 | WhatsApp Business number | Deep links only until a number is registered |
@@ -204,6 +205,8 @@ Calls made without asking, to confirm or change:
 - Phase 3: the river client runs in the API process instead of a separate worker mode. Split it out when jobs need their own machine.
 - Phase 3: refunds go back by the method the guest last paid with; the cancel screen has no method picker yet.
 - Phase 3: payment, slip and cancel screens wait for the server and show its error, rather than closing first, so a refused money write is never lost silently.
+- SMS: oZone is called with a form POST, as its parameter table says, rather than the GET in its sample, so the API key never sits in a URL. Not yet tried against the live gateway. There are no retries, since a retry after a timeout can text the code twice; the person can resend after 30 seconds.
+- SMS: a refused international number still stores a challenge, so a repeat within 30 seconds gets "try again" rather than the international message.
 
 ## 8. Git attribution
 

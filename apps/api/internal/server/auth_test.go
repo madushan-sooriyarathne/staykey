@@ -247,3 +247,15 @@ func TestRefreshRotationAndReuse(t *testing.T) {
 	e.clock.Advance(61 * 24 * time.Hour)
 	e.expect(e.refresh(s.refresh), http.StatusUnauthorized)
 }
+
+func TestInternationalNumberRefused(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+
+	rec := e.do(call{method: http.MethodPost, path: "/v1/auth/otp", body: oapi.OtpRequest{Phone: "+44 7700 900123"}})
+	e.expect(rec, http.StatusBadRequest)
+	body := decode[oapi.Error](t, rec)
+	if body.Code != "invalid_phone" || body.Field == nil || *body.Field != "phone" || body.Message != "International numbers are not supported yet." {
+		t.Fatalf("international number response = %+v", body)
+	}
+}
