@@ -98,7 +98,7 @@ Bank account numbers are encrypted at rest with `STAYKEY_DATA_KEY` (32 bytes, ba
 
 Browsers resolve `*.localhost` to your machine, so subdomain routing works locally without editing hosts files.
 
-To run one app, filter it: `bunx turbo run dev --filter=@staykey/mobile`.
+To run apps individually, use the scoped dev scripts: `bun run dev:mobile`, `bun run dev:mobile:only`, `bun run dev:booking`, `bun run dev:marketing`, or `bun run dev:api`.
 
 Copy each `.env.example` to `.env` (or `.env.local` for Next.js) when the defaults don't fit. The defaults match `docker-compose.yml`.
 
@@ -118,6 +118,11 @@ Generated files are committed, so a fresh checkout builds without running genera
 | --- | --- |
 | `bun run setup` | One-time local setup, safe to rerun |
 | `bun run dev` | Runs every app in watch mode |
+| `bun run dev:mobile` | Runs the Expo owner app and the API |
+| `bun run dev:mobile:only` | Runs the Expo owner app alone |
+| `bun run dev:booking` | Runs the booking site and the API |
+| `bun run dev:marketing` | Runs the marketing site alone |
+| `bun run dev:api` | Runs the Go API backend alone |
 | `bun run build` | Builds everything Turborepo can cache |
 | `bun run typecheck` | `tsc` for TypeScript and `go vet` for Go |
 | `bun run test` | Go tests, and any TypeScript tests as they're added |

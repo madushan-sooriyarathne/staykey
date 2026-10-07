@@ -9,6 +9,11 @@
   "scripts": {
     "setup": "sh scripts/setup.sh",
     "dev": "turbo run dev",
+    "dev:api": "turbo run dev --filter=@staykey/api",
+    "dev:mobile": "turbo run dev --filter=@staykey/mobile --filter=@staykey/api",
+    "dev:mobile:only": "turbo run dev --filter=@staykey/mobile",
+    "dev:booking": "turbo run dev --filter=@staykey/booking --filter=@staykey/api",
+    "dev:marketing": "turbo run dev --filter=@staykey/marketing",
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
