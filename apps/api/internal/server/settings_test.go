@@ -89,7 +89,7 @@ func TestPublishFullSetup(t *testing.T) {
 	if p.Payments.Bank.AccountNumber != "001234567890" || p.Payments.Cards != oapi.PaymentSettingsCardsOff {
 		t.Errorf("payments %+v", p.Payments)
 	}
-	if p.Booking.Mode != oapi.Request || len(p.Booking.DisplayCurrencies) != 2 || p.Rules.MinNights != 1 {
+	if p.Booking.Mode != oapi.BookingSettingsModeRequest || len(p.Booking.DisplayCurrencies) != 2 || p.Rules.MinNights != 1 {
 		t.Errorf("booking %+v, rules %+v", p.Booking, p.Rules)
 	}
 	if len(p.IcalFeeds) != 2 || p.IcalFeeds[1].Status != oapi.IcalFeedStatusPending || p.IcalExportToken == "" {

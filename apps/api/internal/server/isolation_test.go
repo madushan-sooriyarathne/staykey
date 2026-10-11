@@ -92,14 +92,31 @@ func TestTenantIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	rec = e.do(call{method: http.MethodPost, path: "/v1/team/invites", as: alice, account: aliceAccount, body: map[string]any{
+		"phone": "+94773000009", "role": "caretaker", "propertyIds": []any{},
+	}})
+	e.expect(rec, http.StatusCreated)
+	aliceInvite := decode[oapi.InviteCreated](t, rec).Invite
+	manager, _ := e.signIn("+94773000003")
+	aliceMember, err := e.store.AddMember(context.Background(), aliceTenant, manager.userID, domain.RoleManager, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec = e.do(call{method: http.MethodGet, path: "/v1/templates", as: alice, account: aliceAccount})
+	e.expect(rec, http.StatusOK)
+	aliceTemplate := decode[oapi.TemplateList](t, rec).Items[0]
+
 	// Alice's records, by the path parameter names routes use for them. Later phases add units,
 	// team members and so on here as their routes arrive.
 	aliceIDs := map[string]string{
-		"id":         aliceVilla.Id.String(),
-		"propertyId": aliceVilla.Id.String(),
-		"bookingId":  aliceStay.Id.String(),
-		"blockId":    aliceBlock.Id.String(),
-		"slipId":     aliceSlip.String(),
+		"id":           aliceVilla.Id.String(),
+		"propertyId":   aliceVilla.Id.String(),
+		"bookingId":    aliceStay.Id.String(),
+		"blockId":      aliceBlock.Id.String(),
+		"slipId":       aliceSlip.String(),
+		"inviteId":     aliceInvite.Id.String(),
+		"membershipId": aliceMember.ID.String(),
+		"templateId":   aliceTemplate.Id.String(),
 	}
 
 	routes := ownerRoutes(t)
