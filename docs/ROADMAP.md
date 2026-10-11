@@ -1,8 +1,8 @@
 # StayKey roadmap to launch
 
-As of 11 Oct 2026. Phases 1 Foundations, 2 Properties and setup and 3 Bookings core are done, and sign-in codes reach Sri Lankan numbers through oZone Sender. Phase 4 is next; its plan is `docs/phase-4-plan.md`. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
+As of 11 Oct 2026. Phases 1 Foundations, 2 Properties and setup, 3 Bookings core and 4 Team, activity and messages are done, and sign-in codes reach Sri Lankan numbers through oZone Sender. Phase 5 is next. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
 
-The shortest route to a first paying owner is phase 3, phase 5 and the billing half of phase 6. Phases 4 and 5 can run side by side once phase 3 is done.
+The shortest route to a first paying owner is phase 5 and the billing half of phase 6.
 
 ## 1. Build phases
 
@@ -21,17 +21,17 @@ The shortest route to a first paying owner is phase 3, phase 5 and the billing h
 - [x] New owner routes added to `TestTenantIsolation`
 - [x] **Gate:** exactly one winner out of 50 parallel bookings on overlapping nights for a unit and its whole-house parent
 
-### Phase 4 Team, activity and messages (next, see `docs/phase-4-plan.md`)
+### Phase 4 Team, activity and messages (done, see `docs/phase-4-plan.md`)
 
-- [ ] Invites by WhatsApp link with accept, team list, role and property changes, removal
-- [ ] Account switcher for people in more than one account
-- [ ] Activity feed and read state
-- [ ] Message templates (four defaults per account) and notification preferences
-- [ ] Expo push tokens, push fan-out and the 7:00 morning summary
-- [ ] WhatsApp Cloud API sender for team alerts (log sender until the Business number is registered)
+- [x] Invites by WhatsApp link with accept, team list, role and property changes, removal
+- [x] Account switcher for people in more than one account
+- [x] Activity feed and read state
+- [x] Message templates (four defaults per account) and notification preferences
+- [x] Expo push tokens, push fan-out and the 7:00 morning summary
+- [x] WhatsApp Cloud API sender for team alerts (log sender until the Business number is registered)
 - [ ] Email sender, once an email provider is chosen (not needed for the phase 4 gate)
-- [ ] App: Team, Join, Activity, Templates, Notifications and Profile on the API; the on-device store goes away (Insights already reads stays from the API)
-- [ ] **Gate:** a caretaker joins by link and alerts arrive
+- [x] App: Team, Join, Activity, Templates, Notifications and Profile on the API; the on-device store goes away (Insights already reads stays from the API)
+- [x] **Gate:** a caretaker joins by link and alerts arrive (checked in a browser and against Expo's push service; a push on a real phone waits for the EAS project below)
 
 ### Phase 5 Calendar sync and booking page
 
