@@ -457,6 +457,251 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The account's members and open invites
+         * @description Every role can read the team.
+         */
+        get: operations["getTeam"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/team/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Invite someone by phone as a manager or caretaker
+         * @description Returns the invite link once; send it to the person on WhatsApp. A new invite to the
+         *     same number replaces the open one. Owners only.
+         */
+        post: operations["createInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/team/invites/{inviteId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inviteId: components["parameters"]["InviteId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke an open invite so its link stops working
+         * @description Owners only.
+         */
+        delete: operations["revokeInvite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/team/members/{membershipId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membershipId: components["parameters"]["MembershipId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a member from the account
+         * @description The owner can't be removed. Owners only.
+         */
+        delete: operations["removeMember"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a member's role or the properties they can see
+         * @description The owner's membership can't be changed. Owners only.
+         */
+        patch: operations["updateMember"];
+        trace?: never;
+    };
+    "/v1/invites/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join the account an invite is for
+         * @description The signed-in phone must be the invited one; any other number, or a used, revoked or
+         *     expired invite, gets 404. Accepting again returns the same membership.
+         */
+        post: operations["acceptInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What happened in the account, newest first
+         * @description Caretakers see their properties only, without payments or slips. Pass nextCursor
+         *     back as cursor for the next page.
+         */
+        get: operations["listActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/activity/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark everything up to now as read for the caller */
+        post: operations["markActivityRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The account's message templates */
+        get: operations["listTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/templates/{templateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change a template's text
+         * @description Owners and managers only.
+         */
+        patch: operations["updateTemplate"];
+        trace?: never;
+    };
+    "/v1/notification-prefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How the caller wants to hear about each event in this account */
+        get: operations["getNotificationPrefs"];
+        /** Replace the caller's preferences for the events sent */
+        put: operations["setNotificationPrefs"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/push-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register this device's Expo push token for the signed-in session
+         * @description Signing out of the session stops alerts to the token.
+         */
+        post: operations["registerPushToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/invites/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What an invite link is for, before the person signs in
+         * @description The token travels in the body so it stays out of access logs.
+         */
+        post: operations["previewInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/public/properties/{slug}": {
         parameters: {
             query?: never;
@@ -1207,6 +1452,131 @@ export interface components {
             blocks: components["schemas"]["Block"][];
             rateOverrides: components["schemas"]["RateOverride"][];
         };
+        /**
+         * @description The roles an invite or a team change can give.
+         * @enum {string}
+         */
+        MemberRole: "manager" | "caretaker";
+        TeamMember: {
+            /**
+             * Format: uuid
+             * @description The membership id.
+             */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            name: string;
+            phone: components["schemas"]["Phone"];
+            role: components["schemas"]["Role"];
+            /** @description The properties this member is limited to. Empty means every property. */
+            propertyIds: string[];
+            /** Format: date-time */
+            joinedAt: string;
+        };
+        Invite: {
+            /** Format: uuid */
+            id: string;
+            phone: components["schemas"]["Phone"];
+            name: string;
+            role: components["schemas"]["MemberRole"];
+            propertyIds: string[];
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        Team: {
+            members: components["schemas"]["TeamMember"][];
+            invites: components["schemas"]["Invite"][];
+        };
+        NewInvite: {
+            phone: components["schemas"]["Phone"];
+            name?: string;
+            role: components["schemas"]["MemberRole"];
+            /** @description Properties the person will see. Empty means every property. */
+            propertyIds: string[];
+        };
+        InviteCreated: {
+            invite: components["schemas"]["Invite"];
+            /**
+             * @description The link to send. It is only ever returned here.
+             * @example https://staykey.direct/join/okh09QaN0NNtBRVRDPHrQ4rkrpk7e2Khp1n87cMyFlg
+             */
+            link: string;
+        };
+        MemberPatch: {
+            role?: components["schemas"]["MemberRole"];
+            /** @description Replaces the properties the member sees. Empty means every property. */
+            propertyIds?: string[];
+        };
+        InviteToken: {
+            token: string;
+        };
+        InvitePreview: {
+            accountName: string;
+            invitedByName: string;
+            role: components["schemas"]["MemberRole"];
+            propertyNames: string[];
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        /** @enum {string} */
+        ActivityKind: "request" | "booking" | "slip" | "payment" | "cancellation" | "sync" | "import";
+        Activity: {
+            /** Format: uuid */
+            id: string;
+            kind: components["schemas"]["ActivityKind"];
+            title: string;
+            subtitle: string;
+            /** Format: date-time */
+            at: string;
+            read: boolean;
+            /** Format: uuid */
+            propertyId?: string;
+            /** Format: uuid */
+            bookingId?: string;
+        };
+        ActivityPage: {
+            items: components["schemas"]["Activity"][];
+            /** @description How many items the caller hasn't read, across every page. */
+            unread: number;
+            /** @description Present when there is more activity. */
+            nextCursor?: string;
+        };
+        /** @enum {string} */
+        TemplateChannel: "email" | "whatsapp";
+        Template: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            key: "confirmed" | "reminder" | "prearrival" | "thanks";
+            name: string;
+            channels: components["schemas"]["TemplateChannel"][];
+            timing: string;
+            body: string;
+        };
+        TemplateList: {
+            items: components["schemas"]["Template"][];
+        };
+        TemplatePatch: {
+            body: string;
+        };
+        /** @enum {string} */
+        NotificationEvent: "booking" | "request" | "payment" | "cancellation" | "sync" | "summary";
+        NotificationPref: {
+            event: components["schemas"]["NotificationEvent"];
+            push: boolean;
+            whatsapp: boolean;
+        };
+        NotificationPrefs: {
+            items: components["schemas"]["NotificationPref"][];
+        };
+        PushToken: {
+            /** @example ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx] */
+            token: string;
+            /** @enum {string} */
+            platform: "ios" | "android" | "web";
+        };
         Error: {
             /** @example slug_taken */
             code: string;
@@ -1295,6 +1665,9 @@ export interface components {
         BookingId: string;
         SlipId: string;
         BlockId: string;
+        InviteId: string;
+        MembershipId: string;
+        TemplateId: string;
         /**
          * @description Any unique string, such as a UUID made when the form opened. A retry with the same
          *     key and body gets the first reply; the same key with another body gets 422. Keys
@@ -2060,6 +2433,356 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Members, owners first, and invites, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewInvite"];
+            };
+        };
+        responses: {
+            /** @description The invite and its link */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteCreated"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    revokeInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inviteId: components["parameters"]["InviteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    removeMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membershipId: components["parameters"]["MembershipId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membershipId: components["parameters"]["MembershipId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberPatch"];
+            };
+        };
+        responses: {
+            /** @description The member */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMember"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    acceptInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteToken"];
+            };
+        };
+        responses: {
+            /** @description The account joined, with the caller's role in it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listActivity: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of activity */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    markActivityRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The four templates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplatePatch"];
+            };
+        };
+        responses: {
+            /** @description The template */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Template"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getNotificationPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One entry per event */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPrefs"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setNotificationPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationPrefs"];
+            };
+        };
+        responses: {
+            /** @description Every event's preference after the change */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPrefs"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    registerPushToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushToken"];
+            };
+        };
+        responses: {
+            /** @description Registered */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    previewInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteToken"];
+            };
+        };
+        responses: {
+            /** @description The invite */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitePreview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };

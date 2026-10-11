@@ -14,6 +14,7 @@ import (
 	"staykey.direct/api/internal/domain"
 	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/oapi"
+	"staykey.direct/api/internal/store"
 	"staykey.direct/api/internal/tenant"
 )
 
@@ -50,6 +51,24 @@ type Store interface {
 	SetRateOverrides(ctx context.Context, t tenant.Tenant, propertyID uuid.UUID, units []uuid.UUID, from, to time.Time, o domain.RateOverride) error
 	CreateBlock(ctx context.Context, t tenant.Tenant, b domain.Block, ledgerUnits []uuid.UUID) (domain.Block, error)
 	DeleteBlock(ctx context.Context, t tenant.Tenant, id uuid.UUID) error
+
+	ListTeam(ctx context.Context, t tenant.Tenant, now time.Time) ([]domain.TeamMember, []domain.Invite, error)
+	InviteMember(ctx context.Context, t tenant.Tenant, in domain.NewInvite, tokenHash []byte, now time.Time) (domain.Invite, error)
+	RevokeInvite(ctx context.Context, t tenant.Tenant, id uuid.UUID, now time.Time) error
+	UpdateMember(ctx context.Context, t tenant.Tenant, membershipID uuid.UUID, p domain.MemberPatch) (domain.TeamMember, error)
+	RemoveMember(ctx context.Context, t tenant.Tenant, membershipID uuid.UUID) error
+	PreviewInvite(ctx context.Context, tokenHash []byte, now time.Time) (domain.InvitePreview, error)
+	AcceptInvite(ctx context.Context, userID uuid.UUID, tokenHash []byte, now time.Time) (domain.AccountMembership, error)
+
+	ListActivity(ctx context.Context, t tenant.Tenant, after *store.ActivityCursor, limit int) ([]domain.Activity, error)
+	UnreadActivity(ctx context.Context, t tenant.Tenant) (int, error)
+	MarkActivityRead(ctx context.Context, t tenant.Tenant, now time.Time) error
+
+	ListTemplates(ctx context.Context, t tenant.Tenant) ([]domain.Template, error)
+	UpdateTemplate(ctx context.Context, t tenant.Tenant, id uuid.UUID, body string) (domain.Template, error)
+	NotificationPrefs(ctx context.Context, t tenant.Tenant) ([]domain.NotificationPref, error)
+	SetNotificationPrefs(ctx context.Context, t tenant.Tenant, prefs []domain.NotificationPref) ([]domain.NotificationPref, error)
+	SavePushToken(ctx context.Context, userID, sessionID uuid.UUID, token, platform string) error
 }
 
 // Options configures a Server.
@@ -66,6 +85,9 @@ type Options struct {
 	// PublicURL is the API's own address, for links to files the local store serves. Empty
 	// derives it from each request, which suits development on a LAN.
 	PublicURL string
+	// InviteURL is where invite links point, followed by the token. Empty uses
+	// https://staykey.direct/join.
+	InviteURL string
 	// Media serves the local file store's files and uploads under /media/. Nil when files live
 	// in R2.
 	Media  http.Handler
