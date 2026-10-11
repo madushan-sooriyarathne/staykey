@@ -3,6 +3,8 @@ import { router } from "expo-router";
 import { useMemo } from "react";
 import { Share, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeInDown, FadeOut, LinearTransition } from "react-native-reanimated";
+import { useUnreadCount } from "@/api/activity";
+import { useTeam } from "@/api/team";
 import { Tag } from "@/components/brand";
 import { Button, InfoNote } from "@/components/controls";
 import { Glow } from "@/components/glow";
@@ -13,7 +15,6 @@ import { addDays, formatLong, formatRange, formatShort, nightsBetween, today } f
 import { useBookings, useFilter, useProperties } from "@/data/hooks";
 import { clock, plural } from "@/data/labels";
 import { balanceOf } from "@/data/pricing";
-import { useData } from "@/data/store";
 import type { Booking, PropertyConfig } from "@/data/types";
 import { useMoveStay } from "@/features/bookings/move";
 import { GuestRow, guestLabel, placeLabel } from "@/features/bookings/rows";
@@ -48,8 +49,9 @@ function useScoped() {
 
 function OwnerToday() {
   const { properties, bookings, filter, setFilter, byId, multi } = useScoped();
-  const team = useData((s) => s.team);
-  const unread = useData((s) => s.activity.some((a) => !a.read));
+  const { members, invites } = useTeam();
+  const team = [...members, ...invites];
+  const unread = useUnreadCount() > 0;
   const { move, error } = useMoveStay();
   const day = today();
 

@@ -22,7 +22,7 @@ func (s *Postgres) DeclineExpiredRequests(ctx context.Context, now time.Time) (i
 		}
 		n = len(rows)
 		for _, r := range rows {
-			if err := s.closeBySystem(ctx, r.AccountID, r.ID, domain.StatusRequested, domain.StatusDeclined, "Request expired"); err != nil {
+			if err := s.closeBySystem(ctx, r.AccountID, r.ID, domain.StatusRequested, domain.StatusDeclined, "Request expired", now); err != nil {
 				return err
 			}
 		}
@@ -42,7 +42,7 @@ func (s *Postgres) CancelUnpaidBookings(ctx context.Context, now time.Time) (int
 		}
 		n = len(rows)
 		for _, r := range rows {
-			if err := s.closeBySystem(ctx, r.AccountID, r.ID, domain.StatusAwaitingPayment, domain.StatusCancelled, "Not paid in time"); err != nil {
+			if err := s.closeBySystem(ctx, r.AccountID, r.ID, domain.StatusAwaitingPayment, domain.StatusCancelled, "Not paid in time", now); err != nil {
 				return err
 			}
 		}
@@ -63,11 +63,23 @@ func (s *Postgres) SweepExpired(ctx context.Context, now time.Time) error {
 	return nil
 }
 
-func (s *Postgres) closeBySystem(ctx context.Context, accountID, bookingID uuid.UUID, from, to domain.BookingStatus, reason string) error {
-	if err := s.db(ctx).DeleteBookingNights(ctx, queries.DeleteBookingNightsParams{BookingID: &bookingID, AccountID: accountID}); err != nil {
+func (s *Postgres) closeBySystem(ctx context.Context, accountID, bookingID uuid.UUID, from, to domain.BookingStatus, reason string, now time.Time) error {
+	q := s.db(ctx)
+	if err := q.DeleteBookingNights(ctx, queries.DeleteBookingNightsParams{BookingID: &bookingID, AccountID: accountID}); err != nil {
 		return fmt.Errorf("release nights: %w", err)
 	}
-	return s.addEvent(ctx, accountID, bookingID, from, to, nil, reason)
+	if err := s.addEvent(ctx, accountID, bookingID, from, to, nil, reason); err != nil {
+		return err
+	}
+	r, err := q.GetBooking(ctx, queries.GetBookingParams{ID: bookingID, AccountID: accountID})
+	if err != nil {
+		return fmt.Errorf("get booking: %w", err)
+	}
+	a := domain.StayUnpaid(booking(r))
+	if to == domain.StatusDeclined {
+		a = domain.RequestExpired(booking(r))
+	}
+	return s.addActivity(ctx, accountID, a, nil, now)
 }
 
 // FileInUse reports whether a property photo, logo or bank slip points at the file.

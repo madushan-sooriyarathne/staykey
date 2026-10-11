@@ -1,19 +1,18 @@
 import { router } from "expo-router";
 import { useState } from "react";
+import { useTemplates } from "@/api/messages";
 import { Button } from "@/components/controls";
 import { I } from "@/components/icons";
 import { Appear, Card, Hint, List, ListRow, Page } from "@/components/kit";
-import { useData } from "@/data/store";
 import { TemplateText } from "@/features/templates/template-text";
 
 const CHANNELS = { email: "Email", whatsapp: "WhatsApp" } as const;
 
 /** Guest emails and WhatsApp messages with fields that fill in from each booking. */
 export default function Templates() {
-  const templates = useData((s) => s.templates);
-  const [preview, setPreview] = useState(
-    templates.find((t) => t.id === "prearrival")?.id ?? templates[0]?.id,
-  );
+  const templates = useTemplates();
+  const [picked, setPreview] = useState<string>();
+  const preview = picked ?? templates.find((t) => t.key === "prearrival")?.id ?? templates[0]?.id;
   const current = templates.find((t) => t.id === preview);
 
   return (
@@ -23,7 +22,7 @@ export default function Templates() {
           {templates.map((t) => (
             <ListRow
               key={t.id}
-              testID={`template-${t.id}`}
+              testID={`template-${t.key}`}
               title={t.name}
               subtitle={`${t.channels.map((c) => CHANNELS[c]).join(" and ")}, ${t.timing.toLowerCase()}`}
               chevron={false}

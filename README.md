@@ -48,11 +48,11 @@ bun run dev          # API on :8080, booking on :3001, marketing on :3000, Expo 
 
 The individual steps are `bun install`, `bun run db:up`, `bun run db:migrate` and `bun run db:seed`.
 
-The seed creates an owner (+94 77 000 0001, or `-owner-phone` for your own number) with Kingfisher Villa and Coral Bay House, each fully set up with units, seasons, length discounts, charges, extras, promo codes, bank details and iCal links, plus a manager (+94 77 222 3344) and a caretaker for the villa (+94 71 333 8899). Open a booking page at http://kingfisher.localhost:3001.
+The seed creates an owner (+94 77 000 0001, or `-owner-phone` for your own number) with Kingfisher Villa and Coral Bay House, each fully set up with units, seasons, length discounts, charges, extras, promo codes, bank details and iCal links, plus a manager (+94 77 222 3344), a caretaker for the villa (+94 71 333 8899) and an open invite for +94 71 555 0199, whose link it prints. Open a booking page at http://kingfisher.localhost:3001.
 
 ### Signing in
 
-Owners sign in with a 6-digit code sent to their phone. No SMS provider is connected yet, so in development the code is written to the API log and returned by the API, and development builds of the app show it under the code boxes. To sign in on a phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your computer's LAN address, tap "I have an account" and use one of the seeded numbers.
+Owners sign in with a 6-digit code sent to their phone. Codes reach Sri Lankan numbers through oZone Sender when `STAYKEY_SMS_PROVIDER=ozone` and its credentials are set (see `apps/api/.env.example`); other countries are not supported yet. In development the default `log` provider writes the code to the API log, the API returns it, and development builds of the app show it under the code boxes. To sign in on a phone, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your computer's LAN address, tap "I have an account" and use one of the seeded numbers.
 
 From the command line:
 
@@ -71,6 +71,12 @@ curl -s -X PATCH localhost:8080/v1/properties/<id> -H 'content-type: application
 Owner routes need the access token (15 minutes, renewed with `POST /v1/auth/refresh`) and an `X-Account-Id` the caller is a member of. Anyone else gets 404.
 
 `GET /v1/properties/{id}` returns the property's whole setup. `PATCH` takes any of its sections and replaces only those, in one transaction; a collection such as units or promos is sent whole, with ids for the items it keeps.
+
+### Team, activity and alerts
+
+Owners invite managers and caretakers from Team. `POST /v1/team/invites` returns a link (`https://staykey.direct/join/<token>`, a marketing page that opens `staykey://join?token=<token>`) and the app opens WhatsApp with it. The invited number signs in and the invite is accepted on the server; any other number gets 404.
+
+Every change to a stay writes a line of activity on the server. A job sends each new line as an Expo push notification to the team members who asked for that event and can see the property, never to the person who made the change, and sends each person's morning summary at 7:00 in the property's time zone. Push needs an EAS project id in `apps/mobile/app.json` (`bunx eas-cli init`) and a development build. WhatsApp alerts go to the API log until a WhatsApp Business number is set up (`STAYKEY_WHATSAPP_*` in `apps/api/.env.example`).
 
 ### Photos and sensitive data
 
@@ -128,13 +134,13 @@ Built:
 - Booking app with subdomain routing, a property page and the embed bridge
 - Widget loader with auto-resize and analytics events
 - Expo owner app with every V1 screen from the designs: Today (owner and caretaker), month and timeline Calendar with range actions, Bookings, Properties, booking detail, new and edit booking, record payment with bank slips, cancel with policy refunds, contact sheet, Activity, block dates and edit rates sheets, all property settings (details, photos, units, rates and seasons, stay rules, policies, taxes and charges, payment methods, booking settings, branding, share and embed with QR, iCal sync, extras, promo codes), Insights, Team, message templates, notifications, subscription, profile and help
-- Owner onboarding in the app: Welcome, 10 or 11 steps across four stages (depending on whole place or rooms), You're live, team invites, the setup checklist on Today and the subscription paywall. Steps slide in from the direction of travel with subtle haptics, and progress autosaves so "Finish later" resumes in place. Phone sign-in and publishing are real; purchases and team invites are still stubbed
+- Owner onboarding in the app: Welcome, 10 or 11 steps across four stages (depending on whole place or rooms), You're live, joining a team by invite link, the setup checklist on Today and the subscription paywall. Steps slide in from the direction of travel with subtle haptics, and progress autosaves so "Finish later" resumes in place. Phone sign-in, publishing and invites are real; purchases are still stubbed
+- Team, activity and alerts on the server: invites by WhatsApp link, roles and property access, an activity feed with read state, message templates, alert preferences per event, Expo push and a 7:00 morning summary, with WhatsApp ready for a Business number
 - Bookings on the server: a night ledger that makes double booking impossible (one winner out of 50 parallel bookings for a room and its whole house), quotes priced in Go and held to the app's pricing by shared fixtures, bookings with a status per role and an audit trail, payments, bank slips and refunds, blocks, rate overrides, idempotency keys for money writes and stale-write checks, and river jobs for request expiry, unpaid cancellation and sweeps. `cmd/seed` adds 43 sample stays
 - Marketing site landing page
 
-How the app gets its data today: sign-in, accounts, properties, every property setting, bookings, payments, blocks and rate overrides go through the API, with tokens in the secure store and server data through TanStack Query, cached on the device for offline reads (`apps/mobile/src/api`). Activity, team and templates still run on an on-device store (`apps/mobile/src/data/store.ts`) until phase 4. The app keeps its own copy of the pricing rules for instant previews; the server's total is the one stored. In development (or with `EXPO_PUBLIC_PROTOTYPE_TOOLS=true`) More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
+How the app gets its data today: sign-in, accounts, properties, every property setting, bookings, payments, blocks and rate overrides go through the API, with tokens in the secure store and server data through TanStack Query, cached on the device for offline reads (`apps/mobile/src/api`). So do the team, activity, templates, alert preferences and the profile; there is no on-device data store any more. The app keeps its own copy of the pricing rules for instant previews; the server's total is the one stored. In development (or with `EXPO_PUBLIC_PROTOTYPE_TOOLS=true`) More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
 
 Next (the full checklist to launch is `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`):
-- Phase 4: team invites, activity, templates and notifications, retiring the on-device store
-- iCal import and export workers, and the booking page on live data
-- An SMS provider for codes, and RevenueCat for in-app subscriptions
+- Phase 5: iCal import and export workers, and the booking page on live data
+- An international SMS gateway, and RevenueCat for in-app subscriptions

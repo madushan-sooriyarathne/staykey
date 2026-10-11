@@ -1,12 +1,12 @@
 import type { Account, SignIn } from "@staykey/api-client";
 import { create } from "zustand";
+import { ApiError } from "@/api/errors";
 import { fetchProperties, propertyKeys } from "@/api/properties";
 import { queryClient } from "@/api/query-client";
+import { acceptInvite } from "@/api/team";
 import { toPropertyConfig } from "@/data/from-api";
-import { useData } from "@/data/store";
 import { useOnboarding } from "@/features/onboarding/store";
 import { signOut } from "@/lib/auth";
-import { PROTOTYPE } from "@/lib/prototype";
 import { useSession } from "@/lib/session";
 
 /** Owners land in their own account; team members in the first account they joined. */
@@ -15,10 +15,11 @@ export function chooseAccount(accounts: Account[]): Account | undefined {
 }
 
 /**
- * Set while someone who was invited confirms their number, so a number without an account is
- * told there's no invite rather than sent into property setup.
+ * Set while someone who was invited confirms their number. With the invite's token, the
+ * verified sign-in accepts the invite and opens that account; without one, a number with no
+ * account is told there's no invite rather than sent into property setup.
  */
-export const useJoining = create<{ joining: boolean }>(() => ({ joining: false }));
+export const useJoining = create<{ joining: boolean; token?: string }>(() => ({ joining: false }));
 
 export type AfterSignIn =
   | { to: "app" }
@@ -26,25 +27,39 @@ export type AfterSignIn =
   | { to: "setup" }
   | { to: "error"; message: string };
 
+const OFFLINE = "Can't reach StayKey right now. Check your connection and send a new code.";
+
 /**
  * Decides where a verified sign-in goes. Someone with an account (a returning owner, or a team
  * member) goes straight to the app with that account's properties loaded; a new owner carries on
- * with setup. The on-device data (alerts, team and templates until phase 4) is kept when the same
- * person signs back in, and dropped when it's someone else.
+ * with setup. Cached data is kept when the same person signs back in, and dropped when it's
+ * someone else.
  */
 export async function afterSignIn(signIn: SignIn): Promise<AfterSignIn> {
   const session = useSession.getState();
-  const sameUser = session.userId === signIn.user.id;
-  if (!sameUser) {
+  if (session.userId !== signIn.user.id) {
     // Someone else's stays and cached data never carry over. The setup draft stays: it is the
     // one this person is filling in right now (signing out clears it).
-    useData.getState().reset();
     queryClient.clear();
   }
   session.setUser(signIn.user.id);
 
-  const joining = useJoining.getState().joining;
-  const account = chooseAccount(signIn.accounts);
+  const { joining, token } = useJoining.getState();
+  let account = chooseAccount(signIn.accounts);
+  if (joining && token) {
+    try {
+      account = await acceptInvite(token);
+    } catch (e) {
+      await signOut();
+      const gone = e instanceof ApiError && e.status === 404;
+      return {
+        to: "error",
+        message: gone
+          ? "This invite has expired, was already used, or was sent to another number. Ask the owner to send it again."
+          : OFFLINE,
+      };
+    }
+  }
   if (!account) {
     if (joining) {
       await signOut();
@@ -57,8 +72,32 @@ export async function afterSignIn(signIn: SignIn): Promise<AfterSignIn> {
     session.setAccount("", "owner");
     return { to: "setup" };
   }
-  session.setAccount(account.id, account.role);
 
+  const opened = await openAccount(account, signIn.user.name);
+  if (!opened) {
+    // Without the properties there is nothing to show, so start the sign-in over.
+    await signOut();
+    return { to: "error", message: OFFLINE };
+  }
+  // An owner whose account has no property yet stopped part way through setup.
+  if (opened.properties === 0 && account.role === "owner" && !joining) return { to: "setup" };
+
+  useSession.getState().completeOnboarding();
+  useOnboarding.getState().clear();
+  useJoining.setState({ joining: false, token: undefined });
+  return { to: "app" };
+}
+
+/**
+ * Acts on an account from now on: loads its properties and the names the screens show. Returns
+ * null when the properties can't be loaded.
+ */
+export async function openAccount(
+  account: Account,
+  userName = useSession.getState().ownerName,
+): Promise<{ properties: number } | null> {
+  const session = useSession.getState();
+  session.setAccount(account.id, account.role);
   let properties: Awaited<ReturnType<typeof fetchProperties>>;
   try {
     properties = await queryClient.fetchQuery({
@@ -67,31 +106,14 @@ export async function afterSignIn(signIn: SignIn): Promise<AfterSignIn> {
       retry: 2,
     });
   } catch {
-    // Without the properties there is nothing to show, so start the sign-in over.
-    await signOut();
-    return {
-      to: "error",
-      message: "Can't reach StayKey right now. Check your connection and send a new code.",
-    };
+    return null;
   }
-
-  // An owner whose account has no property yet stopped part way through setup.
-  if (properties.length === 0 && account.role === "owner" && !joining) return { to: "setup" };
-
   const first = properties[0] ? toPropertyConfig(properties[0]) : undefined;
-  if (!sameUser || useData.getState().team.length === 0) {
-    useData
-      .getState()
-      .startLocal(first, { name: signIn.user.name, phone: signIn.user.phone }, PROTOTYPE);
-  }
   useSession.setState({
-    ownerName: signIn.user.name.split(" ")[0] ?? "",
+    ownerName: userName.split(" ")[0] ?? "",
     propertyName: first?.name ?? account.name,
     slug: first?.slug ?? "",
     bookingPageUrl: first?.bookingPageUrl ?? "",
   });
-  useSession.getState().completeOnboarding();
-  useOnboarding.getState().clear();
-  useJoining.setState({ joining: false });
-  return { to: "app" };
+  return { properties: properties.length };
 }

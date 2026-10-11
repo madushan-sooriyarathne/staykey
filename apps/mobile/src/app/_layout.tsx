@@ -4,6 +4,7 @@ import {
   DMSans_600SemiBold,
   useFonts,
 } from "@expo-google-fonts/dm-sans";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors } from "@staykey/tokens";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Stack } from "expo-router";
@@ -11,22 +12,25 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { persistOptions, queryClient } from "@/api/query-client";
-import { useData } from "@/data/store";
 import { SessionCheck } from "@/features/auth/session-check";
 import { useOnboarding } from "@/features/onboarding/store";
+import { usePushAlerts } from "@/lib/push";
 import { useSession } from "@/lib/session";
 
 export { ErrorBoundary } from "expo-router";
 
 SplashScreen.preventAutoHideAsync();
 
+// Activity, team and templates lived in this on-device store until they moved to the API.
+AsyncStorage.removeItem("staykey.data").catch(() => {});
+
 type Persisted = {
   persist: { hasHydrated: () => boolean; onFinishHydration: (fn: () => void) => () => void };
 };
 
 /**
- * True once a persisted store has loaded from storage. The root waits for the onboarding draft
- * (so Welcome knows whether to resume) and the owner's data (so screens open with real values).
+ * True once a persisted store has loaded from storage. The root waits for the onboarding draft,
+ * so Welcome knows whether to resume.
  */
 function useHydrated(store: Persisted) {
   const [hydrated, setHydrated] = useState(() => store.persist.hasHydrated());
@@ -59,10 +63,9 @@ export default function RootLayout() {
   const sessionHydrated = useSession((s) => s.hydrated);
   const onboarded = useSession((s) => s.onboarded);
   const draftHydrated = useHydrated(useOnboarding);
-  const dataHydrated = useHydrated(useData);
   // Saved server data (properties and settings) restores before the first screen draws.
   const [cacheRestored, setCacheRestored] = useState(false);
-  const ready = fontsLoaded && sessionHydrated && draftHydrated && dataHydrated && cacheRestored;
+  const ready = fontsLoaded && sessionHydrated && draftHydrated && cacheRestored;
 
   useEffect(() => {
     if (fontError) throw fontError;
@@ -85,6 +88,7 @@ export default function RootLayout() {
 }
 
 function App({ onboarded }: { onboarded: boolean }) {
+  usePushAlerts(onboarded);
   return (
     <>
       <SessionCheck />
@@ -97,7 +101,6 @@ function App({ onboarded }: { onboarded: boolean }) {
           <Stack.Screen name="welcome" />
           <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
           <Stack.Screen name="live" options={{ animation: "fade", gestureEnabled: false }} />
-          <Stack.Screen name="join" />
         </Stack.Protected>
 
         <Stack.Protected guard={onboarded}>
@@ -111,6 +114,12 @@ function App({ onboarded }: { onboarded: boolean }) {
           <Stack.Screen name="range/block" options={sheet([0.75, 0.95])} />
           <Stack.Screen name="range/rates" options={sheet([0.6, 0.9])} />
         </Stack.Protected>
+
+        {/*
+          Invite links open here whether or not someone is signed in on this phone. It comes after
+          both groups so that flipping a guard never lands on it as the first screen available.
+        */}
+        <Stack.Screen name="join" />
       </Stack>
     </>
   );

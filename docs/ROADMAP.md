@@ -1,8 +1,8 @@
 # StayKey roadmap to launch
 
-As of 5 Oct 2026. Phases 1 Foundations, 2 Properties and setup and 3 Bookings core are done. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
+As of 11 Oct 2026. Phases 1 Foundations, 2 Properties and setup, 3 Bookings core and 4 Team, activity and messages are done, and sign-in codes reach Sri Lankan numbers through oZone Sender. Phase 5 is next. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
 
-The shortest route to a first paying owner is phase 3, phase 5 and the billing half of phase 6. Phases 4 and 5 can run side by side once phase 3 is done.
+The shortest route to a first paying owner is phase 5 and the billing half of phase 6.
 
 ## 1. Build phases
 
@@ -21,16 +21,17 @@ The shortest route to a first paying owner is phase 3, phase 5 and the billing h
 - [x] New owner routes added to `TestTenantIsolation`
 - [x] **Gate:** exactly one winner out of 50 parallel bookings on overlapping nights for a unit and its whole-house parent
 
-### Phase 4 Team, activity and messages
+### Phase 4 Team, activity and messages (done, see `docs/phase-4-plan.md`)
 
-- [ ] Invites by WhatsApp link with accept, team list, role and property changes, removal
-- [ ] Account switcher for people in more than one account
-- [ ] Activity feed and read state
-- [ ] Message templates (four defaults per account) and notification preferences
-- [ ] Expo push tokens, push fan-out and the 7:00 morning summary
-- [ ] WhatsApp Cloud API sender, email sender
-- [ ] App: Team, Join, Activity, Templates, Notifications and Insights on the API; the on-device store goes away
-- [ ] **Gate:** a caretaker joins by link and alerts arrive
+- [x] Invites by WhatsApp link with accept, team list, role and property changes, removal
+- [x] Account switcher for people in more than one account
+- [x] Activity feed and read state
+- [x] Message templates (four defaults per account) and notification preferences
+- [x] Expo push tokens, push fan-out and the 7:00 morning summary
+- [x] WhatsApp Cloud API sender for team alerts (log sender until the Business number is registered)
+- [ ] Email sender, once an email provider is chosen (not needed for the phase 4 gate)
+- [x] App: Team, Join, Activity, Templates, Notifications and Profile on the API; the on-device store goes away (Insights already reads stays from the API)
+- [x] **Gate:** a caretaker joins by link and alerts arrive (checked in a browser and against Expo's push service; a push on a real phone waits for the EAS project below)
 
 ### Phase 5 Calendar sync and booking page
 
@@ -53,24 +54,27 @@ The shortest route to a first paying owner is phase 3, phase 5 and the billing h
 
 ## 2. Accounts and decisions (owner)
 
-- [ ] SMS provider for sign-in codes: a Sri Lankan gateway or Twilio. Production won't start without one
-- [ ] Hosting: default is Fly.io in Singapore with managed Postgres alongside
+- [x] SMS provider for sign-in codes: oZone Sender for Sri Lankan numbers. Production won't start without one
+- [ ] International SMS gateway (international numbers are refused until then)
+- [ ] Hosting: default is Fly.io in Singapore with managed Postgres 17 alongside (the river migration fails on 16)
 - [ ] Cloudflare R2 bucket and media domain (`media.staykey.direct`); test uploads against the real bucket
-- [ ] WhatsApp Business number for alerts and invites
+- [ ] WhatsApp Business number for alerts, with an approved alert template
+- [ ] EAS project (`bunx eas-cli init`) so the app can get Expo push tokens; needed for the phase 4 gate
 - [ ] PayHere merchant account
 - [ ] RevenueCat project linked to App Store Connect and Google Play subscriptions
 - [ ] Apple Developer and Google Play Console accounts
 - [ ] DNS for `staykey.direct` with wildcard subdomains for booking pages, plus `api`, `cdn` and `app`
 - [ ] Email sending domain and provider
-- [ ] GitHub repository with CI (`.github/workflows/ci.yml` is ready)
+- [x] GitHub repository
+- [ ] CI green on `main` (`.github/workflows/ci.yml`)
 
 ## 3. Launch readiness
 
-- [ ] Sign in on a real phone (the open phase 1 check)
+- [ ] Sign in on a real phone (the open phase 1 check; possible now with `STAYKEY_SMS_PROVIDER=ozone`)
 - [ ] End-to-end tests: Playwright on web against a seeded API, Maestro on iOS and Android
 - [ ] Load test booking creation and the public availability route
 - [ ] Error tracking, uptime monitoring and log retention
-- [ ] Production secrets set: `STAYKEY_AUTH_SECRET`, `STAYKEY_DATA_KEY`, `STAYKEY_SMS_PROVIDER`, the R2 keys. Keep a safe copy of the data key, since losing it makes stored bank details unreadable
+- [ ] Production secrets set: `STAYKEY_AUTH_SECRET`, `STAYKEY_DATA_KEY`, `STAYKEY_SMS_PROVIDER` with the `STAYKEY_OZONE_*` credentials, the R2 keys. Keep a safe copy of the data key, since losing it makes stored bank details unreadable
 - [ ] EAS builds for iOS and Android, store listings, screenshots, app privacy details
 - [ ] A reviewer test account with a working sign-in for Apple and Google review
 - [ ] Terms of service and privacy policy, reviewed against Sri Lanka's Personal Data Protection Act

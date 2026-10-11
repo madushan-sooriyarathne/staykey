@@ -17,8 +17,10 @@ import (
 	"staykey.direct/api/internal/config"
 	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/jobs"
+	"staykey.direct/api/internal/notify"
 	"staykey.direct/api/internal/secret"
 	"staykey.direct/api/internal/server"
+	"staykey.direct/api/internal/sms"
 	"staykey.direct/api/internal/store"
 )
 
@@ -54,12 +56,22 @@ func run() error {
 		return err
 	}
 
-	jobClient, err := jobs.Start(ctx, db.Pool(), db, fileStore, log)
+	var whatsApp notify.WhatsApp = notify.LogWhatsApp{Logger: log}
+	if cfg.WhatsAppProvider == "cloud" {
+		w := cfg.WhatsApp
+		whatsApp = notify.CloudWhatsApp{Token: w.Token, PhoneNumberID: w.PhoneNumberID, Template: w.Template}
+	}
+	alerts := jobs.Alerts{Push: notify.Expo{AccessToken: cfg.ExpoAccessToken}, WhatsApp: whatsApp, Logger: log}
+	jobClient, err := jobs.Start(ctx, db.Pool(), db, fileStore, alerts, log)
 	if err != nil {
 		return err
 	}
 
-	authService, err := auth.New(db, auth.LogSender{Logger: log}, auth.Config{
+	var lk auth.SMSSender = auth.LogSender{Logger: log}
+	if cfg.SMSProvider == "ozone" {
+		lk = sms.Ozone{UserID: cfg.Ozone.UserID, APIKey: cfg.Ozone.APIKey, SenderID: cfg.Ozone.SenderID}
+	}
+	authService, err := auth.New(db, sms.Router{LK: lk}, auth.Config{
 		Secret: []byte(cfg.AuthSecret),
 		// Development builds show the code on screen, so a phone can sign in without SMS.
 		ExposeDevCodes: !cfg.IsProduction(),
@@ -75,6 +87,7 @@ func run() error {
 		AllowAllOrigins: !cfg.IsProduction(),
 		ClientIPHeader:  cfg.ClientIPHeader,
 		PublicURL:       cfg.PublicURL,
+		InviteURL:       cfg.InviteURL,
 		Media:           media,
 		Logger:          log,
 	})

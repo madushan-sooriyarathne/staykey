@@ -1,4 +1,5 @@
 import { colors, radius } from "@staykey/tokens";
+import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
@@ -13,7 +14,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Checkbox, styles as c, Field } from "@/components/controls";
 import { font } from "@/components/ui";
-import { afterSignIn } from "@/features/auth/enter";
+import { afterSignIn, useJoining } from "@/features/auth/enter";
 import { requestCode, useDevCode, verifyCode } from "@/lib/auth";
 import { haptics } from "@/lib/haptics";
 import { COUNTRIES, type Country, useOnboarding } from "../store";
@@ -152,12 +153,15 @@ export function VerifyStep({ next, goTo }: StepProps) {
       return;
     }
 
+    const joining = useJoining.getState().joining;
     const where = await afterSignIn(result.signIn);
     if (where.to === "error") {
       fail("expired", where.message);
       return;
     }
     haptics.success();
+    // The join screen stays open under onboarding, so leave it for Today rather than back to it.
+    if (where.to === "app" && joining) router.replace("/");
     // "app" flips the router guard to the tabs; setup carries on with the next step.
     if (where.to === "setup") {
       const name = result.signIn.user.name.trim();
