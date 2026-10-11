@@ -31,6 +31,15 @@ type Config struct {
 	ClientIPHeader string
 	// PublicURL is the API's own address. Empty derives it from each request (development).
 	PublicURL string
+	// InviteURL is where invite links point, followed by the token.
+	InviteURL string
+
+	// ExpoAccessToken authorizes push notifications when the Expo project requires it.
+	ExpoAccessToken string
+	// WhatsAppProvider sends team alerts on WhatsApp: "log" writes them to the log, "cloud"
+	// sends an approved template through the WhatsApp Cloud API.
+	WhatsAppProvider string
+	WhatsApp         WhatsApp
 
 	// DataKey encrypts sensitive columns such as bank account numbers. 32 bytes.
 	DataKey []byte
@@ -39,6 +48,13 @@ type Config struct {
 	Storage  string
 	MediaDir string // for local storage
 	R2       R2
+}
+
+// WhatsApp holds the WhatsApp Cloud API settings for team alerts.
+type WhatsApp struct {
+	Token         string
+	PhoneNumberID string
+	Template      string
 }
 
 // Ozone holds the oZone Sender credentials from its documentation page.
@@ -74,7 +90,16 @@ func Load() (Config, error) {
 		Port:           getenv("PORT", "8080"),
 		ClientIPHeader: os.Getenv("STAYKEY_CLIENT_IP_HEADER"),
 		PublicURL:      os.Getenv("STAYKEY_PUBLIC_URL"),
-		MediaDir:       getenv("STAYKEY_MEDIA_DIR", ".media"),
+		InviteURL:      getenv("STAYKEY_INVITE_URL", "https://staykey.direct/join"),
+
+		ExpoAccessToken:  os.Getenv("STAYKEY_EXPO_ACCESS_TOKEN"),
+		WhatsAppProvider: getenv("STAYKEY_WHATSAPP_PROVIDER", "log"),
+		WhatsApp: WhatsApp{
+			Token:         os.Getenv("STAYKEY_WHATSAPP_TOKEN"),
+			PhoneNumberID: os.Getenv("STAYKEY_WHATSAPP_PHONE_NUMBER_ID"),
+			Template:      os.Getenv("STAYKEY_WHATSAPP_TEMPLATE"),
+		},
+		MediaDir: getenv("STAYKEY_MEDIA_DIR", ".media"),
 		Ozone: Ozone{
 			UserID:   os.Getenv("STAYKEY_OZONE_USER_ID"),
 			APIKey:   os.Getenv("STAYKEY_OZONE_API_KEY"),
@@ -131,6 +156,16 @@ func (c Config) validate() error {
 		}
 	default:
 		return fmt.Errorf("unknown STAYKEY_SMS_PROVIDER %q (supported: log, ozone)", c.SMSProvider)
+	}
+	switch c.WhatsAppProvider {
+	case "log":
+	case "cloud":
+		w := c.WhatsApp
+		if w.Token == "" || w.PhoneNumberID == "" || w.Template == "" {
+			return errors.New("cloud whatsapp needs STAYKEY_WHATSAPP_TOKEN, STAYKEY_WHATSAPP_PHONE_NUMBER_ID and STAYKEY_WHATSAPP_TEMPLATE")
+		}
+	default:
+		return fmt.Errorf("unknown STAYKEY_WHATSAPP_PROVIDER %q (supported: log, cloud)", c.WhatsAppProvider)
 	}
 	switch c.Storage {
 	case "local":

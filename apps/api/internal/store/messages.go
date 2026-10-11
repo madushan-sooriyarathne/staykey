@@ -79,15 +79,16 @@ func (s *Postgres) SavePushToken(ctx context.Context, userID, sessionID uuid.UUI
 
 // Summary is one person's morning summary for one account.
 type Summary struct {
-	AccountID  uuid.UUID
-	UserID     uuid.UUID
-	Phone      string
-	Day        time.Time
-	PushTokens []string
-	WhatsApp   bool
-	Arrivals   int
-	Departures int
-	Requests   int
+	AccountID   uuid.UUID
+	AccountName string
+	UserID      uuid.UUID
+	Phone       string
+	Day         time.Time
+	PushTokens  []string
+	WhatsApp    bool
+	Arrivals    int
+	Departures  int
+	Requests    int
 }
 
 // DueSummaries returns the morning summaries due at now, with the counts for each person's
@@ -109,7 +110,7 @@ func (s *Postgres) DueSummaries(ctx context.Context, now time.Time) ([]Summary, 
 			return nil, fmt.Errorf("summary counts: %w", err)
 		}
 		sum := Summary{
-			AccountID: r.AccountID, UserID: r.UserID, Phone: r.Phone, Day: r.LocalDay, WhatsApp: r.Whatsapp,
+			AccountID: r.AccountID, AccountName: r.AccountName, UserID: r.UserID, Phone: r.Phone, Day: r.LocalDay, WhatsApp: r.Whatsapp,
 			Arrivals: int(counts.Arrivals), Departures: int(counts.Departures), Requests: int(counts.Requests),
 		}
 		if r.Push {
