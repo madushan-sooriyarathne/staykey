@@ -47,30 +47,32 @@ Commits so far:
 
 | Commit | What |
 | --- | --- |
-| `6076a5f` | Monorepo scaffold: Go API, Expo app, Next booking and marketing, OpenAPI spec, tokens, widget |
-| `06289b4` | Owner onboarding: animated direction-aware steps, haptics, paywall |
-| `bc43945` | Every owner app screen, running on an on-device store |
-| `6596d58` | This handover, the backend plan and design references in `docs/` |
-| `6b1acfc` | Phase 1 migrations: accounts, people, auth tables, `account_id` on properties |
-| `fe48a21` | Phase 1 API: sqlc store, phone sign-in, accounts, tenant scoping, tests |
-| `9ed2b20` | `cmd/seed` for the sample account |
-| `94efd69` | Phase 1 app: real sign-in, secure tokens, TanStack Query, authenticated client |
-| `f1f9861` | Turborepo passes API settings through to tasks |
-| `917e2af` | README and handover for phase 1 |
-| `1fc1ff4` | Phase 2 `internal/files` (local and R2 presigned uploads) and `internal/secret` (AES-GCM) |
-| `79a46b4` | Phase 2 API: migration 00005, full property setup, sectioned `PATCH`, uploads |
-| `775549f` | `cmd/seed` creates the sample properties with their full setup |
-| `6c39832` | Phase 2 app: onboarding publish, Properties tab and every settings screen on the API |
-| `1acb93e` | README, plan and handover for phase 2 |
-| `d03948f` | `docs/ROADMAP.md`, Claude Code setup (`CLAUDE.md`, `.claude/`), `bun run setup` |
-| `f92a5bc` | Phase 3 migration 00006: guests, bookings, lines, extras, payments, slips, events, blocks, the `unit_nights` ledger, rate overrides, idempotency keys |
-| `8c50fe4` | `internal/domain/pricing` and `packages/api-spec/fixtures/pricing.json`, run by `go test` and `bun test` |
-| `496044e` | Booking rules: transitions per role, ledger units, refs |
-| `b14d736` | Store for stays, payments, blocks and overrides, with the 50-way gate test |
-| `dd911f9` | Quote, booking, payment, slip, block, calendar and override routes |
-| `4cda3ba` | Jobs on river (migration 00007): request expiry, unpaid cancellation, expired holds and keys, orphaned uploads |
-| `1f93c20` | `cmd/seed` adds the sample stays, slips and block |
-| `307a0af` | Phase 3 app: Today, Calendar, Bookings, detail, new and edit, payment, cancel, block and rates on the API |
+| `1f4af3f` | Monorepo scaffold: Go API, Expo app, Next booking and marketing, OpenAPI spec, tokens, widget |
+| `3efe484` | Owner onboarding: animated direction-aware steps, haptics, paywall |
+| `3bdb0c4` | Every owner app screen, running on an on-device store |
+| `c4e1eb1` | This handover, the backend plan and design references in `docs/` |
+| `742b69e` | Phase 1 migrations: accounts, people, auth tables, `account_id` on properties |
+| `143f846` | Phase 1 API: sqlc store, phone sign-in, accounts, tenant scoping, tests |
+| `cdccbbb` | `cmd/seed` for the sample account |
+| `ce37014` | Phase 1 app: real sign-in, secure tokens, TanStack Query, authenticated client |
+| `ece1ca0` | Turborepo passes API settings through to tasks |
+| `7d712cc` | README and handover for phase 1 |
+| `7ffa691` | Phase 2 `internal/files` (local and R2 presigned uploads) and `internal/secret` (AES-GCM) |
+| `1dee357` | Phase 2 API: migration 00005, full property setup, sectioned `PATCH`, uploads |
+| `daf9304` | `cmd/seed` creates the sample properties with their full setup |
+| `b5dfe25` | Phase 2 app: onboarding publish, Properties tab and every settings screen on the API |
+| `dac5ec3` | README, plan and handover for phase 2 |
+| `0b15bad` | `docs/ROADMAP.md`, Claude Code setup (`CLAUDE.md`, `.claude/`), `bun run setup` |
+| `ef732e1` | Phase 3 migration 00006: guests, bookings, lines, extras, payments, slips, events, blocks, the `unit_nights` ledger, rate overrides, idempotency keys |
+| `cf1c122` | `internal/domain/pricing` and `packages/api-spec/fixtures/pricing.json`, run by `go test` and `bun test` |
+| `02cce3d` | Booking rules: transitions per role, ledger units, refs |
+| `dcf63c3` | Store for stays, payments, blocks and overrides, with the 50-way gate test |
+| `360d6a4` | Quote, booking, payment, slip, block, calendar and override routes |
+| `8a62a5f` | Jobs on river (migration 00007): request expiry, unpaid cancellation, expired holds and keys, orphaned uploads |
+| `3c395c7` | `cmd/seed` adds the sample stays, slips and block |
+| `377387f` | Phase 3 app: Today, Calendar, Bookings, detail, new and edit, payment, cancel, block and rates on the API |
+| `74fcf94` | Agent config: `.agents/` and `.claude/` rules, hooks, reviewers and skills |
+| `a301dc5` | `internal/sms`: oZone Sender for Sri Lankan numbers, behind `STAYKEY_SMS_PROVIDER=ozone` |
 
 **Phases 1, 2 and 3 are done.** Sign-in, accounts, properties, every property setting, bookings, payments, slips, blocks and rate overrides run on the API. Activity, team and templates still live in the zustand store persisted to AsyncStorage (`apps/mobile/src/data/store.ts`, version 3); phase 4 moves them.
 
@@ -159,12 +161,13 @@ All of these pass at the latest commit (32 app tests; 68 Go tests, 48 of them in
 - Recording a payment moves the booking's `version` on. Send the version from the latest copy, not the one the form opened with.
 - River runs in the API process. A second API machine is safe (river elects one scheduler), but stopping the API also stops the sweeps.
 - `river migrate-get` needs Go 1.26 or later and is how `00007` was made; regenerate a new goose migration the same way when upgrading river.
+- The river migration (`00007`) needs Postgres 17. On 16 it fails with `unsafe use of new value "pending" of enum type river_job_state`, so run 17 locally and pick 17 for the managed database.
 - Colima can start other projects' Postgres containers on 5432. If `bun run db:up` says the port is taken, stop the other container, then `docker compose up -d --force-recreate postgres`.
 - If the API suddenly reports a missing column after a migration, check for an older API process still holding port 8080. Kill it by pid; `pkill -f` patterns can match your own shell.
 
 ## 6. Next step: phases 4 and 5
 
-Everything left before launch is in `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`. Phases 4 Team, activity and messages and 5 Calendar sync and booking page can run side by side.
+Everything left before launch is in `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`. Phase 4 is next, and its execution plan is `docs/phase-4-plan.md`. Phases 4 Team, activity and messages and 5 Calendar sync and booking page can run side by side.
 
 Phase 4 retires the on-device store: invites by WhatsApp link, the team list, activity (the app logs approvals, payments and cancellations locally today, in `features/bookings/move.ts` and the payment, cancel and new booking screens; those calls become server events), templates, notification preferences, push and the morning summary. Phase 5 adds the iCal import and export workers and the public routes; the booking page's holds use `unit_nights.hold_expires_at`, which the `sweep_expired` job already clears, and slips upload with `files.KindSlip`.
 
