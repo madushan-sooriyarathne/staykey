@@ -24,7 +24,6 @@ import { uid } from "@/data/defaults";
 import { useBooking, useProperty } from "@/data/hooks";
 import { METHOD_LABEL } from "@/data/labels";
 import { balanceOf } from "@/data/pricing";
-import { useData } from "@/data/store";
 import type { Payment } from "@/data/types";
 import { placeLabel } from "@/features/bookings/rows";
 import { haptics } from "@/lib/haptics";
@@ -39,8 +38,6 @@ export default function RecordPayment() {
   // One key per visit, so a retried tap never records the payment twice.
   const [key] = useState(() => uid("pay"));
   const [error, setError] = useState<string | null>(null);
-  const log = useData((s) => s.log);
-  const markRead = useData((s) => s.markRead);
   const slip = booking?.slip?.status === "pending" ? booking.slip : undefined;
   const balance = booking ? balanceOf(booking) : 0;
   const [amount, setAmount] = useState(
@@ -100,14 +97,6 @@ export default function RecordPayment() {
                     method,
                     slipId: slip?.id,
                   });
-                  log({
-                    kind: "payment",
-                    title: `Payment from ${booking.guest.name}`,
-                    subtitle: `${booking.ref}, recorded by you`,
-                    bookingId: booking.id,
-                    propertyId: booking.propertyId,
-                  });
-                  markRead(undefined, booking.id);
                 });
               }}
             />

@@ -17,7 +17,6 @@ import { uid } from "@/data/defaults";
 import { useBooking, useBookings, useFilter, useProperties } from "@/data/hooks";
 import { METHOD_LABEL, plural } from "@/data/labels";
 import { conflicts, depositFor, isOTA, minNightsFor, quote, SOURCE_LABEL } from "@/data/pricing";
-import { useData } from "@/data/store";
 import type { Payment, Source } from "@/data/types";
 import { haptics } from "@/lib/haptics";
 
@@ -45,7 +44,6 @@ export default function BookingForm() {
   const create = useCreateBooking();
   const update = useUpdateBooking();
   const busy = create.isPending || update.isPending;
-  const log = useData((s) => s.log);
   // One key per form, so a retried save never adds the stay twice.
   const [key] = useState(() => uid("bk"));
   const [error, setError] = useState<string | null>(null);
@@ -168,13 +166,6 @@ export default function BookingForm() {
         },
       });
       haptics.success();
-      log({
-        kind: "booking",
-        title: `You added ${created.guest.name}`,
-        subtitle: `${unit.name}, ${SOURCE_LABEL[source]} booking`,
-        bookingId: created.id,
-        propertyId: property.id,
-      });
       router.replace({ pathname: "/booking/[id]", params: { id: created.id } });
     } catch (e) {
       haptics.error();

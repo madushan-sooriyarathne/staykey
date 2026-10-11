@@ -1,10 +1,10 @@
 import { useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
+import { useTemplates } from "@/api/messages";
 import { Pill } from "@/components/controls";
 import { I } from "@/components/icons";
 import { Avatar, List, ListRow, SectionHeader, SheetPage } from "@/components/kit";
 import { useBooking, useProperty } from "@/data/hooks";
-import { useData } from "@/data/store";
 import { call, email, fillTemplate, openWhatsApp } from "@/lib/contact";
 
 /** Reach the guest by WhatsApp, call or email, with prefilled templates. */
@@ -12,7 +12,7 @@ export default function ContactGuest() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const booking = useBooking(id);
   const property = useProperty(booking?.propertyId);
-  const templates = useData((s) => s.templates).filter((t) => t.channels.includes("whatsapp"));
+  const templates = useTemplates().filter((t) => t.channels.includes("whatsapp"));
   if (!booking || !property) return null;
   const { name, phone, email: address } = booking.guest;
   const first = name.split(" ")[0];
