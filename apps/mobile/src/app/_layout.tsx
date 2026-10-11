@@ -103,9 +103,6 @@ function App({ onboarded }: { onboarded: boolean }) {
           <Stack.Screen name="live" options={{ animation: "fade", gestureEnabled: false }} />
         </Stack.Protected>
 
-        {/* Invite links open here whether or not someone is signed in on this phone. */}
-        <Stack.Screen name="join" />
-
         <Stack.Protected guard={onboarded}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="property/new" options={{ presentation: "modal" }} />
@@ -117,6 +114,12 @@ function App({ onboarded }: { onboarded: boolean }) {
           <Stack.Screen name="range/block" options={sheet([0.75, 0.95])} />
           <Stack.Screen name="range/rates" options={sheet([0.6, 0.9])} />
         </Stack.Protected>
+
+        {/*
+          Invite links open here whether or not someone is signed in on this phone. It comes after
+          both groups so that flipping a guard never lands on it as the first screen available.
+        */}
+        <Stack.Screen name="join" />
       </Stack>
     </>
   );
