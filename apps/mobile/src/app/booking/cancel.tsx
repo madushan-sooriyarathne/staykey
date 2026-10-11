@@ -13,7 +13,6 @@ import { uid } from "@/data/defaults";
 import { useBooking, useProperty } from "@/data/hooks";
 import { plural } from "@/data/labels";
 import { POLICY_TEXT, paidOf, suggestedRefund } from "@/data/pricing";
-import { useData } from "@/data/store";
 import { placeLabel } from "@/features/bookings/rows";
 import { haptics } from "@/lib/haptics";
 
@@ -30,7 +29,6 @@ export default function CancelBooking() {
   const booking = useBooking(id);
   const property = useProperty(booking?.propertyId);
   const cancel = useCancelBooking();
-  const log = useData((s) => s.log);
   const [key] = useState(() => uid("cancel"));
   const [error, setError] = useState<string | null>(null);
   const suggestion =
@@ -62,13 +60,6 @@ export default function CancelBooking() {
         version: booking.version,
         reason,
         refund: minor > 0 ? { amount: minor, method } : undefined,
-      });
-      log({
-        kind: "cancellation",
-        title: `${booking.guest.name}'s booking cancelled`,
-        subtitle: `${formatRange(booking.checkIn, booking.checkOut)}, dates are open again`,
-        bookingId: booking.id,
-        propertyId: booking.propertyId,
       });
       router.back();
     } catch (e) {

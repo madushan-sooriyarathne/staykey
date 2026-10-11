@@ -9,6 +9,7 @@ import Animated, {
   withDelay,
   withTiming,
 } from "react-native-reanimated";
+import { useTeam } from "@/api/team";
 import { Tag } from "@/components/brand";
 import { Button } from "@/components/controls";
 import { Glow } from "@/components/glow";
@@ -18,7 +19,6 @@ import { addDays, formatDay, nightsBetween, today, toISO } from "@/data/dates";
 import { useProperties } from "@/data/hooks";
 import { plural } from "@/data/labels";
 import { physicalUnits } from "@/data/pricing";
-import { useData } from "@/data/store";
 import { PLANS, planFor, priceLabel, STORE_NAME } from "@/lib/purchases";
 import { useSession } from "@/lib/session";
 
@@ -28,7 +28,7 @@ const TRIAL_DAYS = 60;
 export default function Subscription() {
   const { subscription, startedAt } = useSession();
   const properties = useProperties();
-  const team = useData((s) => s.team);
+  const team = useTeam().members;
   const units = properties.reduce((n, p) => n + physicalUnits(p).length, 0);
   const plan =
     subscription.status === "active" ? PLANS.find((p) => p.id === subscription.plan) : undefined;

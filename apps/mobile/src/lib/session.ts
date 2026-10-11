@@ -34,6 +34,8 @@ type SessionState = {
   propertyName: string;
   slug: string;
   bookingPageUrl: string;
+  /** The profile photo, kept on this phone only. */
+  photoUri: string;
   setup: Setup;
   subscription: Subscription;
   /** When the owner published, which starts the free period. */
@@ -58,6 +60,7 @@ type SessionState = {
   subscribe: (plan: PlanId, period: Period) => void;
   /** Prototype only: preview the app as another role. */
   setRole: (role: Role) => void;
+  setPhoto: (uri: string) => void;
   reset: () => void;
 };
 
@@ -70,6 +73,7 @@ const initial = {
   propertyName: "",
   slug: "",
   bookingPageUrl: "",
+  photoUri: "",
   setup: { units: 1, currency: "USD", nightlyRate: 0, photoCount: 0, otas: [] } as Setup,
   subscription: { status: "trial" } as Subscription,
   startedAt: "",
@@ -87,6 +91,7 @@ export const useSession = create<SessionState>()(
       signedOut: () => set({ onboarded: false }),
       subscribe: (plan, period) => set({ subscription: { status: "active", plan, period } }),
       setRole: (role) => set({ role }),
+      setPhoto: (photoUri) => set({ photoUri }),
       reset: () => set({ ...initial }),
     }),
     {

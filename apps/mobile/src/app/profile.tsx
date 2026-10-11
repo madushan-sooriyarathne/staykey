@@ -4,41 +4,53 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
+import { messageFor } from "@/api/errors";
+import { useMe, useUpdateMe } from "@/api/me";
 import { Tag } from "@/components/brand";
-import { Button, Field, TextLink } from "@/components/controls";
+import { Button, Field, InfoNote, TextLink } from "@/components/controls";
 import { I } from "@/components/icons";
 import { Avatar, Card, Page, Segmented, Two, ui } from "@/components/kit";
 import { font } from "@/components/ui";
-import { useData } from "@/data/store";
 import { useOnboarding } from "@/features/onboarding/store";
 import { signOut as endSession } from "@/lib/auth";
 import { haptics } from "@/lib/haptics";
 import { useSession } from "@/lib/session";
 
-/** Name, phone, email and language, plus sign out and in-app account deletion. */
+/**
+ * Name, phone, email and language from the API, plus sign out and in-app account deletion. The
+ * photo stays on this phone.
+ */
 export default function Profile() {
-  const account = useData((s) => s.account);
-  const updateAccount = useData((s) => s.updateAccount);
-  const resetData = useData((s) => s.reset);
+  const user = useMe().data?.user;
+  const update = useUpdateMe();
   const resetSession = useSession((s) => s.reset);
   const ownerName = useSession((s) => s.ownerName);
+  const savedPhoto = useSession((s) => s.photoUri);
+  const setSavedPhoto = useSession((s) => s.setPhoto);
   const clearDraft = useOnboarding((s) => s.clear);
-  const [name, setName] = useState(account.name || ownerName);
-  const [mail, setMail] = useState(account.email);
-  const [language, setLanguage] = useState(account.language);
-  const [photo, setPhoto] = useState(account.photoUri);
+  const saved = {
+    name: user?.name || ownerName,
+    email: user?.email ?? "",
+    language: user?.language ?? "en",
+  };
+  // Edits stay undefined until the person changes a field, so the form follows the server's copy.
+  const [edits, setEdits] = useState<Partial<typeof saved>>({});
+  const name = edits.name ?? saved.name;
+  const mail = edits.email ?? saved.email;
+  const language = edits.language ?? saved.language;
+  const [photo, setPhoto] = useState(savedPhoto);
   const [confirm, setConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const dirty =
-    name !== (account.name || ownerName) ||
-    mail !== account.email ||
-    language !== account.language ||
-    photo !== account.photoUri;
+    name !== saved.name ||
+    mail !== saved.email ||
+    language !== saved.language ||
+    photo !== savedPhoto;
 
   function signOut() {
     haptics.warning();
     endSession();
     clearDraft();
-    resetData();
     resetSession();
   }
 
@@ -47,15 +59,32 @@ export default function Profile() {
       title="Profile and account"
       action={{
         label: "Save",
-        disabled: !dirty || name.trim().length < 2,
+        disabled: !dirty || name.trim().length < 2 || update.isPending,
         testID: "profile-save",
         onPress: () => {
-          haptics.success();
-          updateAccount({ name: name.trim(), email: mail.trim(), language, photoUri: photo });
-          router.back();
+          setError(null);
+          setSavedPhoto(photo);
+          update.mutate(
+            { name: name.trim(), email: mail.trim(), language },
+            {
+              onSuccess: () => {
+                haptics.success();
+                router.back();
+              },
+              onError: (e) => {
+                haptics.error();
+                setError(messageFor(e));
+              },
+            },
+          );
         },
       }}
     >
+      {error ? (
+        <InfoNote icon={I.warning} testID="profile-error">
+          {error}
+        </InfoNote>
+      ) : null}
       <Pressable
         style={s.head}
         onPress={async () => {
@@ -75,17 +104,22 @@ export default function Profile() {
         )}
         <Text style={ui.faint}>Change photo</Text>
       </Pressable>
-      <Field label="Name" value={name} onChangeText={setName} autoCapitalize="words" />
+      <Field
+        label="Name"
+        value={name}
+        onChangeText={(v) => setEdits((e) => ({ ...e, name: v }))}
+        autoCapitalize="words"
+      />
       <Field
         label="Phone"
-        value={account.phone || "+94 77 123 4567"}
+        value={user?.phone ?? ""}
         editable={false}
         suffix={<Tag tone="soft" label="Verified" />}
       />
       <Field
         label="Email"
         value={mail}
-        onChangeText={setMail}
+        onChangeText={(v) => setEdits((e) => ({ ...e, email: v }))}
         placeholder="you@example.com"
         keyboardType="email-address"
         autoCapitalize="none"
@@ -98,7 +132,7 @@ export default function Profile() {
             { id: "si", label: "සිංහල" },
           ]}
           value={language}
-          onChange={setLanguage}
+          onChange={(v) => setEdits((e) => ({ ...e, language: v }))}
         />
       </View>
       <View style={{ paddingTop: 8 }}>

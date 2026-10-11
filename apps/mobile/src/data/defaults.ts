@@ -1,4 +1,5 @@
-import type { Account, Currency, NotificationEvent, PropertyConfig, Template, Unit } from "./types";
+import type { NotificationEvent } from "@staykey/api-client";
+import type { Currency, PropertyConfig, Unit } from "./types";
 
 let counter = 0;
 /** Short unique id for records created on the device. */
@@ -97,37 +98,6 @@ export function makeProperty(base: Base): PropertyConfig {
   };
 }
 
-export const DEFAULT_TEMPLATES: Template[] = [
-  {
-    id: "confirmed",
-    name: "Booking confirmed",
-    channels: ["email"],
-    timing: "Right after confirmation",
-    body: "Hi {guest_name}, your stay at {property_name} is confirmed for {check_in} to {check_out}. We can't wait to host you.",
-  },
-  {
-    id: "reminder",
-    name: "Payment reminder",
-    channels: ["email", "whatsapp"],
-    timing: "A day before it's due",
-    body: "Hi {guest_name}, a friendly reminder that {balance} is due for your stay at {property_name}. You can pay here: {booking_link}",
-  },
-  {
-    id: "prearrival",
-    name: "Pre-arrival info",
-    channels: ["email", "whatsapp"],
-    timing: "2 days before check-in",
-    body: "Hi {guest_name}, we look forward to welcoming you on {check_in}. Here is the map pin: {map_link}. Check-in is from {check_in_time}.",
-  },
-  {
-    id: "thanks",
-    name: "Thank you",
-    channels: ["email"],
-    timing: "The day after check-out",
-    body: "Thank you for staying at {property_name}, {guest_name}. Book directly next time and we'll take care of the rest: {booking_link}",
-  },
-];
-
 export const TEMPLATE_VARIABLES = [
   { key: "guest_name", label: "Guest name" },
   { key: "property_name", label: "Property name" },
@@ -147,17 +117,3 @@ export const NOTIFICATION_EVENTS: { id: NotificationEvent; label: string; hint?:
   { id: "sync", label: "Sync problem" },
   { id: "summary", label: "Morning summary", hint: "Every day at 7:00 AM" },
 ];
-
-export const DEFAULT_NOTIFICATIONS: Record<
-  NotificationEvent,
-  { push: boolean; whatsapp: boolean }
-> = {
-  booking: { push: true, whatsapp: true },
-  request: { push: true, whatsapp: true },
-  payment: { push: true, whatsapp: false },
-  cancellation: { push: true, whatsapp: false },
-  sync: { push: true, whatsapp: false },
-  summary: { push: false, whatsapp: true },
-};
-
-export const DEFAULT_ACCOUNT: Account = { name: "", phone: "", email: "", language: "en" };

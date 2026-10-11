@@ -1,15 +1,16 @@
+import type { Activity, ActivityKind } from "@staykey/api-client";
 import { colors } from "@staykey/tokens";
-import { router } from "expo-router";
-import { useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { useActivity, useMarkActivityRead } from "@/api/activity";
 import { IconBox } from "@/components/brand";
+import { Button } from "@/components/controls";
 import { I } from "@/components/icons";
 import { Appear, EmptyState, List, ListRow, Page, Segmented } from "@/components/kit";
 import { font } from "@/components/ui";
 import { dayLabel, formatClock } from "@/data/dates";
-import { useData } from "@/data/store";
-import type { Activity, ActivityKind } from "@/data/types";
 
 type Tab = "all" | "bookings" | "payments" | "sync";
 
@@ -29,10 +30,15 @@ const ICON: Record<ActivityKind, keyof typeof I> = {
   import: "sync",
 };
 
-/** Every alert in one feed: bookings, requests, slips, cancellations and sync problems. */
+/**
+ * Every alert in one feed: bookings, requests, slips, cancellations and sync problems. New items
+ * keep their dot while the screen is open and count as read once the owner leaves it.
+ */
 export default function ActivityScreen() {
-  const activity = useData((s) => s.activity);
-  const markRead = useData((s) => s.markRead);
+  const { items: activity, hasMore, loadMore } = useActivity();
+  const { mutate: markAllRead } = useMarkActivityRead();
+  const markRead = useCallback(() => markAllRead(), [markAllRead]);
+  useFocusEffect(useCallback(() => markRead, [markRead]));
   const [tab, setTab] = useState<Tab>("all");
   const items = tab === "all" ? activity : activity.filter((a) => KINDS[tab].includes(a.kind));
   const unread = activity.some((a) => !a.read);
@@ -46,7 +52,6 @@ export default function ActivityScreen() {
   }
 
   function open(a: Activity) {
-    markRead(a.id);
     if (a.bookingId) router.push({ pathname: "/booking/[id]", params: { id: a.bookingId } });
     else if (a.kind === "sync" && a.propertyId)
       router.push({ pathname: "/property/[id]/ical", params: { id: a.propertyId } });
@@ -108,12 +113,13 @@ export default function ActivityScreen() {
                   wrap
                   chevron={false}
                   trailing={<Text style={s.time}>{formatClock(a.at)}</Text>}
-                  onPress={a.bookingId || a.kind === "sync" ? () => open(a) : () => markRead(a.id)}
+                  onPress={a.bookingId || a.kind === "sync" ? () => open(a) : undefined}
                 />
               ))}
             </List>
           </Appear>
         ))}
+        {hasMore ? <Button title="Show older" variant="ghost" onPress={loadMore} /> : null}
       </Animated.View>
     </Page>
   );
