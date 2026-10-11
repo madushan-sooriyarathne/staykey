@@ -1,12 +1,15 @@
 package notify
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -80,5 +83,17 @@ func TestCloudWhatsAppReportsRefusals(t *testing.T) {
 
 	if err := (CloudWhatsApp{URL: srv.URL}).SendWhatsApp(context.Background(), "+94771234567", "a", "b"); err == nil {
 		t.Error("a 400 from the Cloud API should be an error")
+	}
+}
+
+func TestLogWhatsAppKeepsNumbersAndTextOutOfTheLog(t *testing.T) {
+	var buf bytes.Buffer
+	l := LogWhatsApp{Logger: slog.New(slog.NewTextHandler(&buf, nil))}
+
+	if err := l.SendWhatsApp(context.Background(), "+94771234567", "Request from Sam Lee", "12 to 15 Oct"); err != nil {
+		t.Fatal(err)
+	}
+	if out := buf.String(); strings.Contains(out, "771234") || strings.Contains(out, "Sam Lee") || !strings.Contains(out, "***567") {
+		t.Errorf("log line = %q, want only the masked number", out)
 	}
 }

@@ -16,15 +16,25 @@ type WhatsApp interface {
 	SendWhatsApp(ctx context.Context, to, title, body string) error
 }
 
-// LogWhatsApp writes alerts to the log, until a WhatsApp Business number is registered.
+// LogWhatsApp stands in for WhatsApp until a Business number is registered. It is the default in
+// production too, so it records that an alert was skipped without the number or the text, which
+// carry people's phone numbers and guest names.
 type LogWhatsApp struct {
 	Logger *slog.Logger
 }
 
-// SendWhatsApp logs the alert.
-func (l LogWhatsApp) SendWhatsApp(_ context.Context, to, title, body string) error {
-	l.Logger.Info("whatsapp alert", "to", to, "title", title, "body", body)
+// SendWhatsApp logs that the alert wasn't sent, with the number masked.
+func (l LogWhatsApp) SendWhatsApp(_ context.Context, to, _, _ string) error {
+	l.Logger.Info("whatsapp alert not sent (log provider)", "to", maskPhone(to))
 	return nil
+}
+
+// maskPhone keeps a number's last three digits, enough to tell team members apart in a log.
+func maskPhone(phone string) string {
+	if len(phone) <= 3 {
+		return "***"
+	}
+	return "***" + phone[len(phone)-3:]
 }
 
 // graphURL is the Cloud API messages endpoint, on the Graph API version current when this was
