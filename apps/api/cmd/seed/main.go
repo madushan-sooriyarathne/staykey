@@ -19,9 +19,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
@@ -157,13 +154,13 @@ func run(ownerPhone, ownerName string, reset bool) error {
 			stays += n
 		}
 
-		token, hash, err := inviteToken()
+		token, hash, err := domain.NewInviteToken()
 		if err != nil {
 			return err
 		}
-		if err := db.CreateInvite(ctx, t, store.Invite{
+		if _, err := db.CreateInvite(ctx, t, store.Invite{
 			Phone: pendingInvite.phone, Role: pendingInvite.role, PropertyIDs: []uuid.UUID{villa.ID},
-			TokenHash: hash, ExpiresAt: time.Now().Add(14 * 24 * time.Hour),
+			TokenHash: hash, ExpiresAt: time.Now().Add(domain.InviteTTL),
 		}); err != nil {
 			return err
 		}
@@ -173,7 +170,9 @@ func run(ownerPhone, ownerName string, reset bool) error {
 			fmt.Sprintf("  owner     %-17s %s", ownerName, ownerPhone),
 		}, summary...)
 		summary = append(summary,
-			fmt.Sprintf("  invited   caretaker         %s (staykey://join?token=%s)", pendingInvite.phone, token),
+			fmt.Sprintf("  invited   caretaker         %s", pendingInvite.phone),
+			fmt.Sprintf("            https://staykey.direct/join/%s", token),
+			fmt.Sprintf("            staykey://join?token=%s", token),
 			fmt.Sprintf("Properties: %s (%s), %s (%s), with %d sample stays", villa.Name, villa.Slug, house.Name, house.Slug, stays),
 		)
 		return nil
@@ -300,14 +299,4 @@ func sampleSettings(units []domain.UnitInput, description string) domain.Propert
 			Cards:      "off",
 		},
 	}
-}
-
-func inviteToken() (string, []byte, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", nil, err
-	}
-	token := base64.RawURLEncoding.EncodeToString(b)
-	h := sha256.Sum256([]byte(token))
-	return token, h[:], nil
 }
