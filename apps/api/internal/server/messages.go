@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"slices"
+	"strings"
 
 	"staykey.direct/api/internal/domain"
 	"staykey.direct/api/internal/oapi"
@@ -105,6 +106,9 @@ func (s *Server) RegisterPushToken(ctx context.Context, req oapi.RegisterPushTok
 	if req.Body == nil || req.Body.Token == "" {
 		return nil, errNoBody
 	}
+	if !isExpoPushToken(req.Body.Token) {
+		return nil, &apiError{status: http.StatusBadRequest, code: "invalid_token", field: "token", message: "Send the Expo push token for this device."}
+	}
 	switch req.Body.Platform {
 	case oapi.Ios, oapi.Android, oapi.Web:
 	default:
@@ -114,6 +118,16 @@ func (s *Server) RegisterPushToken(ctx context.Context, req oapi.RegisterPushTok
 		return nil, err
 	}
 	return oapi.RegisterPushToken204Response{}, nil
+}
+
+// isExpoPushToken matches the tokens Expo issues, ExponentPushToken[...] or ExpoPushToken[...],
+// within the spec's 300 characters. The server doesn't validate bodies against the spec, so the
+// limit is checked here.
+func isExpoPushToken(token string) bool {
+	if len(token) > 300 || !strings.HasSuffix(token, "]") {
+		return false
+	}
+	return strings.HasPrefix(token, "ExponentPushToken[") || strings.HasPrefix(token, "ExpoPushToken[")
 }
 
 func templateToAPI(t domain.Template) oapi.Template {

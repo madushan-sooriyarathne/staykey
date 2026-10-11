@@ -26,6 +26,7 @@ func TestNewInviteValidate(t *testing.T) {
 		{"manager", NewInvite{Phone: "+94715550199", Role: RoleManager}, ""},
 		{"owner can't be invited", NewInvite{Phone: "+94715550199", Role: RoleOwner}, "role"},
 		{"number without a country code", NewInvite{Phone: "0715550199", Role: RoleCaretaker}, "phone"},
+		{"international number", NewInvite{Phone: "+44 7700 900123", Role: RoleCaretaker}, "phone"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

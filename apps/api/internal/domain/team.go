@@ -92,6 +92,11 @@ func (in NewInvite) Validate() error {
 	if _, err := NormalizePhone(in.Phone); err != nil {
 		return &ValidationError{"phone", err.Error()}
 	}
+	// Sign-in codes only reach Sri Lankan numbers (internal/sms), so an invite anywhere else could
+	// never be accepted.
+	if !strings.HasPrefix(in.Phone, "+94") {
+		return &ValidationError{"phone", "international numbers are not supported yet"}
+	}
 	if len(in.Name) > 80 {
 		return &ValidationError{"name", "must be at most 80 characters"}
 	}
