@@ -18,6 +18,7 @@ Notifications.setNotificationHandler({
 });
 
 let warned = false;
+let failed = false;
 
 /**
  * Asks for permission and registers this device's Expo push token with the signed-in session,
@@ -33,24 +34,27 @@ export async function registerForPush(): Promise<void> {
     warned = true;
     return;
   }
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("default", {
-      name: "Alerts",
-      importance: Notifications.AndroidImportance.HIGH,
-    });
-  }
-  let { granted } = await Notifications.getPermissionsAsync();
-  if (!granted) granted = (await Notifications.requestPermissionsAsync()).granted;
-  if (!granted) return;
   try {
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "Alerts",
+        importance: Notifications.AndroidImportance.HIGH,
+      });
+    }
+    let { granted } = await Notifications.getPermissionsAsync();
+    if (!granted) granted = (await Notifications.requestPermissionsAsync()).granted;
+    if (!granted) return;
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
     await unwrap(
       api.POST("/v1/push-tokens", {
         body: { token, platform: Platform.OS === "ios" ? "ios" : "android" },
       }),
     );
-  } catch {
-    // Offline or Expo unreachable: the next launch tries again.
+  } catch (error) {
+    // Offline, Expo unreachable or no notification support on this device: the next launch tries
+    // again, so one warning is enough.
+    if (!failed) console.warn("Couldn't register for push alerts", error);
+    failed = true;
   }
 }
 
@@ -74,7 +78,8 @@ function open(response: Notifications.NotificationResponse) {
 export function usePushAlerts(enabled: boolean) {
   useEffect(() => {
     if (!enabled || Platform.OS === "web") return;
-    registerForPush();
+    // Never rejects: failures are caught and warned about inside.
+    void registerForPush();
     const last = Notifications.getLastNotificationResponse();
     if (last) {
       open(last);
