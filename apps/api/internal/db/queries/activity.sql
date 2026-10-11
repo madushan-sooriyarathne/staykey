@@ -36,14 +36,21 @@ SELECT last_read_at FROM activity_reads WHERE account_id = @account_id AND user_
 INSERT INTO activity_reads (account_id, user_id, last_read_at) VALUES (@account_id, @user_id, @last_read_at)
 ON CONFLICT (account_id, user_id) DO UPDATE SET last_read_at = greatest(activity_reads.last_read_at, excluded.last_read_at);
 
+-- Stamps the oldest rows nobody has been alerted about yet and returns them. A concurrent run
+-- skips rows this one is stamping.
 -- name: ClaimUnnotifiedActivity :many
-SELECT * FROM activity WHERE notified_at IS NULL
-ORDER BY created_at, id
-LIMIT @row_limit
-FOR UPDATE SKIP LOCKED;
+UPDATE activity SET notified_at = @now::timestamptz
+WHERE id IN (
+    SELECT id FROM activity WHERE notified_at IS NULL
+    ORDER BY created_at, id
+    LIMIT @row_limit
+    FOR UPDATE SKIP LOCKED
+)
+RETURNING *;
 
--- name: MarkActivityNotified :exec
-UPDATE activity SET notified_at = @now::timestamptz WHERE id = ANY (@ids::uuid[]);
+-- Puts claimed rows back for the next run, after a send that failed.
+-- name: ReleaseActivity :exec
+UPDATE activity SET notified_at = NULL WHERE id = ANY (@ids::uuid[]);
 
 -- Active members who want this event on some channel and can see the property, except the
 -- person who acted.

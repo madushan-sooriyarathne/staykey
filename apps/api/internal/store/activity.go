@@ -152,22 +152,19 @@ type Recipient struct {
 }
 
 // SendAlerts claims up to limit activity items nobody has been alerted about yet and passes them
-// to send with their recipients, inside one transaction. The items are marked notified only when
-// send succeeds, so a failed send is retried on the next run; a second notify run skips rows the
-// first one holds.
+// to send with their recipients. The claim is a short transaction that stamps the rows, and send
+// runs after it commits, so no transaction stays open across network calls. When send reports an
+// error the rows are released for the next run; if the process stops mid-send they are not sent
+// again. A concurrent run skips rows another run is claiming.
 func (s *Postgres) SendAlerts(ctx context.Context, limit int, now time.Time, send func(ctx context.Context, alerts []Alert) error) (int, error) {
-	var n int
+	var alerts []Alert
+	var ids []uuid.UUID
 	err := s.InTx(ctx, func(ctx context.Context) error {
-		q := s.db(ctx)
-		rows, err := q.ClaimUnnotifiedActivity(ctx, int32(limit))
+		rows, err := s.db(ctx).ClaimUnnotifiedActivity(ctx, queries.ClaimUnnotifiedActivityParams{Now: now, RowLimit: int32(limit)})
 		if err != nil {
 			return fmt.Errorf("claim activity: %w", err)
 		}
-		if len(rows) == 0 {
-			return nil
-		}
-		alerts := make([]Alert, 0, len(rows))
-		ids := make([]uuid.UUID, len(rows))
+		ids = make([]uuid.UUID, len(rows))
 		for i, r := range rows {
 			ids[i] = r.ID
 			a, err := s.alertFor(ctx, r, now)
@@ -178,16 +175,21 @@ func (s *Postgres) SendAlerts(ctx context.Context, limit int, now time.Time, sen
 				alerts = append(alerts, a)
 			}
 		}
-		if err := send(ctx, alerts); err != nil {
-			return err
-		}
-		n = len(rows)
-		if err := q.MarkActivityNotified(ctx, queries.MarkActivityNotifiedParams{Now: now, Ids: ids}); err != nil {
-			return fmt.Errorf("mark activity notified: %w", err)
-		}
 		return nil
 	})
-	return n, err
+	if err != nil || len(ids) == 0 {
+		return 0, err
+	}
+	if err := send(ctx, alerts); err != nil {
+		// The job's context may be the reason send failed, so the release gets its own deadline.
+		releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if relErr := s.db(releaseCtx).ReleaseActivity(releaseCtx, ids); relErr != nil {
+			return 0, errors.Join(err, fmt.Errorf("release activity: %w", relErr))
+		}
+		return 0, err
+	}
+	return len(ids), nil
 }
 
 func (s *Postgres) alertFor(ctx context.Context, r queries.Activity, now time.Time) (Alert, error) {
