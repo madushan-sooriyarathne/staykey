@@ -332,3 +332,17 @@ func (q *Queries) SetLastRead(ctx context.Context, arg SetLastReadParams) error 
 	_, err := q.db.Exec(ctx, setLastRead, arg.AccountID, arg.UserID, arg.LastReadAt)
 	return err
 }
+
+const skipPendingAlerts = `-- name: SkipPendingAlerts :exec
+UPDATE activity SET notified_at = $1::timestamptz WHERE account_id = $2 AND notified_at IS NULL
+`
+
+type SkipPendingAlertsParams struct {
+	Now       time.Time
+	AccountID uuid.UUID
+}
+
+func (q *Queries) SkipPendingAlerts(ctx context.Context, arg SkipPendingAlertsParams) error {
+	_, err := q.db.Exec(ctx, skipPendingAlerts, arg.Now, arg.AccountID)
+	return err
+}

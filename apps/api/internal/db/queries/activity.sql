@@ -70,3 +70,6 @@ ORDER BY pt.created_at, pt.id;
 
 -- name: DeletePushTokens :exec
 DELETE FROM push_tokens WHERE token = ANY (@tokens::text[]);
+
+-- name: SkipPendingAlerts :exec
+UPDATE activity SET notified_at = @now::timestamptz WHERE account_id = @account_id AND notified_at IS NULL;
