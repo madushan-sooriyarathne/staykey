@@ -22,6 +22,19 @@ type Account struct {
 	BookingSeq           int32
 }
 
+type Activity struct {
+	ID          uuid.UUID
+	AccountID   uuid.UUID
+	PropertyID  *uuid.UUID
+	BookingID   *uuid.UUID
+	Kind        string
+	Title       string
+	Subtitle    string
+	ActorUserID *uuid.UUID
+	NotifiedAt  *time.Time
+	CreatedAt   time.Time
+}
+
 type Booking struct {
 	ID               uuid.UUID
 	AccountID        uuid.UUID
@@ -53,12 +66,41 @@ type Booking struct {
 	UpdatedAt        time.Time
 }
 
+type Invite struct {
+	ID          uuid.UUID
+	AccountID   uuid.UUID
+	Phone       string
+	Name        string
+	Role        string
+	PropertyIds []uuid.UUID
+	TokenHash   []byte
+	InvitedBy   *uuid.UUID
+	ExpiresAt   time.Time
+	AcceptedAt  *time.Time
+	AcceptedBy  *uuid.UUID
+	RevokedAt   *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 type Membership struct {
 	ID        uuid.UUID
 	AccountID uuid.UUID
 	UserID    uuid.UUID
 	Role      string
 	Status    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type MessageTemplate struct {
+	ID        uuid.UUID
+	AccountID uuid.UUID
+	Key       string
+	Name      string
+	Channels  []string
+	Timing    string
+	Body      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
