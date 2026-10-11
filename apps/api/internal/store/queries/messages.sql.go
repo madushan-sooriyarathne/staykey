@@ -13,7 +13,7 @@ import (
 )
 
 const dueSummaries = `-- name: DueSummaries :many
-SELECT p.account_id, p.user_id, m.id AS membership_id, m.role, u.phone, p.push, p.whatsapp,
+SELECT p.account_id, a.name AS account_name, p.user_id, m.id AS membership_id, m.role, u.phone, p.push, p.whatsapp,
        l.local_now::date AS local_day,
        coalesce((SELECT array_agg(mp.property_id ORDER BY mp.property_id) FROM membership_properties mp
                  WHERE mp.membership_id = m.id), '{}')::uuid[] AS property_ids
@@ -34,6 +34,7 @@ ORDER BY p.account_id, p.user_id
 
 type DueSummariesRow struct {
 	AccountID    uuid.UUID
+	AccountName  string
 	UserID       uuid.UUID
 	MembershipID uuid.UUID
 	Role         string
@@ -57,6 +58,7 @@ func (q *Queries) DueSummaries(ctx context.Context, now time.Time) ([]DueSummari
 		var i DueSummariesRow
 		if err := rows.Scan(
 			&i.AccountID,
+			&i.AccountName,
 			&i.UserID,
 			&i.MembershipID,
 			&i.Role,

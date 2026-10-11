@@ -17,6 +17,7 @@ import (
 	"staykey.direct/api/internal/config"
 	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/jobs"
+	"staykey.direct/api/internal/notify"
 	"staykey.direct/api/internal/secret"
 	"staykey.direct/api/internal/server"
 	"staykey.direct/api/internal/sms"
@@ -55,7 +56,13 @@ func run() error {
 		return err
 	}
 
-	jobClient, err := jobs.Start(ctx, db.Pool(), db, fileStore, log)
+	var whatsApp notify.WhatsApp = notify.LogWhatsApp{Logger: log}
+	if cfg.WhatsAppProvider == "cloud" {
+		w := cfg.WhatsApp
+		whatsApp = notify.CloudWhatsApp{Token: w.Token, PhoneNumberID: w.PhoneNumberID, Template: w.Template}
+	}
+	alerts := jobs.Alerts{Push: notify.Expo{AccessToken: cfg.ExpoAccessToken}, WhatsApp: whatsApp, Logger: log}
+	jobClient, err := jobs.Start(ctx, db.Pool(), db, fileStore, alerts, log)
 	if err != nil {
 		return err
 	}
@@ -80,6 +87,7 @@ func run() error {
 		AllowAllOrigins: !cfg.IsProduction(),
 		ClientIPHeader:  cfg.ClientIPHeader,
 		PublicURL:       cfg.PublicURL,
+		InviteURL:       cfg.InviteURL,
 		Media:           media,
 		Logger:          log,
 	})
