@@ -144,3 +144,23 @@ func TestRegisterPushToken(t *testing.T) {
 	rec := e.do(call{method: http.MethodPost, path: "/v1/push-tokens", as: s, body: map[string]any{"token": "ExponentPushToken[abc]", "platform": "ios"}})
 	e.expect(rec, http.StatusNoContent)
 }
+
+func TestPushTokenMustBeAnExpoToken(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	s, _ := e.signIn("+94774000071")
+
+	rec := e.do(call{method: http.MethodPost, path: "/v1/push-tokens", as: s, body: map[string]any{"token": "not-a-token", "platform": "ios"}})
+	e.expect(rec, http.StatusBadRequest)
+}
+
+func TestInviteToAnInternationalNumberIsRefused(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	owner, account := e.owner("+94774000081", "Kingfisher Villa")
+
+	rec := e.do(call{method: http.MethodPost, path: "/v1/team/invites", as: owner, account: account, body: map[string]any{
+		"phone": "+44 7700 900123", "role": "caretaker", "propertyIds": []any{},
+	}})
+	e.expect(rec, http.StatusBadRequest)
+}
