@@ -101,6 +101,12 @@ func (s *Postgres) CreateAccount(ctx context.Context, userID uuid.UUID, name str
 		if err != nil {
 			return err
 		}
+		if err := s.addTemplates(ctx, a.ID); err != nil {
+			return err
+		}
+		if err := s.addNotificationPrefs(ctx, a.ID, userID); err != nil {
+			return err
+		}
 		out = domain.AccountMembership{
 			Account: domain.Account{
 				ID: a.ID, Name: a.Name, Status: domain.AccountStatus(a.Status),
@@ -136,6 +142,9 @@ func (s *Postgres) AddMember(ctx context.Context, t tenant.Tenant, userID uuid.U
 				return err
 			}
 		}
+		if err := s.addNotificationPrefs(ctx, t.AccountID, userID); err != nil {
+			return err
+		}
 		out = domain.Membership{ID: m.ID, AccountID: t.AccountID, UserID: userID, Role: role, PropertyIDs: propertyIDs}
 		return nil
 	})
@@ -155,15 +164,17 @@ type Invite struct {
 	ExpiresAt   time.Time
 }
 
-// CreateInvite records an invitation from the tenant's user into the tenant's account.
-func (s *Postgres) CreateInvite(ctx context.Context, t tenant.Tenant, in Invite) error {
+// CreateInvite records an invitation from the tenant's user into the tenant's account and
+// returns its id.
+func (s *Postgres) CreateInvite(ctx context.Context, t tenant.Tenant, in Invite) (uuid.UUID, error) {
+	id := domain.NewID()
 	invitedBy := t.UserID
 	propertyIDs := in.PropertyIDs
 	if propertyIDs == nil {
 		propertyIDs = []uuid.UUID{}
 	}
 	err := s.db(ctx).CreateInvite(ctx, queries.CreateInviteParams{
-		ID:          domain.NewID(),
+		ID:          id,
 		AccountID:   t.AccountID,
 		Phone:       in.Phone,
 		Name:        in.Name,
@@ -174,9 +185,9 @@ func (s *Postgres) CreateInvite(ctx context.Context, t tenant.Tenant, in Invite)
 		ExpiresAt:   in.ExpiresAt,
 	})
 	if err != nil {
-		return fmt.Errorf("create invite: %w", err)
+		return uuid.Nil, fmt.Errorf("create invite: %w", err)
 	}
-	return nil
+	return id, nil
 }
 
 // DeleteAccount removes the tenant's account and everything in it. Owners only.

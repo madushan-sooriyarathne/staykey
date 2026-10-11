@@ -13,15 +13,21 @@ import Animated, {
 import { Chevron, Tag, Tick } from "@/components/brand";
 import { font } from "@/components/ui";
 import { CHANNEL_LABEL } from "@/data/labels";
-import type { PropertyConfig, TeamMember } from "@/data/types";
+import type { PropertyConfig } from "@/data/types";
 import { haptics } from "@/lib/haptics";
 
 type Item = { id: string; title: string; subtitle?: string; done: boolean; href?: string };
 
 const ease = Easing.out(Easing.cubic);
 
-/** Everything that isn't needed for a first booking, in the order that helps most. */
-export function checklistFor(p: PropertyConfig, team: TeamMember[]): Item[] {
+/** Someone on the team or invited to it. */
+type Teammate = { role: "owner" | "manager" | "caretaker" };
+
+/**
+ * Everything that isn't needed for a first booking, in the order that helps most. Inviting a
+ * caretaker counts as soon as the invite is sent.
+ */
+export function checklistFor(p: PropertyConfig, team: Teammate[]): Item[] {
   const base = `/property/${p.id}`;
   const items: Item[] = [{ id: "publish", title: "Publish your booking page", done: true }];
   if (p.ical.length > 0) {
@@ -59,7 +65,7 @@ export function checklistFor(p: PropertyConfig, team: TeamMember[]): Item[] {
   return items;
 }
 
-export function Checklist({ property, team }: { property: PropertyConfig; team: TeamMember[] }) {
+export function Checklist({ property, team }: { property: PropertyConfig; team: Teammate[] }) {
   const items = checklistFor(property, team);
   const done = items.filter((i) => i.done).length;
   const nextId = items.find((i) => !i.done)?.id;

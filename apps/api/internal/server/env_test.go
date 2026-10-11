@@ -16,6 +16,7 @@ import (
 	"staykey.direct/api/internal/auth"
 	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/oapi"
+	"staykey.direct/api/internal/sms"
 	"staykey.direct/api/internal/store"
 	"staykey.direct/api/internal/store/storetest"
 )
@@ -66,7 +67,7 @@ func newEnvWithStore(t *testing.T, st *store.Postgres, serverStore Store, config
 	for _, f := range configure {
 		f(&cfg)
 	}
-	authService, err := auth.New(st, auth.LogSender{Logger: log}, cfg)
+	authService, err := auth.New(st, sms.Router{LK: auth.LogSender{Logger: log}}, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

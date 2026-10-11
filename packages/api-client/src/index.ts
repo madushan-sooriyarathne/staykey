@@ -34,6 +34,19 @@ export type Block = Schemas["Block"];
 export type NewBlock = Schemas["NewBlock"];
 export type Calendar = Schemas["Calendar"];
 export type RateOverrideInput = Schemas["RateOverrideInput"];
+export type Team = Schemas["Team"];
+export type TeamMember = Schemas["TeamMember"];
+export type Invite = Schemas["Invite"];
+export type NewInvite = Schemas["NewInvite"];
+export type MemberRole = Schemas["MemberRole"];
+export type MemberPatch = Schemas["MemberPatch"];
+export type InvitePreview = Schemas["InvitePreview"];
+export type Activity = Schemas["Activity"];
+export type ActivityKind = Schemas["ActivityKind"];
+export type ActivityPage = Schemas["ActivityPage"];
+export type Template = Schemas["Template"];
+export type NotificationEvent = Schemas["NotificationEvent"];
+export type NotificationPref = Schemas["NotificationPref"];
 
 /** Header that names the account an owner route acts on. */
 export const ACCOUNT_HEADER = "X-Account-Id";

@@ -11,6 +11,7 @@ import { addDays, today } from "@/data/dates";
 import { toBooking } from "@/data/from-api";
 import type { Booking } from "@/data/types";
 import { useSession } from "@/lib/session";
+import { activityKeys } from "./activity";
 import { api } from "./client";
 import { unwrap } from "./errors";
 
@@ -56,13 +57,17 @@ export function useBookings(): Booking[] {
 
 export const useBooking = (id?: string) => useBookings().find((b) => b.id === id);
 
-/** Puts the server's copy of a stay into the cached list. */
+/**
+ * Puts the server's copy of a stay into the cached list, and refreshes Activity, which the server
+ * writes for every change to a stay.
+ */
 function storeBooking(client: QueryClient, accountId: string, booking: ApiBooking) {
   client.setQueryData<ApiBooking[]>(bookingKeys.list(accountId), (items = []) =>
     items.some((b) => b.id === booking.id)
       ? items.map((b) => (b.id === booking.id ? booking : b))
       : [...items, booking],
   );
+  client.invalidateQueries({ queryKey: activityKeys.all });
 }
 
 /**

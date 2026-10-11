@@ -2,7 +2,7 @@
 
 As of 5 Oct 2026. Live, editable copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d
 
-Status: phases 1 Foundations, 2 Properties and setup and 3 Bookings core are done (see `docs/HANDOVER.md`); phases 4 Team, activity and messages and 5 Calendar sync and booking page are next, and can run side by side.
+Status: phases 1 Foundations, 2 Properties and setup, 3 Bookings core and 4 Team, activity and messages are done (see `docs/HANDOVER.md`); phase 5 Calendar sync and booking page is next.
 
 ## Goal and scope
 
@@ -197,7 +197,7 @@ Phases 4 and 5 can run side by side after phase 3. Order inside each phase: migr
 
 ## Open questions
 
-- [ ] SMS provider for OTP: a Sri Lankan gateway or Twilio?
+- [x] SMS provider for OTP: oZone Sender for Sri Lankan numbers; an international gateway is still open
 - [ ] Hosting and region: Fly.io or Railway in Singapore or Mumbai, managed Postgres in the same region?
 - [x] File storage: Cloudflare R2 (default taken in phase 2; swappable through the S3 API)
 - [ ] WhatsApp: register a WhatsApp Business number now?

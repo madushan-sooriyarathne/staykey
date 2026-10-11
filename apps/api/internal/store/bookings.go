@@ -80,12 +80,13 @@ func (s *Postgres) CreateBooking(ctx context.Context, t tenant.Tenant, in domain
 			return err
 		}
 		stay := in.Stay
+		ref := fmt.Sprintf("%s-%d", in.RefPrefix, n)
 		if err := q.InsertBooking(ctx, queries.InsertBookingParams{
 			ID:         id,
 			AccountID:  t.AccountID,
 			PropertyID: in.PropertyID,
 			UnitID:     stay.UnitID,
-			Ref:        fmt.Sprintf("%s-%d", in.RefPrefix, n),
+			Ref:        ref,
 			Source:     string(stay.Source),
 			Status:     string(in.Status),
 			GuestID:    guestID,
@@ -111,6 +112,17 @@ func (s *Postgres) CreateBooking(ctx context.Context, t tenant.Tenant, in domain
 			return err
 		}
 		if err := s.addEvent(ctx, t.AccountID, id, "", in.Status, &t.UserID, ""); err != nil {
+			return err
+		}
+		actor, err := s.userName(ctx, t.UserID)
+		if err != nil {
+			return err
+		}
+		added := domain.Booking{
+			ID: id, PropertyID: in.PropertyID, Ref: ref, Status: in.Status, Guest: stay.Guest,
+			Adults: stay.Adults, Children: stay.Children, CheckIn: stay.CheckIn, CheckOut: stay.CheckOut,
+		}
+		if err := s.addActivity(ctx, t.AccountID, domain.BookingAdded(added, actor), &t.UserID, now); err != nil {
 			return err
 		}
 		if p := in.FirstPayment; p != nil {
@@ -175,7 +187,19 @@ func (s *Postgres) TransitionBooking(ctx context.Context, t tenant.Tenant, id uu
 				b.PaymentDueAt = &due
 			}
 		}
-		return s.moveTo(ctx, t.AccountID, b, to, &t.UserID, reason)
+		from := b.Status
+		if err := s.moveTo(ctx, t.AccountID, b, to, &t.UserID, reason); err != nil {
+			return err
+		}
+		if from != domain.StatusRequested {
+			return nil
+		}
+		actor, err := s.userName(ctx, t.UserID)
+		if err != nil {
+			return err
+		}
+		answer := domain.RequestAnswered(*b, to != domain.StatusDeclined, actor)
+		return s.addActivity(ctx, t.AccountID, answer, &t.UserID, now)
 	})
 }
 
@@ -196,7 +220,14 @@ func (s *Postgres) CancelBooking(ctx context.Context, t tenant.Tenant, id uuid.U
 			}
 		}
 		b.CancelReason, b.CancelledAt = reason, &now
-		return s.moveTo(ctx, t.AccountID, b, domain.StatusCancelled, &t.UserID, reason)
+		if err := s.moveTo(ctx, t.AccountID, b, domain.StatusCancelled, &t.UserID, reason); err != nil {
+			return err
+		}
+		actor, err := s.userName(ctx, t.UserID)
+		if err != nil {
+			return err
+		}
+		return s.addActivity(ctx, t.AccountID, domain.StayCancelled(*b, actor), &t.UserID, now)
 	})
 }
 
@@ -216,6 +247,13 @@ func (s *Postgres) RecordPayment(ctx context.Context, t tenant.Tenant, id uuid.U
 		if err := s.addPayment(ctx, t, b.ID, b.Currency, p); err != nil {
 			return err
 		}
+		actor, err := s.userName(ctx, t.UserID)
+		if err != nil {
+			return err
+		}
+		if err := s.addActivity(ctx, t.AccountID, domain.PaymentRecorded(*b, actor), &t.UserID, p.ReceivedAt); err != nil {
+			return err
+		}
 		if b.Status != domain.StatusAwaitingPayment {
 			return nil
 		}
@@ -233,10 +271,18 @@ func (s *Postgres) RejectSlip(ctx context.Context, t tenant.Tenant, slipID uuid.
 			return notFound(err)
 		}
 		bookingID = slip.BookingID
-		if _, err := s.GetBooking(ctx, t, bookingID); err != nil {
+		b, err := s.GetBooking(ctx, t, bookingID)
+		if err != nil {
 			return err
 		}
-		return s.reviewSlip(ctx, t, slipID, bookingID, "rejected", now)
+		if err := s.reviewSlip(ctx, t, slipID, bookingID, "rejected", now); err != nil {
+			return err
+		}
+		actor, err := s.userName(ctx, t.UserID)
+		if err != nil {
+			return err
+		}
+		return s.addActivity(ctx, t.AccountID, domain.SlipRejected(b, actor), &t.UserID, now)
 	})
 	if err != nil {
 		return domain.Booking{}, err

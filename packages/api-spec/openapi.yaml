@@ -24,6 +24,9 @@ tags:
   - name: uploads
   - name: bookings
   - name: calendar
+  - name: team
+  - name: activity
+  - name: messages
   - name: public
 
 paths:
@@ -810,6 +813,359 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /v1/team:
+    get:
+      tags: [team]
+      operationId: getTeam
+      summary: The account's members and open invites
+      description: Every role can read the team.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: Members, owners first, and invites, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/team/invites:
+    post:
+      tags: [team]
+      operationId: createInvite
+      summary: Invite someone by phone as a manager or caretaker
+      description: |
+        Returns the invite link once; send it to the person on WhatsApp. A new invite to the
+        same number replaces the open one. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewInvite"
+      responses:
+        "201":
+          description: The invite and its link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteCreated"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/team/invites/{inviteId}:
+    parameters:
+      - $ref: "#/components/parameters/InviteId"
+    delete:
+      tags: [team]
+      operationId: revokeInvite
+      summary: Revoke an open invite so its link stops working
+      description: Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "204":
+          description: Revoked
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/team/members/{membershipId}:
+    parameters:
+      - $ref: "#/components/parameters/MembershipId"
+    patch:
+      tags: [team]
+      operationId: updateMember
+      summary: Change a member's role or the properties they can see
+      description: The owner's membership can't be changed. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberPatch"
+      responses:
+        "200":
+          description: The member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamMember"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [team]
+      operationId: removeMember
+      summary: Remove a member from the account
+      description: The owner can't be removed. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "204":
+          description: Removed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/invites/accept:
+    post:
+      tags: [team]
+      operationId: acceptInvite
+      summary: Join the account an invite is for
+      description: |
+        The signed-in phone must be the invited one; any other number, or a used, revoked or
+        expired invite, gets 404. Accepting again returns the same membership.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteToken"
+      responses:
+        "200":
+          description: The account joined, with the caller's role in it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/activity:
+    get:
+      tags: [activity]
+      operationId: listActivity
+      summary: What happened in the account, newest first
+      description: |
+        Caretakers see their properties only, without payments or slips. Pass nextCursor
+        back as cursor for the next page.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: A page of activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/activity/read:
+    post:
+      tags: [activity]
+      operationId: markActivityRead
+      summary: Mark everything up to now as read for the caller
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "204":
+          description: Marked
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/templates:
+    get:
+      tags: [messages]
+      operationId: listTemplates
+      summary: The account's message templates
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The four templates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/templates/{templateId}:
+    parameters:
+      - $ref: "#/components/parameters/TemplateId"
+    patch:
+      tags: [messages]
+      operationId: updateTemplate
+      summary: Change a template's text
+      description: Owners and managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemplatePatch"
+      responses:
+        "200":
+          description: The template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/notification-prefs:
+    get:
+      tags: [messages]
+      operationId: getNotificationPrefs
+      summary: How the caller wants to hear about each event in this account
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: One entry per event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPrefs"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [messages]
+      operationId: setNotificationPrefs
+      summary: Replace the caller's preferences for the events sent
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPrefs"
+      responses:
+        "200":
+          description: Every event's preference after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPrefs"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/push-tokens:
+    post:
+      tags: [messages]
+      operationId: registerPushToken
+      summary: Register this device's Expo push token for the signed-in session
+      description: Signing out of the session stops alerts to the token.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushToken"
+      responses:
+        "204":
+          description: Registered
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/public/invites/preview:
+    post:
+      tags: [public]
+      operationId: previewInvite
+      summary: What an invite link is for, before the person signs in
+      description: The token travels in the body so it stays out of access logs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteToken"
+      responses:
+        "200":
+          description: The invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitePreview"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /v1/public/properties/{slug}:
     get:
       tags: [public]
@@ -868,6 +1224,27 @@ components:
         format: uuid
     BlockId:
       name: blockId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    InviteId:
+      name: inviteId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    MembershipId:
+      name: membershipId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TemplateId:
+      name: templateId
       in: path
       required: true
       schema:
@@ -2414,6 +2791,268 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RateOverride"
+
+    MemberRole:
+      type: string
+      description: The roles an invite or a team change can give.
+      enum: [manager, caretaker]
+
+    TeamMember:
+      type: object
+      required: [id, userId, name, phone, role, propertyIds, joinedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The membership id.
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone:
+          $ref: "#/components/schemas/Phone"
+        role:
+          $ref: "#/components/schemas/Role"
+        propertyIds:
+          type: array
+          description: The properties this member is limited to. Empty means every property.
+          items:
+            type: string
+            format: uuid
+        joinedAt:
+          type: string
+          format: date-time
+
+    Invite:
+      type: object
+      required: [id, phone, name, role, propertyIds, expiresAt, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        phone:
+          $ref: "#/components/schemas/Phone"
+        name:
+          type: string
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        propertyIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    Team:
+      type: object
+      required: [members, invites]
+      properties:
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamMember"
+        invites:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invite"
+
+    NewInvite:
+      type: object
+      required: [phone, role, propertyIds]
+      properties:
+        phone:
+          $ref: "#/components/schemas/Phone"
+        name:
+          type: string
+          maxLength: 80
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        propertyIds:
+          type: array
+          description: Properties the person will see. Empty means every property.
+          items:
+            type: string
+            format: uuid
+
+    InviteCreated:
+      type: object
+      required: [invite, link]
+      properties:
+        invite:
+          $ref: "#/components/schemas/Invite"
+        link:
+          type: string
+          description: The link to send. It is only ever returned here.
+          example: https://staykey.direct/join/okh09QaN0NNtBRVRDPHrQ4rkrpk7e2Khp1n87cMyFlg
+
+    MemberPatch:
+      type: object
+      properties:
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        propertyIds:
+          type: array
+          description: Replaces the properties the member sees. Empty means every property.
+          items:
+            type: string
+            format: uuid
+
+    InviteToken:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 200
+
+    InvitePreview:
+      type: object
+      required: [accountName, invitedByName, role, propertyNames, expiresAt]
+      properties:
+        accountName:
+          type: string
+        invitedByName:
+          type: string
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        propertyNames:
+          type: array
+          items:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    ActivityKind:
+      type: string
+      enum: [request, booking, slip, payment, cancellation, sync, import]
+
+    Activity:
+      type: object
+      required: [id, kind, title, subtitle, at, read]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/ActivityKind"
+        title:
+          type: string
+        subtitle:
+          type: string
+        at:
+          type: string
+          format: date-time
+        read:
+          type: boolean
+        propertyId:
+          type: string
+          format: uuid
+        bookingId:
+          type: string
+          format: uuid
+
+    ActivityPage:
+      type: object
+      required: [items, unread]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Activity"
+        unread:
+          type: integer
+          description: How many items the caller hasn't read, across every page.
+        nextCursor:
+          type: string
+          description: Present when there is more activity.
+
+    TemplateChannel:
+      type: string
+      enum: [email, whatsapp]
+
+    Template:
+      type: object
+      required: [id, key, name, channels, timing, body]
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+          enum: [confirmed, reminder, prearrival, thanks]
+        name:
+          type: string
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/TemplateChannel"
+        timing:
+          type: string
+        body:
+          type: string
+
+    TemplateList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Template"
+
+    TemplatePatch:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+
+    NotificationEvent:
+      type: string
+      enum: [booking, request, payment, cancellation, sync, summary]
+
+    NotificationPref:
+      type: object
+      required: [event, push, whatsapp]
+      properties:
+        event:
+          $ref: "#/components/schemas/NotificationEvent"
+        push:
+          type: boolean
+        whatsapp:
+          type: boolean
+
+    NotificationPrefs:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationPref"
+
+    PushToken:
+      type: object
+      required: [token, platform]
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 300
+          example: ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+        platform:
+          type: string
+          enum: [ios, android, web]
 
     Error:
       type: object

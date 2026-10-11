@@ -1,13 +1,15 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
+import { useUnreadCount } from "@/api/activity";
+import { useMe } from "@/api/me";
 import { Tag } from "@/components/brand";
 import { I } from "@/components/icons";
-import { Appear, Avatar, List, ListRow, SectionHeader, Segmented } from "@/components/kit";
+import { Appear, Avatar, List, ListRow, Menu, SectionHeader, Segmented } from "@/components/kit";
 import { Screen } from "@/components/ui";
 import { useCan, useProperties } from "@/data/hooks";
 import { plural } from "@/data/labels";
-import { useData } from "@/data/store";
+import { openAccount } from "@/features/auth/enter";
 import { useOnboarding } from "@/features/onboarding/store";
 import { addSampleGuesthouse } from "@/features/prototype/sample-guesthouse";
 import { signOut } from "@/lib/auth";
@@ -23,17 +25,19 @@ const ROLE_LABEL: Record<Role, string> = {
 };
 
 export default function MoreScreen() {
-  const { subscription, role, ownerName, setRole, reset: resetSession } = useSession();
-  const account = useData((s) => s.account);
+  const { subscription, role, ownerName, accountId, setRole, reset: resetSession } = useSession();
+  const me = useMe().data;
   const properties = useProperties();
-  const unread = useData((s) => s.activity.filter((a) => !a.read).length);
+  const unread = useUnreadCount();
   const [sampleState, setSampleState] = useState<"idle" | "adding" | string>("idle");
-  const resetData = useData((s) => s.reset);
+  const [switching, setSwitching] = useState(false);
   const clearDraft = useOnboarding((s) => s.clear);
   const can = useCan();
   const plan =
     subscription.status === "active" ? PLANS.find((p) => p.id === subscription.plan) : undefined;
-  const name = account.name || ownerName || "You";
+  const name = me?.user.name || ownerName || "You";
+  const accounts = me?.accounts ?? [];
+  const current = accounts.find((a) => a.id === accountId);
   const hasGuesthouse = properties.some((p) => p.slug.startsWith("coralbay"));
 
   return (
@@ -47,8 +51,33 @@ export default function MoreScreen() {
             subtitle={`${ROLE_LABEL[role]}, ${plural(properties.length, "property", "properties")}`}
             onPress={() => router.push("/profile")}
           />
+          {accounts.length > 1 ? (
+            <ListRow
+              testID="more-switch-account"
+              icon={I.house}
+              title={current?.name ?? "Account"}
+              subtitle="Switch account"
+              onPress={() => setSwitching(true)}
+            />
+          ) : null}
         </List>
       </Appear>
+      <Menu
+        visible={switching}
+        onClose={() => setSwitching(false)}
+        items={accounts
+          .filter((a) => a.id !== accountId)
+          .map((a) => ({
+            label: `${a.name} (${ROLE_LABEL[a.role].toLowerCase()})`,
+            icon: I.house,
+            onPress: async () => {
+              // The display fallback ("You") isn't a name, so it never becomes one.
+              const opened = await openAccount(a, me?.user.name ?? "");
+              if (opened) haptics.success();
+              else haptics.error();
+            },
+          }))}
+      />
 
       <Appear index={1}>
         <List>
@@ -64,7 +93,7 @@ export default function MoreScreen() {
             testID="more-activity"
             icon={I.activity}
             title="Activity"
-            trailing={unread ? <Tag tone="ember" label={`${unread} new`} /> : undefined}
+            trailing={unread > 0 ? <Tag tone="ember" label={`${unread} new`} /> : undefined}
             onPress={() => router.push("/activity")}
           />
           {can("team") ? (
@@ -176,7 +205,6 @@ export default function MoreScreen() {
                   haptics.warning();
                   signOut();
                   clearDraft();
-                  resetData();
                   resetSession();
                 }}
               />
