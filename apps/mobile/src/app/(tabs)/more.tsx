@@ -71,7 +71,8 @@ export default function MoreScreen() {
             label: `${a.name} (${ROLE_LABEL[a.role].toLowerCase()})`,
             icon: I.house,
             onPress: async () => {
-              const opened = await openAccount(a, name);
+              // The display fallback ("You") isn't a name, so it never becomes one.
+              const opened = await openAccount(a, me?.user.name ?? "");
               if (opened) haptics.success();
               else haptics.error();
             },
