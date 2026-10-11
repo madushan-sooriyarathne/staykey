@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -128,5 +129,21 @@ func TestExpiredRequestIsLogged(t *testing.T) {
 	items, err := h.s.ListActivity(ctx, h.t, nil, 1)
 	if err != nil || len(items) != 1 || items[0].Title != "Request from Ravi Fernando expired" {
 		t.Errorf("latest activity = %q (err %v)", titles(items), err)
+	}
+}
+
+func TestFailedSendIsRetried(t *testing.T) {
+	t.Parallel()
+	h := newHouse(t)
+	ctx := context.Background()
+	h.request(ctx, t, noon.Add(time.Hour))
+	failing := func(context.Context, []store.Alert) error { return errors.New("expo unreachable") }
+	if _, err := h.s.SendAlerts(ctx, 100, time.Now(), failing); err == nil {
+		t.Fatal("a failed send should be reported")
+	}
+
+	n, err := h.s.SendAlerts(ctx, 100, time.Now(), func(context.Context, []store.Alert) error { return nil })
+	if err != nil || n != 1 {
+		t.Errorf("retry claimed %d items (err %v), want 1", n, err)
 	}
 }

@@ -76,14 +76,25 @@ func (q *Queries) ActivityRecipients(ctx context.Context, arg ActivityRecipients
 }
 
 const claimUnnotifiedActivity = `-- name: ClaimUnnotifiedActivity :many
-SELECT id, account_id, property_id, booking_id, kind, title, subtitle, actor_user_id, notified_at, created_at FROM activity WHERE notified_at IS NULL
-ORDER BY created_at, id
-LIMIT $1
-FOR UPDATE SKIP LOCKED
+UPDATE activity SET notified_at = $1::timestamptz
+WHERE id IN (
+    SELECT id FROM activity WHERE notified_at IS NULL
+    ORDER BY created_at, id
+    LIMIT $2
+    FOR UPDATE SKIP LOCKED
+)
+RETURNING id, account_id, property_id, booking_id, kind, title, subtitle, actor_user_id, notified_at, created_at
 `
 
-func (q *Queries) ClaimUnnotifiedActivity(ctx context.Context, rowLimit int32) ([]Activity, error) {
-	rows, err := q.db.Query(ctx, claimUnnotifiedActivity, rowLimit)
+type ClaimUnnotifiedActivityParams struct {
+	Now      time.Time
+	RowLimit int32
+}
+
+// Stamps the oldest rows nobody has been alerted about yet and returns them. A concurrent run
+// skips rows this one is stamping.
+func (q *Queries) ClaimUnnotifiedActivity(ctx context.Context, arg ClaimUnnotifiedActivityParams) ([]Activity, error) {
+	rows, err := q.db.Query(ctx, claimUnnotifiedActivity, arg.Now, arg.RowLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -303,17 +314,13 @@ func (q *Queries) LivePushTokens(ctx context.Context, arg LivePushTokensParams) 
 	return items, nil
 }
 
-const markActivityNotified = `-- name: MarkActivityNotified :exec
-UPDATE activity SET notified_at = $1::timestamptz WHERE id = ANY ($2::uuid[])
+const releaseActivity = `-- name: ReleaseActivity :exec
+UPDATE activity SET notified_at = NULL WHERE id = ANY ($1::uuid[])
 `
 
-type MarkActivityNotifiedParams struct {
-	Now time.Time
-	Ids []uuid.UUID
-}
-
-func (q *Queries) MarkActivityNotified(ctx context.Context, arg MarkActivityNotifiedParams) error {
-	_, err := q.db.Exec(ctx, markActivityNotified, arg.Now, arg.Ids)
+// Puts claimed rows back for the next run, after a send that failed.
+func (q *Queries) ReleaseActivity(ctx context.Context, ids []uuid.UUID) error {
+	_, err := q.db.Exec(ctx, releaseActivity, ids)
 	return err
 }
 
