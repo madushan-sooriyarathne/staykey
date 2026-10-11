@@ -236,3 +236,12 @@ func (s *Postgres) DeletePushTokens(ctx context.Context, tokens []string) error 
 	}
 	return nil
 }
+
+// SkipPendingAlerts marks the account's activity as already alerted, so sample data loaded by
+// cmd/seed doesn't send the team a burst of alerts on the next notify run.
+func (s *Postgres) SkipPendingAlerts(ctx context.Context, accountID uuid.UUID, now time.Time) error {
+	if err := s.db(ctx).SkipPendingAlerts(ctx, queries.SkipPendingAlertsParams{Now: now, AccountID: accountID}); err != nil {
+		return fmt.Errorf("skip pending alerts: %w", err)
+	}
+	return nil
+}

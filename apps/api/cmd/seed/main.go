@@ -164,6 +164,10 @@ func run(ownerPhone, ownerName string, reset bool) error {
 		}); err != nil {
 			return err
 		}
+		// The sample stays are history, not news: nobody should get alerts for them.
+		if err := db.SkipPendingAlerts(ctx, account.ID, time.Now()); err != nil {
+			return err
+		}
 
 		summary = append([]string{
 			fmt.Sprintf("Seeded account %s (Kingfisher Collection)", account.ID),
