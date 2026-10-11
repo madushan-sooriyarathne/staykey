@@ -2,7 +2,7 @@
 
 As of 5 Oct 2026. Live, editable copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d
 
-Status: phases 1 Foundations, 2 Properties and setup and 3 Bookings core are done (see `docs/HANDOVER.md`); phases 4 Team, activity and messages and 5 Calendar sync and booking page are next, and can run side by side.
+Status: phases 1 Foundations, 2 Properties and setup, 3 Bookings core and 4 Team, activity and messages are done (see `docs/HANDOVER.md`); phase 5 Calendar sync and booking page is next.
 
 ## Goal and scope
 

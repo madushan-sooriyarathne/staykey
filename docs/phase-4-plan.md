@@ -1,6 +1,6 @@
 # Build phase 4: team, activity and messages
 
-Drafted 11 Oct 2026 against `main` at `a301dc5`. Written for the agent that executes it; the wider plan is `docs/backend-plan.md`, the checklist `docs/ROADMAP.md`.
+Drafted 11 Oct 2026 against `main` at `a301dc5`, and carried out the same day (commits `bf65c2a` to `3bf2855`; see `docs/HANDOVER.md`). Kept as the record of what phase 4 set out to do. The wider plan is `docs/backend-plan.md`, the checklist `docs/ROADMAP.md`.
 
 ## Goal
 
