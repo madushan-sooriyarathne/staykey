@@ -53,7 +53,7 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [x] App: paywall on real purchases, Subscription screen, prototype tools in development builds only
 - [ ] **Gate:** a real purchase ends the free period (checked locally with a stand-in Payments.lk; a StoreKit or Play sandbox purchase and a Payments.lk sandbox payment wait for the accounts below)
 
-### Phase 7 Gaps noted in the handover (next)
+### Phase 7 Gaps noted in the handover (next, see `docs/phase-7-plan.md`)
 
 - [ ] Account deletion and a data export for owners, as Sri Lanka's Personal Data Protection Act expects; guests' details removable on request
 - [ ] Refund method picker on the cancel screen (refunds go back by the guest's last payment method today)
