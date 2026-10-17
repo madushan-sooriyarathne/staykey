@@ -54,7 +54,7 @@ export function AvailabilityCalendar({
   const earliest = monthStart(today);
   const latest = monthStart(lastDay);
   return (
-    <div className="flex flex-col gap-3">
+    <div className="@container flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <button
           type="button"
@@ -78,7 +78,7 @@ export function AvailabilityCalendar({
           ›
         </button>
       </div>
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid gap-6 @lg:grid-cols-2">
         {[first, addMonths(first, 1)].map((month) => (
           <Month
             key={month}
@@ -139,7 +139,7 @@ function Month({ month, value, isTaken, isOpen, isClosed, onPick }: MonthProps) 
               aria-pressed={end}
               aria-label={`${formatDay(day)}, ${state(day, value, taken, isClosed(day), open)}`}
               className={cx(
-                "mx-auto h-10 w-10 rounded-full text-sm transition-colors",
+                "mx-auto aspect-square w-full max-w-11 rounded-full text-sm transition-colors",
                 end && "bg-obsidian font-medium text-snow",
                 inside && "bg-cloud text-graphite",
                 !end && !inside && open && "text-graphite hover:bg-cloud",

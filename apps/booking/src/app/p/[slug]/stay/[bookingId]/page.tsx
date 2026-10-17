@@ -1,7 +1,7 @@
 import { formatMoney, type GuestBooking } from "@staykey/api-client";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getGuestBooking } from "@/lib/api";
+import { getGuestBooking, getPublicProperty } from "@/lib/api";
 import { cx } from "@/lib/cx";
 import { formatRange } from "@/lib/dates";
 import { param } from "@/lib/stay-params";
@@ -25,11 +25,15 @@ const STATUS: Record<GuestBooking["status"], { title: string; note: string }> = 
 };
 
 export default async function StayPage(props: PageProps<"/p/[slug]/stay/[bookingId]">) {
-  const { bookingId } = await props.params;
+  const { slug, bookingId } = await props.params;
   const token = param(await props.searchParams, "t");
   if (!token) notFound();
-  const b = await getGuestBooking(bookingId, token);
+  const [b, property] = await Promise.all([
+    getGuestBooking(bookingId, token),
+    getPublicProperty(slug),
+  ]);
   if (!b) notFound();
+  const timeZone = property?.timeZone ?? "UTC";
   const status = STATUS[b.status];
   const deadline = b.status === "requested" ? b.requestExpiresAt : b.paymentDueAt;
   const takesSlips =
@@ -81,7 +85,11 @@ export default async function StayPage(props: PageProps<"/p/[slug]/stay/[booking
       {deadline && (
         <p className="rounded-card bg-ember-tint p-4 text-ember-ink">
           {b.status === "requested" ? "The owner answers by" : "Please pay by"}{" "}
-          {new Date(deadline).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+          {new Date(deadline).toLocaleString("en-GB", {
+            dateStyle: "medium",
+            timeStyle: "short",
+            timeZone,
+          })}
           {b.status === "requested" ? "." : ", or the booking is cancelled."}
         </p>
       )}
