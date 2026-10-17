@@ -121,6 +121,9 @@ type Store interface {
 	ConsumeOTPChallenge(ctx context.Context, id uuid.UUID, now time.Time) error
 
 	UpsertUserByPhone(ctx context.Context, phone string) (u domain.User, created bool, err error)
+	// RestoreUser undoes a deletion that hasn't become final, so signing in again brings the
+	// person and their accounts back.
+	RestoreUser(ctx context.Context, userID uuid.UUID, now time.Time) (bool, error)
 
 	CreateSession(ctx context.Context, s Session, now time.Time) error
 	SessionForUpdate(ctx context.Context, id uuid.UUID) (Session, error)

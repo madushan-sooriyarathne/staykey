@@ -19,6 +19,7 @@ FROM properties p
 WHERE f.id IN (
     SELECT id FROM ical_feeds
     WHERE url <> '' AND (next_sync_at IS NULL OR next_sync_at <= $2::timestamptz)
+      AND account_id IN (SELECT id FROM accounts WHERE status <> 'closed')
     ORDER BY next_sync_at NULLS FIRST, id
     LIMIT $3
     FOR UPDATE SKIP LOCKED
@@ -161,7 +162,9 @@ func (q *Queries) FeedSucceeded(ctx context.Context, arg FeedSucceededParams) er
 }
 
 const getExportProperty = `-- name: GetExportProperty :one
-SELECT id, account_id, name, ical_export_token FROM properties WHERE slug = $1
+SELECT p.id, p.account_id, p.name, p.ical_export_token FROM properties p
+JOIN accounts a ON a.id = p.account_id AND a.status <> 'closed'
+WHERE p.slug = $1
 `
 
 type GetExportPropertyRow struct {

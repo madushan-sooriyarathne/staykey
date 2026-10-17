@@ -106,6 +106,14 @@ func sweeps(st *store.Postgres, fs files.Store, alerts Alerts, feeds *ical.Fetch
 		"ical_import": {time.Minute, func(ctx context.Context, now time.Time) error {
 			return ImportFeeds(ctx, st, feeds, log, now)
 		}},
+		// Finishes deletions once their 30 days are up.
+		"purge_deleted": {time.Hour, func(ctx context.Context, now time.Time) error {
+			n, err := st.PurgeDeletedUsers(ctx, now)
+			if n > 0 {
+				log.Info("deleted people purged", "count", n)
+			}
+			return err
+		}},
 		// Moves accounts into grace and lapsed as their free or paid access runs out.
 		"billing": {15 * time.Minute, func(ctx context.Context, now time.Time) error {
 			n, err := st.RecomputeAllBilling(ctx, now)

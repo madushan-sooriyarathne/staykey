@@ -56,13 +56,26 @@ func (r Role) Can(p Permission) bool {
 
 // User is one person, identified by a phone number, who can belong to several accounts.
 type User struct {
-	ID        uuid.UUID
-	Phone     string // E.164, for example +94771234567
-	Name      string
-	Email     string
-	Language  string // "en" or "si"
+	ID       uuid.UUID
+	Phone    string // E.164, for example +94771234567
+	Name     string
+	Email    string
+	Language string // "en" or "si"
+	// PhotoKey is the profile photo's file key, or empty.
+	PhotoKey  string
 	CreatedAt time.Time
 }
+
+// DeletionDays is how long a deleted person and the accounts they own wait before they are gone
+// for good. Signing in again before then restores them.
+const DeletionDays = 30
+
+// ErrStorePlanRenews means an account the person owns has an App Store or Google Play plan that
+// will renew, which only the store can cancel.
+var ErrStorePlanRenews = errors.New("a store plan on an owned account will renew")
+
+// GuestRemovedName replaces a guest's name when their details are erased.
+const GuestRemovedName = "Guest removed"
 
 // UserPatch changes some of a user's profile. Nil fields stay as they are.
 type UserPatch struct {

@@ -88,3 +88,56 @@ func upload(t *testing.T, fs *files.Local, account uuid.UUID, kind files.Kind, a
 	}
 	return key
 }
+
+// writeOld writes a file under key as if it had been uploaded at the given time.
+func writeOld(t *testing.T, fs *files.Local, key string, at time.Time) {
+	t.Helper()
+	path := filepath.Join(fs.Dir, filepath.FromSlash(key))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, at, at); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSweepUploadsKeepsTheProfilePhotoAndDropsTheOldOne(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+	st := storetest.New(t)
+	fs, err := files.NewLocal(t.TempDir(), []byte("test"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, _, err := st.UpsertUserByPhone(ctx, "+94771234567")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keys []string
+	for range 2 {
+		key, err := files.NewAvatarKey(u.ID, "image/png")
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeOld(t, fs, key, now.Add(-48*time.Hour))
+		keys = append(keys, key)
+	}
+	if err := st.SetUserPhoto(ctx, u.ID, keys[1]); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := SweepUploads(ctx, st, fs, now); err != nil {
+		t.Fatal(err)
+	}
+
+	left, err := fs.WrittenBefore(ctx, now.Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(left, []string{keys[1]}) {
+		t.Errorf("files left = %v, want only the current photo %s", left, keys[1])
+	}
+}

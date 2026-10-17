@@ -174,6 +174,123 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /v1/me/photo:
+    post:
+      tags: [auth]
+      operationId: createMePhotoUpload
+      summary: Get a link to upload the signed-in person's profile photo
+      description: |
+        PUT the file to the returned link, then send its key as photoKey in PATCH /v1/me. The
+        photo belongs to the person, so it shows in every account they belong to.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AvatarUploadRequest"
+      responses:
+        "201":
+          description: Where to upload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadTicket"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/me/deletion:
+    post:
+      tags: [auth]
+      operationId: deleteMe
+      summary: Delete the signed-in person and the accounts they own
+      description: |
+        Signs the person out everywhere, removes them from teams in other accounts, and closes
+        the accounts they own, which takes their booking pages offline. Everything is deleted
+        30 days later; signing in again with the same number before then restores it. confirm
+        must be "DELETE". 409 store_plan_renews while an owned account's App Store or Google
+        Play plan will renew.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeletionRequest"
+      responses:
+        "200":
+          description: Deletion scheduled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deletion"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/account:
+    patch:
+      tags: [accounts]
+      operationId: renameAccount
+      summary: Rename the account in X-Account-Id
+      description: Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountPatch"
+      responses:
+        "200":
+          description: The renamed account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/account/export:
+    get:
+      tags: [accounts]
+      operationId: exportAccount
+      summary: Everything in the account, as one document
+      description: |
+        The account, its properties with their full setup (bank details included), every stay
+        with its guest and payments, the team and the plan. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The export
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountExport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /v1/accounts:
     get:
       tags: [accounts]
@@ -666,6 +783,30 @@ paths:
           $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/KeyReused"
+
+  /v1/bookings/{bookingId}/erase-guest:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+    post:
+      tags: [bookings]
+      operationId: eraseBookingGuest
+      summary: Erase the details of the guest behind a stay
+      description: |
+        Replaces the guest's name with "Guest removed", clears their phone, email, country and
+        notes on all their stays, and takes their name out of activity. The stays, prices and
+        payments stay. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "204":
+          description: Erased
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /v1/slips/{slipId}/reject:
     parameters:
@@ -1902,6 +2043,10 @@ components:
           type: string
         language:
           $ref: "#/components/schemas/Language"
+        photoUrl:
+          type: string
+          nullable: true
+          description: The profile photo, when there is one.
         createdAt:
           type: string
           format: date-time
@@ -1918,6 +2063,70 @@ components:
           description: An empty string clears the email.
         language:
           $ref: "#/components/schemas/Language"
+        photoKey:
+          type: string
+          description: A key from POST /v1/me/photo. An empty string removes the photo.
+
+    AvatarUploadRequest:
+      type: object
+      required: [contentType, size]
+      properties:
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp, image/heic]
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Exact size in bytes, up to 5 MB.
+
+    DeletionRequest:
+      type: object
+      required: [confirm]
+      properties:
+        confirm:
+          type: string
+          description: Must be "DELETE".
+
+    Deletion:
+      type: object
+      required: [deletesAt]
+      properties:
+        deletesAt:
+          type: string
+          format: date-time
+          description: When the person and their accounts are deleted for good.
+
+    AccountPatch:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+
+    AccountExport:
+      type: object
+      required: [exportedAt, account, properties, bookings, team, subscription]
+      properties:
+        exportedAt:
+          type: string
+          format: date-time
+        account:
+          $ref: "#/components/schemas/Account"
+        properties:
+          type: array
+          items:
+            $ref: "#/components/schemas/Property"
+        bookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+        team:
+          $ref: "#/components/schemas/Team"
+        subscription:
+          $ref: "#/components/schemas/Subscription"
 
     Me:
       type: object
@@ -3547,7 +3756,7 @@ components:
       properties:
         code:
           type: string
-          enum: [dates_taken, stale, bad_status, already_subscribed]
+          enum: [dates_taken, stale, bad_status, already_subscribed, store_plan_renews]
         message:
           type: string
         clash:

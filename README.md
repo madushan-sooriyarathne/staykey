@@ -145,14 +145,15 @@ Built:
 - Team, activity and alerts on the server: invites by WhatsApp link, roles and property access, an activity feed with read state, message templates, alert preferences per event, Expo push and a 7:00 morning summary, with WhatsApp ready for a Business number
 - Bookings on the server: a night ledger that makes double booking impossible (one winner out of 50 parallel bookings for a room and its whole house), quotes priced in Go and held to the app's pricing by shared fixtures, bookings with a status per role and an audit trail, payments, bank slips and refunds, blocks, rate overrides, idempotency keys for money writes and stale-write checks, and river jobs for request expiry, unpaid cancellation and sweeps. `cmd/seed` adds 43 sample stays
 - Billing: the server decides each account's plan from RevenueCat (App Store and Google Play) and Payments.lk (prepaid months or years in LKR on the marketing site's `/billing` page). Free until the first direct booking, at most 60 days, then 7 days' grace; a lapsed account's booking page asks guests to message the owner on WhatsApp
+- Account controls: deleting yourself (30 days, undone by signing in again), a data export, renaming the account, removing a guest's details, profile photos on the server, and the refund method on cancellation
 - Hardening: Postgres row-level security behind the tenant scoping, rate limits on public and owner routes, and `bun run db:backup-check` to prove a backup restores
 - Marketing site landing page, the invite page and the web billing page
 
 How the app gets its data today: sign-in, accounts, properties, every property setting, bookings, payments, blocks and rate overrides go through the API, with tokens in the secure store and server data through TanStack Query, cached on the device for offline reads (`apps/mobile/src/api`). So do the team, activity, templates, alert preferences and the profile; there is no on-device data store any more. The app keeps its own copy of the pricing rules for instant previews; the server's total is the one stored. In development builds More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
 
 Next (the full checklist to launch is `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`):
-- Phase 7: the gaps noted in the handover (account deletion and data export, refund method picker, account rename, profile photo upload, universal links for invites)
-- Then email through AWS SES, guest card payments through Payments.lk, the marketing site, error tracking, and end-to-end and load tests
+- Phase 8: email through AWS SES
+- Then guest card payments through Payments.lk, the marketing site, error tracking, and end-to-end and load tests
 - The phase 6 gate: a sandbox purchase in the stores and a Payments.lk sandbox payment, once those accounts exist
 - An international SMS gateway, hosting and the store submissions
 
