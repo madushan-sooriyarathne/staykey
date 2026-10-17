@@ -21,9 +21,12 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRefreshSubscription, useSubscription } from "@/api/subscription";
 import { IconBox, Tag } from "@/components/brand";
 import { Button, PressScale, Radio, TextLink } from "@/components/controls";
 import { font } from "@/components/ui";
+import { formatDay, toISO } from "@/data/dates";
+import { useCan } from "@/data/hooks";
 import { haptics } from "@/lib/haptics";
 import { spring } from "@/lib/motion";
 import {
@@ -51,33 +54,56 @@ const FALLBACK_RATE = { USD: 18000, LKR: 5400000 } as const;
  */
 export default function Paywall() {
   const { reason } = useLocalSearchParams<{ reason?: string }>();
-  const { setup, subscription, subscribe } = useSession();
-  const fit = planFor(setup.units);
+  const { setup, accountId } = useSession();
+  const can = useCan();
+  const sub = useSubscription().data;
+  const refresh = useRefreshSubscription();
+  const units = sub?.units ?? setup.units;
+  const fit = PLANS.find((p) => p.id === sub?.fits) ?? planFor(units);
+  const current = sub?.status === "active" ? sub.plan : undefined;
+  // A web plan is paid for on the web; the stores don't allow pointing there from the app.
+  const paidOnWeb = sub?.status === "active" && sub.source === "web";
 
   const [period, setPeriod] = useState<Period>("yearly");
-  const [selected, setSelected] = useState<PlanId>(
-    subscription.status === "active" ? subscription.plan : fit.id,
-  );
+  const [selected, setSelected] = useState<PlanId | undefined>(undefined);
   const [status, setStatus] = useState<"idle" | "buying" | "done">("idle");
-  const [restoreNote, setRestoreNote] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
-  const plan = PLANS.find((p) => p.id === selected) ?? fit;
+  const plan = PLANS.find((p) => p.id === (selected ?? current ?? fit.id)) ?? fit;
   const rate = setup.nightlyRate > 0 ? setup.nightlyRate : FALLBACK_RATE[setup.currency];
   const saved = Math.round((rate * 3 * OTA_COMMISSION) / 100) * 100;
+
+  /**
+   * The store answers before RevenueCat tells the server, so the server is asked to read the
+   * plan a few times. The plan counts once the server says so.
+   */
+  async function settle(): Promise<boolean> {
+    for (let i = 0; i < 4; i++) {
+      const latest = await refresh.mutateAsync().catch(() => undefined);
+      if (latest?.status === "active") return true;
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    return false;
+  }
 
   async function buy() {
     if (status !== "idle") return;
     setStatus("buying");
-    const result = await purchase(plan.id, period);
+    setNote(null);
+    const result = await purchase(accountId, plan.id, period);
     if (!result.ok) {
       setStatus("idle");
-      if (!result.cancelled) haptics.error();
+      if (!result.cancelled) {
+        haptics.error();
+        setNote(result.message);
+      }
       return;
     }
+    const active = await settle();
     haptics.success();
-    subscribe(plan.id, period);
     setStatus("done");
-    setTimeout(() => router.back(), 1100);
+    if (!active) setNote("Your purchase went through. It can take a minute to show here.");
+    setTimeout(() => router.back(), active ? 1100 : 2500);
   }
 
   return (
@@ -140,8 +166,8 @@ export default function Paywall() {
                 period={period}
                 selected={selected === p.id}
                 recommended={p.id === fit.id}
-                tooSmall={p.units < setup.units}
-                current={subscription.status === "active" && subscription.plan === p.id}
+                tooSmall={p.units < units}
+                current={current === p.id}
                 onPress={() => setSelected(p.id)}
               />
             </Animated.View>
@@ -169,42 +195,80 @@ export default function Paywall() {
       </ScrollView>
 
       <View style={s.footer}>
-        <Button
-          testID="paywall-buy"
-          title={
-            status === "done"
-              ? `You're on ${plan.name}`
-              : `Start ${plan.name} for ${priceLabel(plan, period)}`
-          }
-          icon={
-            status === "done" ? { ios: "checkmark", android: "check", web: "check" } : undefined
-          }
-          loading={status === "buying"}
-          disabled={plan.units < setup.units}
-          onPress={buy}
-        />
-        <View style={{ paddingTop: 12 }}>
-          {restoreNote ? (
-            <Animated.Text entering={FadeIn.duration(200)} style={s.restoreNote}>
-              {restoreNote}
-            </Animated.Text>
-          ) : (
-            <TextLink
-              title="Restore purchases"
-              onPress={async () => {
-                haptics.select();
-                const r = await restore();
-                setRestoreNote(
-                  r.restored
-                    ? "Your plan is restored."
-                    : "No previous purchases found on this account.",
-                );
-              }}
-            />
-          )}
-        </View>
+        {!can("billing") ? (
+          <Text style={s.restoreNote}>Ask the account owner to choose a plan.</Text>
+        ) : paidOnWeb && sub ? (
+          <Text style={s.restoreNote}>
+            Your plan is paid until {formatDay(toISO(new Date(sub.until)))}.
+          </Text>
+        ) : (
+          <Purchase
+            plan={plan}
+            period={period}
+            status={status}
+            note={note}
+            disabled={plan.units < units}
+            onBuy={buy}
+            onRestore={async () => {
+              haptics.select();
+              const r = await restore(accountId);
+              if (!r.ok) {
+                setNote(r.message);
+                return;
+              }
+              const active = await settle();
+              setNote(
+                active ? "Your plan is restored." : "No previous purchases found on this account.",
+              );
+            }}
+          />
+        )}
       </View>
     </SafeAreaView>
+  );
+}
+
+function Purchase({
+  plan,
+  period,
+  status,
+  note,
+  disabled,
+  onBuy,
+  onRestore,
+}: {
+  plan: Plan;
+  period: Period;
+  status: "idle" | "buying" | "done";
+  note: string | null;
+  disabled: boolean;
+  onBuy: () => void;
+  onRestore: () => void;
+}) {
+  return (
+    <>
+      <Button
+        testID="paywall-buy"
+        title={
+          status === "done"
+            ? `You're on ${plan.name}`
+            : `Start ${plan.name} for ${priceLabel(plan, period)}`
+        }
+        icon={status === "done" ? { ios: "checkmark", android: "check", web: "check" } : undefined}
+        loading={status === "buying"}
+        disabled={disabled}
+        onPress={onBuy}
+      />
+      <View style={{ paddingTop: 12 }}>
+        {note ? (
+          <Animated.Text entering={FadeIn.duration(200)} style={s.restoreNote}>
+            {note}
+          </Animated.Text>
+        ) : (
+          <TextLink title="Restore purchases" onPress={onRestore} />
+        )}
+      </View>
+    </>
   );
 }
 

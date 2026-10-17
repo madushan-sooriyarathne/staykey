@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Period, PlanId } from "./purchases";
 import { persistentStorage } from "./storage";
 
 export type Role = "owner" | "manager" | "caretaker";
@@ -16,8 +15,6 @@ export type Setup = {
   /** OTA names the owner listed, so the checklist can lead with calendar sync. */
   otas: string[];
 };
-
-export type Subscription = { status: "trial" } | { status: "active"; plan: PlanId; period: Period };
 
 type SessionState = {
   /** True once the owner has finished onboarding (or joined a team) and lands on the tabs. */
@@ -37,9 +34,6 @@ type SessionState = {
   /** The profile photo, kept on this phone only. */
   photoUri: string;
   setup: Setup;
-  subscription: Subscription;
-  /** When the owner published, which starts the free period. */
-  startedAt: string;
   /** Set when the persisted state has loaded, so the router doesn't flash the wrong stack. */
   hydrated: boolean;
 
@@ -57,7 +51,6 @@ type SessionState = {
   setAccount: (accountId: string, role: Role) => void;
   /** The server ended the session (the refresh token was refused): back to Welcome to sign in. */
   signedOut: () => void;
-  subscribe: (plan: PlanId, period: Period) => void;
   /** Prototype only: preview the app as another role. */
   setRole: (role: Role) => void;
   setPhoto: (uri: string) => void;
@@ -75,8 +68,6 @@ const initial = {
   bookingPageUrl: "",
   photoUri: "",
   setup: { units: 1, currency: "USD", nightlyRate: 0, photoCount: 0, otas: [] } as Setup,
-  subscription: { status: "trial" } as Subscription,
-  startedAt: "",
 };
 
 export const useSession = create<SessionState>()(
@@ -84,12 +75,11 @@ export const useSession = create<SessionState>()(
     (set) => ({
       ...initial,
       hydrated: false,
-      publish: (p) => set({ ...p, startedAt: new Date().toISOString() }),
+      publish: (p) => set(p),
       completeOnboarding: () => set({ onboarded: true }),
       setUser: (userId) => set({ userId }),
       setAccount: (accountId, role) => set({ accountId, role }),
       signedOut: () => set({ onboarded: false }),
-      subscribe: (plan, period) => set({ subscription: { status: "active", plan, period } }),
       setRole: (role) => set({ role }),
       setPhoto: (photoUri) => set({ photoUri }),
       reset: () => set({ ...initial }),
@@ -97,7 +87,16 @@ export const useSession = create<SessionState>()(
     {
       name: "staykey.session",
       storage: persistentStorage,
-      version: 1,
+      // Version 2 dropped the plan kept on the phone; the server holds it now.
+      version: 2,
+      migrate: (persisted) => {
+        const {
+          subscription: _s,
+          startedAt: _t,
+          ...rest
+        } = (persisted ?? {}) as Record<string, unknown>;
+        return rest;
+      },
       partialize: ({ hydrated: _hydrated, ...rest }) => rest,
       merge: (persisted, current) => ({ ...current, ...(persisted as Partial<SessionState>) }),
       onRehydrateStorage: () => () => {
