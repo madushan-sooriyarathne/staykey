@@ -192,3 +192,19 @@ export function useCancelBooking() {
     onSuccess: (booking) => storeBooking(client, accountId, booking),
   });
 }
+
+/**
+ * Erases the details of the guest behind a stay. Their other stays change too, so the list and
+ * Activity load again. Owners only.
+ */
+export function useEraseGuest() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (bookingId: string) =>
+      unwrap(api.POST("/v1/bookings/{bookingId}/erase-guest", { params: { path: { bookingId } } })),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: bookingKeys.all });
+      client.invalidateQueries({ queryKey: activityKeys.all });
+    },
+  });
+}

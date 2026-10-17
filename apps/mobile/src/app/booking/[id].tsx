@@ -3,6 +3,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeIn, FadeInDown, LinearTransition } from "react-native-reanimated";
+import { useEraseGuest } from "@/api/bookings";
+import { messageFor } from "@/api/errors";
 import { Tag } from "@/components/brand";
 import { Button, InfoNote } from "@/components/controls";
 import { I } from "@/components/icons";
@@ -17,6 +19,7 @@ import {
   Page,
   PaymentTag,
   StatusTag,
+  Two,
   ui,
 } from "@/components/kit";
 import { font } from "@/components/ui";
@@ -31,6 +34,8 @@ import { call, email, openWhatsApp } from "@/lib/contact";
 import { haptics } from "@/lib/haptics";
 
 const ease = Easing.out(Easing.cubic);
+/** The name the server gives a guest whose details were removed. */
+const GUEST_REMOVED = "Guest removed";
 
 export default function BookingDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -39,6 +44,9 @@ export default function BookingDetail() {
   const can = useCan();
   const { move: moveStay, error } = useMoveStay();
   const [menu, setMenu] = useState(false);
+  const [erasing, setErasing] = useState(false);
+  const [eraseError, setEraseError] = useState<string | null>(null);
+  const erase = useEraseGuest();
 
   if (!booking || !property) {
     return (
@@ -107,6 +115,17 @@ export default function BookingDetail() {
           ...(active
             ? [{ label: "Record payment", icon: I.cash, onPress: () => push("/booking/payment") }]
             : []),
+          ...(can("billing") && b.guest.name !== GUEST_REMOVED
+            ? [
+                {
+                  label: "Remove guest's details",
+                  icon: I.person,
+                  destructive: true,
+                  onPress: () => setErasing(true),
+                  testID: "menu-erase-guest",
+                },
+              ]
+            : []),
           ...(active
             ? [
                 {
@@ -121,10 +140,44 @@ export default function BookingDetail() {
         ]}
       />
 
-      {error ? (
+      {error || eraseError ? (
         <InfoNote icon={I.warning} testID="booking-error">
-          {error}
+          {error ?? eraseError}
         </InfoNote>
+      ) : null}
+
+      {erasing ? (
+        <Card title={`Remove ${b.guest.name}'s details?`}>
+          <Text style={ui.muted}>
+            Their name, phone, email and notes are removed from every stay they made with you, and
+            Activity stops naming them. The stays and payments stay for your records. This can't be
+            undone.
+          </Text>
+          <View style={{ paddingTop: 12 }}>
+            <Two>
+              <Button compact variant="ghost" title="Keep" onPress={() => setErasing(false)} />
+              <Button
+                compact
+                title="Remove details"
+                loading={erase.isPending}
+                testID="erase-guest-confirm"
+                onPress={() => {
+                  setEraseError(null);
+                  erase.mutate(b.id, {
+                    onSuccess: () => {
+                      haptics.success();
+                      setErasing(false);
+                    },
+                    onError: (e) => {
+                      haptics.error();
+                      setEraseError(messageFor(e));
+                    },
+                  });
+                }}
+              />
+            </Two>
+          </View>
+        </Card>
       ) : null}
 
       <Appear index={0} style={{ gap: 6 }}>
