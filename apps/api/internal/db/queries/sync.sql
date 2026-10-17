@@ -45,3 +45,7 @@ SELECT property_id FROM ical_feeds WHERE id = @id AND account_id = @account_id;
 -- The property behind an export link, for checking its token.
 -- name: GetExportProperty :one
 SELECT id, account_id, name, ical_export_token FROM properties WHERE slug = @slug;
+
+-- Keeps sample feeds with made-up links from ever being read, for the development seed.
+-- name: ParkFeeds :exec
+UPDATE ical_feeds SET next_sync_at = @until::timestamptz, status = 'ok' WHERE account_id = @account_id;

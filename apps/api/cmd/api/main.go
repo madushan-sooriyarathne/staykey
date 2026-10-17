@@ -16,6 +16,7 @@ import (
 	"staykey.direct/api/internal/auth"
 	"staykey.direct/api/internal/config"
 	"staykey.direct/api/internal/files"
+	"staykey.direct/api/internal/ical"
 	"staykey.direct/api/internal/jobs"
 	"staykey.direct/api/internal/notify"
 	"staykey.direct/api/internal/secret"
@@ -62,7 +63,7 @@ func run() error {
 		whatsApp = notify.CloudWhatsApp{Token: w.Token, PhoneNumberID: w.PhoneNumberID, Template: w.Template}
 	}
 	alerts := jobs.Alerts{Push: notify.Expo{AccessToken: cfg.ExpoAccessToken}, WhatsApp: whatsApp, Logger: log}
-	jobClient, err := jobs.Start(ctx, db.Pool(), db, fileStore, alerts, log)
+	jobClient, err := jobs.Start(ctx, db.Pool(), db, fileStore, alerts, ical.NewFetcher(cfg.ICalAllowPrivate), log)
 	if err != nil {
 		return err
 	}
