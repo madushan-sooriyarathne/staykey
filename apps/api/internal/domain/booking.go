@@ -104,11 +104,13 @@ type Booking struct {
 	OwnerNote        string
 	RequestExpiresAt *time.Time
 	PaymentDueAt     *time.Time
-	CancelReason     string
-	CancelledAt      *time.Time
-	Version          int
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	// PaymentMethod is how a guest who booked on the page said they'd pay: bank or property.
+	PaymentMethod string
+	CancelReason  string
+	CancelledAt   *time.Time
+	Version       int
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 // Paid is what the guest has paid so far, less refunds.
@@ -288,7 +290,7 @@ type Pricing struct {
 }
 
 // NewBooking is everything the store needs to add a stay. LedgerUnits are the units whose
-// nights it holds.
+// nights it holds; none means it holds no nights, as for an imported stay that clashed.
 type NewBooking struct {
 	PropertyID   uuid.UUID
 	Stay         StayInput
@@ -302,6 +304,16 @@ type NewBooking struct {
 	RequestExpiresAt *time.Time
 	// GuestNote is what the guest wrote when booking.
 	GuestNote string
+	// PaymentDueAt is when an unpaid stay is cancelled. Nil means no deadline.
+	PaymentDueAt *time.Time
+	// PaymentMethod, GuestTokenHash and HoldID are set for bookings from the booking page. The
+	// hold's nights become the booking's in the same transaction.
+	PaymentMethod  string
+	GuestTokenHash []byte
+	HoldID         *uuid.UUID
+	// FeedID and ExternalUID are set for stays imported from an OTA calendar.
+	FeedID      *uuid.UUID
+	ExternalUID string
 }
 
 // BookingChange is an edit to a stay the owner made, priced and checked by the caller.
