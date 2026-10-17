@@ -33,6 +33,11 @@ export default async function EmbedPage(props: PageProps<"/p/[slug]/embed">) {
       rules={property.rules}
       today={today}
       takingBookings={property.takingBookings}
+      paused={{
+        name: property.name,
+        pausedReason: property.pausedReason,
+        whatsapp: property.whatsapp,
+      }}
       bookingPageUrl={bookingPageUrl(slug)}
       hostOrigin={parseOrigin(host)}
     />
