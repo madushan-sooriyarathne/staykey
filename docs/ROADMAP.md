@@ -33,13 +33,14 @@ The shortest route to a first paying owner is phase 5 and the billing half of ph
 - [x] App: Team, Join, Activity, Templates, Notifications and Profile on the API; the on-device store goes away (Insights already reads stays from the API)
 - [x] **Gate:** a caretaker joins by link and alerts arrive (checked in a browser and against Expo's push service; a push on a real phone waits for the EAS project below)
 
-### Phase 5 Calendar sync and booking page (next, see `docs/phase-5-plan.md`)
+### Phase 5 Calendar sync and booking page (done, see `docs/phase-5-plan.md`)
 
-- [ ] iCal import worker every 15 minutes with backoff, ETags and real feed status
-- [ ] iCal export at `GET /ical/{slug}-{token}.ics`
-- [ ] Public API: property, availability, quote, holds, bookings, slip upload
-- [ ] Booking page and widget (`apps/booking`, `packages/widget`) on live data, with guest checkout and holds
-- [ ] **Gate:** an Airbnb stay closes the booking page within 15 minutes
+- [x] iCal import worker (every 10 minutes per feed) with backoff, ETags and real feed status
+- [x] iCal export at `GET /ical/{slug}-{token}.ics`, per unit with `?unit=`
+- [x] Public API: property, availability, quote, holds, bookings, slip upload
+- [x] Booking page and widget (`apps/booking`, `packages/widget`) on live data, with guest checkout and holds
+- [ ] Guest emails (confirmation, payment reminders), once an email provider is chosen
+- [x] **Gate:** an Airbnb stay closes the booking page within 15 minutes (checked locally against a served feed; a real Airbnb link waits for hosting)
 
 ### Phase 6 Billing and hardening
 
@@ -48,7 +49,7 @@ The shortest route to a first paying owner is phase 5 and the billing half of ph
 - [ ] Free period rules: free until the first direct booking, capped at 60 days, then 7 days' grace
 - [ ] Lapsed subscription turns the booking page into "message the owner on WhatsApp"
 - [ ] Postgres row-level security as a second wall behind tenant scoping
-- [ ] Rate limits on public and owner routes, backups with a tested restore
+- [ ] Rate limits on public and owner routes (holds and guest bookings included, with the booking app forwarding the guest's address), backups with a tested restore
 - [ ] App: paywall on real purchases, Subscription screen, prototype tools in development builds only
 - [ ] **Gate:** a real purchase ends the free period
 
