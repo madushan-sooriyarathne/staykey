@@ -1,6 +1,8 @@
 # Build phase 7: gaps noted in the handover
 
-Drafted 17 Oct 2026 on top of the phase 6 branch (`feat/phase-6-billing-hardening`, PR #4). Merge PR #4 before starting. Written for the agent that executes it; the checklist is `docs/ROADMAP.md`, the state of the code `docs/HANDOVER.md`.
+Drafted 17 Oct 2026 on top of the phase 6 branch (`feat/phase-6-billing-hardening`, PR #4). Merge PR #4 before starting.
+
+Built on 17 Oct 2026 (branch `feat/phase-7-account-controls`). Two changes from this draft: deletion waits 30 days and signing in again restores (migration 00012, the `purge_deleted` job), and the route is `POST /v1/me/deletion` rather than `DELETE /v1/me` with a body. The handover records the rest. Written for the agent that executes it; the checklist is `docs/ROADMAP.md`, the state of the code `docs/HANDOVER.md`.
 
 ## Goal
 

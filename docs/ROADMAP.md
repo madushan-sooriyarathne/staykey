@@ -1,6 +1,6 @@
 # StayKey roadmap to launch
 
-As of 17 Oct 2026. Phases 1 to 5 are done and phase 6 Billing and hardening is built, with its gate waiting for sandbox accounts. Sign-in codes reach Sri Lankan numbers through oZone Sender. Phases 7 to 12 are next, in order: the gaps noted in the handover, email through AWS SES, guest card payments through Payments.lk, the marketing site, error tracking, then end-to-end and load tests. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
+As of 17 Oct 2026. Phases 1 to 5 are done; phases 6 Billing and hardening and 7 Gaps noted in the handover are built, with their gates waiting for sandbox accounts and the live domain. Sign-in codes reach Sri Lankan numbers through oZone Sender. Phases 8 to 12 are next, in order: email through AWS SES, guest card payments through Payments.lk, the marketing site, error tracking, then end-to-end and load tests. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
 
 The shortest route to a first paying owner is now the accounts in section 2: Payments.lk, RevenueCat and the stores, then hosting.
 
@@ -53,16 +53,16 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [x] App: paywall on real purchases, Subscription screen, prototype tools in development builds only
 - [ ] **Gate:** a real purchase ends the free period (checked locally with a stand-in Payments.lk; a StoreKit or Play sandbox purchase and a Payments.lk sandbox payment wait for the accounts below)
 
-### Phase 7 Gaps noted in the handover (next, see `docs/phase-7-plan.md`)
+### Phase 7 Gaps noted in the handover (built, see `docs/phase-7-plan.md`)
 
-- [ ] Account deletion and a data export for owners, as Sri Lanka's Personal Data Protection Act expects; guests' details removable on request
-- [ ] Refund method picker on the cancel screen (refunds go back by the guest's last payment method today)
-- [ ] Account rename
-- [ ] Profile photo uploaded to the server instead of kept on the phone
-- [ ] Invite links as universal links and Android app links, once `staykey.direct` is live (they go through a marketing page today)
-- [ ] **Gate:** an owner renames the account, changes their photo on one phone and sees it on another, and deletes a test account with nothing of it left in the database or the bucket
+- [x] Account deletion (30 days, undone by signing in again) and a data export for owners, as Sri Lanka's Personal Data Protection Act expects; guests' details removable on request
+- [x] Refund method picker on the cancel screen
+- [x] Account rename
+- [x] Profile photo uploaded to the server instead of kept on the phone
+- [ ] Invite links as universal links and Android app links: the association files, `app.json` and the link rewrite are in; checking on a device waits for `staykey.direct` and a development build (needs `STAYKEY_APPLE_TEAM_ID` and `STAYKEY_ANDROID_CERT_SHA256`)
+- [x] **Gate:** an owner renames the account, changes their photo and sees it from another session, and deletes a test account with nothing of it left in the database or the files after the 30 days (checked locally with the clock moved on)
 
-### Phase 8 Email through AWS SES
+### Phase 8 Email through AWS SES (next)
 
 - [ ] SES sender in `internal/notify`, with the sending domain verified (SPF, DKIM, DMARC) and out of the SES sandbox
 - [ ] Bounces and complaints from SES (through SNS) stop sending to that address
