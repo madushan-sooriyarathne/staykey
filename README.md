@@ -78,6 +78,12 @@ Owners invite managers and caretakers from Team. `POST /v1/team/invites` returns
 
 Every change to a stay writes a line of activity on the server. A job sends each new line as an Expo push notification to the team members who asked for that event and can see the property, never to the person who made the change, and sends each person's morning summary at 7:00 in the property's time zone. Push needs an EAS project id in `apps/mobile/app.json` (`bunx eas-cli init`) and a development build. WhatsApp alerts go to the API log until a WhatsApp Business number is set up (`STAYKEY_WHATSAPP_*` in `apps/api/.env.example`).
 
+### Booking page and calendar sync
+
+Open `http://kingfisher.localhost:3001` after seeding. Guests pick dates on a live calendar, the dates are held while they fill in the checkout, and they book with bank transfer or paying at the property. Their stay page (its link carries a private token) shows the deadline and bank details and takes a photo of the bank slip. The booking app talks to the API only from its server, through `STAYKEY_API_URL`.
+
+The API exports each property's calendar for OTAs at `/ical/<slug>-<token>.ics` (the seed prints the villa's link; `?unit=<id>` gives one unit's) and imports OTA calendar links every 10 minutes. To try an import locally, serve a file with `python3 -m http.server 8765`, point a feed at `http://127.0.0.1:8765/<file>.ics` in the app's iCal screen and tap "Sync now". Links to local and private addresses only work outside production (`STAYKEY_ICAL_ALLOW_PRIVATE`).
+
 ### Photos and sensitive data
 
 The app uploads photos and logos straight to storage: `POST /v1/uploads` returns a presigned PUT for the exact type and size, and the property then saves the file's key. In development (`STAYKEY_STORAGE=local`) files are kept in `apps/api/.media` and served by the API under `/media/`, with links built from the address each request came in on, so a phone on your network can load them. Production uses Cloudflare R2 (`STAYKEY_R2_*` and `STAYKEY_MEDIA_URL`).
@@ -131,7 +137,8 @@ The loader mounts `kingfisher.staykey.direct/embed` in an iFrame that resizes to
 Built:
 - Monorepo with Bun workspaces, Turborepo, Biome and a Go workspace
 - Go API with phone sign-in (codes, rotating refresh tokens), accounts with owner, manager and caretaker roles, tenant scoping on every owner query, and properties with their full setup: units and linked units, photos, seasons, length discounts, stay rules, policies, charges, extras, promo codes, payment methods with encrypted bank details, booking settings, branding and iCal links. Photos upload through presigned links. Backed by PostgreSQL with sqlc and tested against a real database, including tenant isolation for every owner route
-- Booking app with subdomain routing, a property page and the embed bridge
+- Booking app with subdomain routing, the property page on live availability, holds, guest checkout, a stay page with bank slip upload, and the embed card
+- Calendar sync: OTA calendars imported every 10 minutes with backoff, ETags, feed status and alerts, and an export link per property and per unit
 - Widget loader with auto-resize and analytics events
 - Expo owner app with every V1 screen from the designs: Today (owner and caretaker), month and timeline Calendar with range actions, Bookings, Properties, booking detail, new and edit booking, record payment with bank slips, cancel with policy refunds, contact sheet, Activity, block dates and edit rates sheets, all property settings (details, photos, units, rates and seasons, stay rules, policies, taxes and charges, payment methods, booking settings, branding, share and embed with QR, iCal sync, extras, promo codes), Insights, Team, message templates, notifications, subscription, profile and help
 - Owner onboarding in the app: Welcome, 10 or 11 steps across four stages (depending on whole place or rooms), You're live, joining a team by invite link, the setup checklist on Today and the subscription paywall. Steps slide in from the direction of travel with subtle haptics, and progress autosaves so "Finish later" resumes in place. Phone sign-in, publishing and invites are real; purchases are still stubbed
@@ -142,5 +149,5 @@ Built:
 How the app gets its data today: sign-in, accounts, properties, every property setting, bookings, payments, blocks and rate overrides go through the API, with tokens in the secure store and server data through TanStack Query, cached on the device for offline reads (`apps/mobile/src/api`). So do the team, activity, templates, alert preferences and the profile; there is no on-device data store any more. The app keeps its own copy of the pricing rules for instant previews; the server's total is the one stored. In development (or with `EXPO_PUBLIC_PROTOTYPE_TOOLS=true`) More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
 
 Next (the full checklist to launch is `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`):
-- Phase 5: iCal import and export workers, and the booking page on live data
+- Phase 6: billing (RevenueCat, PayHere), the free period, row-level security and rate limits
 - An international SMS gateway, and RevenueCat for in-app subscriptions
