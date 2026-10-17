@@ -1411,62 +1411,69 @@ export interface components {
             description: string;
             amenities: string[];
             /** @description In display order; the first is the cover. */
-            photos: {
-                /** Format: uri */
-                url: string;
-                caption: string;
-            }[];
+            photos: components["schemas"]["PublicPhoto"][];
             checkIn: components["schemas"]["Clock"];
             checkOut: components["schemas"]["Clock"];
             timeZone: string;
             houseRules: string[];
             policy: components["schemas"]["Policy"];
             depositPercent: number;
-            units: {
-                /** Format: uuid */
-                id: string;
-                name: string;
-                sleeps: number;
-                beds: string;
-                linkedUnitIds: string[];
-            }[];
+            units: components["schemas"]["PublicUnit"][];
             /** @description Enabled extras only. */
-            extras: {
-                /** Format: uuid */
-                id: string;
-                name: string;
-                price: components["schemas"]["Money"];
-                per: components["schemas"]["ExtraPer"];
-                onRequest: boolean;
-            }[];
+            extras: components["schemas"]["PublicExtra"][];
             rules: components["schemas"]["StayRules"];
-            booking: {
-                /** @enum {string} */
-                mode: "instant" | "request";
-                holdMinutes: number;
-            };
-            payments: {
-                /** @description Guests can pay by bank transfer. */
-                bank: boolean;
-                atProperty: boolean;
-            };
-            branding: {
-                color: string;
-                /** Format: uri */
-                logoUrl?: string;
-            };
+            booking: components["schemas"]["PublicBookingSettings"];
+            payments: components["schemas"]["PublicPayments"];
+            branding: components["schemas"]["PublicBranding"];
             /** @description False when the property is paused or offers no way to pay. */
             takingBookings: boolean;
         };
+        PublicPhoto: {
+            /** Format: uri */
+            url: string;
+            caption: string;
+        };
+        PublicUnit: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            sleeps: number;
+            beds: string;
+            linkedUnitIds: string[];
+        };
+        PublicExtra: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            price: components["schemas"]["Money"];
+            per: components["schemas"]["ExtraPer"];
+            onRequest: boolean;
+        };
+        PublicBookingSettings: {
+            /** @enum {string} */
+            mode: "instant" | "request";
+            holdMinutes: number;
+        };
+        PublicPayments: {
+            /** @description Guests can pay by bank transfer. */
+            bank: boolean;
+            atProperty: boolean;
+        };
+        PublicBranding: {
+            color: string;
+            /** Format: uri */
+            logoUrl?: string;
+        };
         Availability: {
-            units: {
-                /** Format: uuid */
-                unitId: string;
-                /** @description Nights that can't be booked. */
-                taken: components["schemas"]["Day"][];
-                /** @description Days guests can't arrive on. */
-                closedArrival: components["schemas"]["Day"][];
-            }[];
+            units: components["schemas"]["UnitAvailability"][];
+        };
+        UnitAvailability: {
+            /** Format: uuid */
+            unitId: string;
+            /** @description Nights that can't be booked. */
+            taken: components["schemas"]["Day"][];
+            /** @description Days guests can't arrive on. */
+            closedArrival: components["schemas"]["Day"][];
         };
         PublicQuoteRequest: {
             /** Format: uuid */
@@ -1550,19 +1557,21 @@ export interface components {
             paymentDueAt?: string;
             /** Format: date-time */
             requestExpiresAt?: string;
-            /** @description Where to transfer, for guests paying by bank transfer. */
-            bank?: {
-                bankName: string;
-                accountName: string;
-                accountNumber: string;
-            };
-            slips: {
-                amount: components["schemas"]["Money"];
-                /** @enum {string} */
-                status: "pending" | "accepted" | "rejected";
-                /** Format: date-time */
-                uploadedAt: string;
-            }[];
+            bank?: components["schemas"]["GuestBank"];
+            slips: components["schemas"]["GuestSlip"][];
+        };
+        /** @description Where to transfer, for guests paying by bank transfer. */
+        GuestBank: {
+            bankName: string;
+            accountName: string;
+            accountNumber: string;
+        };
+        GuestSlip: {
+            amount: components["schemas"]["Money"];
+            /** @enum {string} */
+            status: "pending" | "accepted" | "rejected";
+            /** Format: date-time */
+            uploadedAt: string;
         };
         GuestUploadRequest: {
             /** @enum {string} */

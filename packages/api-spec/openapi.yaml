@@ -2570,14 +2570,7 @@ components:
           type: array
           description: In display order; the first is the cover.
           items:
-            type: object
-            required: [url, caption]
-            properties:
-              url:
-                type: string
-                format: uri
-              caption:
-                type: string
+            $ref: "#/components/schemas/PublicPhoto"
         checkIn:
           $ref: "#/components/schemas/Clock"
         checkOut:
@@ -2595,73 +2588,98 @@ components:
         units:
           type: array
           items:
-            type: object
-            required: [id, name, sleeps, beds, linkedUnitIds]
-            properties:
-              id:
-                type: string
-                format: uuid
-              name:
-                type: string
-              sleeps:
-                type: integer
-              beds:
-                type: string
-              linkedUnitIds:
-                type: array
-                items:
-                  type: string
-                  format: uuid
+            $ref: "#/components/schemas/PublicUnit"
         extras:
           type: array
           description: Enabled extras only.
           items:
-            type: object
-            required: [id, name, price, per, onRequest]
-            properties:
-              id:
-                type: string
-                format: uuid
-              name:
-                type: string
-              price:
-                $ref: "#/components/schemas/Money"
-              per:
-                $ref: "#/components/schemas/ExtraPer"
-              onRequest:
-                type: boolean
+            $ref: "#/components/schemas/PublicExtra"
         rules:
           $ref: "#/components/schemas/StayRules"
         booking:
-          type: object
-          required: [mode, holdMinutes]
-          properties:
-            mode:
-              type: string
-              enum: [instant, request]
-            holdMinutes:
-              type: integer
+          $ref: "#/components/schemas/PublicBookingSettings"
         payments:
-          type: object
-          required: [bank, atProperty]
-          properties:
-            bank:
-              type: boolean
-              description: Guests can pay by bank transfer.
-            atProperty:
-              type: boolean
+          $ref: "#/components/schemas/PublicPayments"
         branding:
-          type: object
-          required: [color]
-          properties:
-            color:
-              type: string
-            logoUrl:
-              type: string
-              format: uri
+          $ref: "#/components/schemas/PublicBranding"
         takingBookings:
           type: boolean
           description: False when the property is paused or offers no way to pay.
+
+    PublicPhoto:
+      type: object
+      required: [url, caption]
+      properties:
+        url:
+          type: string
+          format: uri
+        caption:
+          type: string
+
+    PublicUnit:
+      type: object
+      required: [id, name, sleeps, beds, linkedUnitIds]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        sleeps:
+          type: integer
+        beds:
+          type: string
+        linkedUnitIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    PublicExtra:
+      type: object
+      required: [id, name, price, per, onRequest]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        price:
+          $ref: "#/components/schemas/Money"
+        per:
+          $ref: "#/components/schemas/ExtraPer"
+        onRequest:
+          type: boolean
+
+    PublicBookingSettings:
+      type: object
+      required: [mode, holdMinutes]
+      properties:
+        mode:
+          type: string
+          enum: [instant, request]
+        holdMinutes:
+          type: integer
+
+    PublicPayments:
+      type: object
+      required: [bank, atProperty]
+      properties:
+        bank:
+          type: boolean
+          description: Guests can pay by bank transfer.
+        atProperty:
+          type: boolean
+
+    PublicBranding:
+      type: object
+      required: [color]
+      properties:
+        color:
+          type: string
+        logoUrl:
+          type: string
+          format: uri
 
     Availability:
       type: object
@@ -2670,22 +2688,25 @@ components:
         units:
           type: array
           items:
-            type: object
-            required: [unitId, taken, closedArrival]
-            properties:
-              unitId:
-                type: string
-                format: uuid
-              taken:
-                type: array
-                description: Nights that can't be booked.
-                items:
-                  $ref: "#/components/schemas/Day"
-              closedArrival:
-                type: array
-                description: Days guests can't arrive on.
-                items:
-                  $ref: "#/components/schemas/Day"
+            $ref: "#/components/schemas/UnitAvailability"
+
+    UnitAvailability:
+      type: object
+      required: [unitId, taken, closedArrival]
+      properties:
+        unitId:
+          type: string
+          format: uuid
+        taken:
+          type: array
+          description: Nights that can't be booked.
+          items:
+            $ref: "#/components/schemas/Day"
+        closedArrival:
+          type: array
+          description: Days guests can't arrive on.
+          items:
+            $ref: "#/components/schemas/Day"
 
     PublicQuoteRequest:
       type: object
@@ -2854,30 +2875,36 @@ components:
           type: string
           format: date-time
         bank:
-          type: object
-          description: Where to transfer, for guests paying by bank transfer.
-          required: [bankName, accountName, accountNumber]
-          properties:
-            bankName:
-              type: string
-            accountName:
-              type: string
-            accountNumber:
-              type: string
+          $ref: "#/components/schemas/GuestBank"
         slips:
           type: array
           items:
-            type: object
-            required: [amount, status, uploadedAt]
-            properties:
-              amount:
-                $ref: "#/components/schemas/Money"
-              status:
-                type: string
-                enum: [pending, accepted, rejected]
-              uploadedAt:
-                type: string
-                format: date-time
+            $ref: "#/components/schemas/GuestSlip"
+
+    GuestBank:
+      type: object
+      description: Where to transfer, for guests paying by bank transfer.
+      required: [bankName, accountName, accountNumber]
+      properties:
+        bankName:
+          type: string
+        accountName:
+          type: string
+        accountNumber:
+          type: string
+
+    GuestSlip:
+      type: object
+      required: [amount, status, uploadedAt]
+      properties:
+        amount:
+          $ref: "#/components/schemas/Money"
+        status:
+          type: string
+          enum: [pending, accepted, rejected]
+        uploadedAt:
+          type: string
+          format: date-time
 
     GuestUploadRequest:
       type: object
