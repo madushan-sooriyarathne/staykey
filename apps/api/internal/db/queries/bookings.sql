@@ -27,11 +27,38 @@ UPDATE accounts SET booking_seq = booking_seq + 1 WHERE id = @account_id RETURNI
 -- name: InsertBooking :exec
 INSERT INTO bookings (id, account_id, property_id, unit_id, ref, source, status, guest_id, adults,
                       children, check_in, check_out, currency, total, guest_note, owner_note,
-                      request_expires_at, payment_due_at, promo_id, created_by)
+                      request_expires_at, payment_due_at, promo_id, created_by, feed_id,
+                      external_uid, payment_method, guest_token_hash)
 VALUES (@id, @account_id, @property_id, @unit_id, @ref, @source, @status, @guest_id, @adults,
         @children, @check_in, @check_out, @currency, @total, @guest_note, @owner_note,
         sqlc.narg('request_expires_at'), sqlc.narg('payment_due_at'), sqlc.narg('promo_id'),
-        sqlc.narg('created_by'));
+        sqlc.narg('created_by'), sqlc.narg('feed_id'), sqlc.narg('external_uid'),
+        sqlc.narg('payment_method'), sqlc.narg('guest_token_hash'));
+
+-- A stay as its guest sees it, found by id alone; the caller checks the guest's token against
+-- guest_token_hash.
+-- name: GetBookingForGuest :one
+SELECT sqlc.embed(b), g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
+       g.country AS guest_country, p.slug AS property_slug, p.name AS property_name,
+       p.check_in_time AS property_check_in, u.name AS unit_name
+FROM bookings b
+JOIN guests g ON g.id = b.guest_id
+JOIN properties p ON p.id = b.property_id
+JOIN units u ON u.id = b.unit_id
+WHERE b.id = @id AND b.guest_token_hash IS NOT NULL;
+
+-- Stays imported from a feed, with whether they hold their nights.
+-- name: ListFeedBookings :many
+SELECT b.id, b.external_uid, b.status, b.check_in, b.check_out, b.unit_id,
+       EXISTS (SELECT 1 FROM unit_nights un WHERE un.booking_id = b.id) AS holds_nights
+FROM bookings b
+WHERE b.feed_id = @feed_id AND b.account_id = @account_id;
+
+-- Uses one go of a promo code. No row back means it ran out since the guest was quoted.
+-- name: UsePromo :one
+UPDATE promos SET used_count = used_count + 1
+WHERE id = @id AND account_id = @account_id AND (usage_limit IS NULL OR used_count < usage_limit)
+RETURNING id;
 
 -- name: UpdateBooking :exec
 UPDATE bookings SET unit_id = @unit_id, source = @source, status = @status, adults = @adults,

@@ -67,7 +67,7 @@ func (q *Queries) FindGuest(ctx context.Context, arg FindGuestParams) (uuid.UUID
 }
 
 const getBooking = `-- name: GetBooking :one
-SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
+SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
        g.country AS guest_country
 FROM bookings b
 JOIN guests g ON g.id = b.guest_id
@@ -119,6 +119,8 @@ func (q *Queries) GetBooking(ctx context.Context, arg GetBookingParams) (GetBook
 		&i.Booking.Version,
 		&i.Booking.CreatedAt,
 		&i.Booking.UpdatedAt,
+		&i.Booking.GuestTokenHash,
+		&i.Booking.PaymentMethod,
 		&i.GuestName,
 		&i.GuestPhone,
 		&i.GuestEmail,
@@ -127,8 +129,79 @@ func (q *Queries) GetBooking(ctx context.Context, arg GetBookingParams) (GetBook
 	return i, err
 }
 
+const getBookingForGuest = `-- name: GetBookingForGuest :one
+SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
+       g.country AS guest_country, p.slug AS property_slug, p.name AS property_name,
+       p.check_in_time AS property_check_in, u.name AS unit_name
+FROM bookings b
+JOIN guests g ON g.id = b.guest_id
+JOIN properties p ON p.id = b.property_id
+JOIN units u ON u.id = b.unit_id
+WHERE b.id = $1 AND b.guest_token_hash IS NOT NULL
+`
+
+type GetBookingForGuestRow struct {
+	Booking         Booking
+	GuestName       string
+	GuestPhone      *string
+	GuestEmail      *string
+	GuestCountry    *string
+	PropertySlug    string
+	PropertyName    string
+	PropertyCheckIn string
+	UnitName        string
+}
+
+// A stay as its guest sees it, found by id alone; the caller checks the guest's token against
+// guest_token_hash.
+func (q *Queries) GetBookingForGuest(ctx context.Context, id uuid.UUID) (GetBookingForGuestRow, error) {
+	row := q.db.QueryRow(ctx, getBookingForGuest, id)
+	var i GetBookingForGuestRow
+	err := row.Scan(
+		&i.Booking.ID,
+		&i.Booking.AccountID,
+		&i.Booking.PropertyID,
+		&i.Booking.UnitID,
+		&i.Booking.Ref,
+		&i.Booking.Source,
+		&i.Booking.Status,
+		&i.Booking.GuestID,
+		&i.Booking.Adults,
+		&i.Booking.Children,
+		&i.Booking.CheckIn,
+		&i.Booking.CheckOut,
+		&i.Booking.Currency,
+		&i.Booking.Total,
+		&i.Booking.GuestNote,
+		&i.Booking.OwnerNote,
+		&i.Booking.RequestExpiresAt,
+		&i.Booking.HoldExpiresAt,
+		&i.Booking.PaymentDueAt,
+		&i.Booking.CancelReason,
+		&i.Booking.CancelledAt,
+		&i.Booking.ExternalUid,
+		&i.Booking.FeedID,
+		&i.Booking.PromoID,
+		&i.Booking.CreatedBy,
+		&i.Booking.Version,
+		&i.Booking.CreatedAt,
+		&i.Booking.UpdatedAt,
+		&i.Booking.GuestTokenHash,
+		&i.Booking.PaymentMethod,
+		&i.GuestName,
+		&i.GuestPhone,
+		&i.GuestEmail,
+		&i.GuestCountry,
+		&i.PropertySlug,
+		&i.PropertyName,
+		&i.PropertyCheckIn,
+		&i.UnitName,
+	)
+	return i, err
+}
+
 const getBookingForUpdate = `-- name: GetBookingForUpdate :one
-SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
+SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
        g.country AS guest_country
 FROM bookings b
 JOIN guests g ON g.id = b.guest_id
@@ -181,6 +254,8 @@ func (q *Queries) GetBookingForUpdate(ctx context.Context, arg GetBookingForUpda
 		&i.Booking.Version,
 		&i.Booking.CreatedAt,
 		&i.Booking.UpdatedAt,
+		&i.Booking.GuestTokenHash,
+		&i.Booking.PaymentMethod,
 		&i.GuestName,
 		&i.GuestPhone,
 		&i.GuestEmail,
@@ -223,11 +298,13 @@ func (q *Queries) GetSlipForUpdate(ctx context.Context, arg GetSlipForUpdatePara
 const insertBooking = `-- name: InsertBooking :exec
 INSERT INTO bookings (id, account_id, property_id, unit_id, ref, source, status, guest_id, adults,
                       children, check_in, check_out, currency, total, guest_note, owner_note,
-                      request_expires_at, payment_due_at, promo_id, created_by)
+                      request_expires_at, payment_due_at, promo_id, created_by, feed_id,
+                      external_uid, payment_method, guest_token_hash)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
         $10, $11, $12, $13, $14, $15, $16,
         $17, $18, $19,
-        $20)
+        $20, $21, $22,
+        $23, $24)
 `
 
 type InsertBookingParams struct {
@@ -251,6 +328,10 @@ type InsertBookingParams struct {
 	PaymentDueAt     *time.Time
 	PromoID          *uuid.UUID
 	CreatedBy        *uuid.UUID
+	FeedID           *uuid.UUID
+	ExternalUid      *string
+	PaymentMethod    *string
+	GuestTokenHash   []byte
 }
 
 func (q *Queries) InsertBooking(ctx context.Context, arg InsertBookingParams) error {
@@ -275,6 +356,10 @@ func (q *Queries) InsertBooking(ctx context.Context, arg InsertBookingParams) er
 		arg.PaymentDueAt,
 		arg.PromoID,
 		arg.CreatedBy,
+		arg.FeedID,
+		arg.ExternalUid,
+		arg.PaymentMethod,
+		arg.GuestTokenHash,
 	)
 	return err
 }
@@ -583,7 +668,7 @@ func (q *Queries) ListBookingLines(ctx context.Context, arg ListBookingLinesPara
 }
 
 const listBookings = `-- name: ListBookings :many
-SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
+SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
        g.country AS guest_country
 FROM bookings b
 JOIN guests g ON g.id = b.guest_id
@@ -662,10 +747,63 @@ func (q *Queries) ListBookings(ctx context.Context, arg ListBookingsParams) ([]L
 			&i.Booking.Version,
 			&i.Booking.CreatedAt,
 			&i.Booking.UpdatedAt,
+			&i.Booking.GuestTokenHash,
+			&i.Booking.PaymentMethod,
 			&i.GuestName,
 			&i.GuestPhone,
 			&i.GuestEmail,
 			&i.GuestCountry,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFeedBookings = `-- name: ListFeedBookings :many
+SELECT b.id, b.external_uid, b.status, b.check_in, b.check_out, b.unit_id,
+       EXISTS (SELECT 1 FROM unit_nights un WHERE un.booking_id = b.id) AS holds_nights
+FROM bookings b
+WHERE b.feed_id = $1 AND b.account_id = $2
+`
+
+type ListFeedBookingsParams struct {
+	FeedID    *uuid.UUID
+	AccountID uuid.UUID
+}
+
+type ListFeedBookingsRow struct {
+	ID          uuid.UUID
+	ExternalUid *string
+	Status      string
+	CheckIn     time.Time
+	CheckOut    time.Time
+	UnitID      uuid.UUID
+	HoldsNights bool
+}
+
+// Stays imported from a feed, with whether they hold their nights.
+func (q *Queries) ListFeedBookings(ctx context.Context, arg ListFeedBookingsParams) ([]ListFeedBookingsRow, error) {
+	rows, err := q.db.Query(ctx, listFeedBookings, arg.FeedID, arg.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFeedBookingsRow{}
+	for rows.Next() {
+		var i ListFeedBookingsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ExternalUid,
+			&i.Status,
+			&i.CheckIn,
+			&i.CheckOut,
+			&i.UnitID,
+			&i.HoldsNights,
 		); err != nil {
 			return nil, err
 		}
@@ -895,4 +1033,23 @@ func (q *Queries) UpdateGuest(ctx context.Context, arg UpdateGuestParams) error 
 		arg.AccountID,
 	)
 	return err
+}
+
+const usePromo = `-- name: UsePromo :one
+UPDATE promos SET used_count = used_count + 1
+WHERE id = $1 AND account_id = $2 AND (usage_limit IS NULL OR used_count < usage_limit)
+RETURNING id
+`
+
+type UsePromoParams struct {
+	ID        uuid.UUID
+	AccountID uuid.UUID
+}
+
+// Uses one go of a promo code. No row back means it ran out since the guest was quoted.
+func (q *Queries) UsePromo(ctx context.Context, arg UsePromoParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, usePromo, arg.ID, arg.AccountID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
