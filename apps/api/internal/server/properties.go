@@ -206,26 +206,6 @@ func propertyNotFound() oapi.NotFoundJSONResponse {
 	return oapi.NotFoundJSONResponse(errBody("property_not_found", "That property doesn't exist in this account."))
 }
 
-// GetPublicProperty returns what a guest sees on a booking page.
-func (s *Server) GetPublicProperty(ctx context.Context, req oapi.GetPublicPropertyRequestObject) (oapi.GetPublicPropertyResponseObject, error) {
-	p, err := s.store.GetPropertyBySlug(ctx, req.Slug)
-	if errors.Is(err, domain.ErrNotFound) {
-		return oapi.GetPublicProperty404JSONResponse{NotFoundJSONResponse: oapi.NotFoundJSONResponse(
-			errBody("not_found", "There is no booking page at this address."))}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return oapi.GetPublicProperty200JSONResponse{
-		Slug:        p.Slug,
-		Name:        p.Name,
-		BookingType: oapi.BookingType(p.BookingType),
-		Location:    optional(p.Location),
-		Currency:    oapi.Currency(p.Currency),
-		BaseRate:    p.BaseRateMinor,
-	}, nil
-}
-
 func (s *Server) bookingPageURL(slug string) string {
 	return s.opts.BookingScheme + "://" + slug + "." + s.opts.BookingDomain
 }

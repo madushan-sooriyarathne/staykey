@@ -55,26 +55,7 @@ func (s *Server) CreateQuote(ctx context.Context, req oapi.CreateQuoteRequestObj
 		Extras: derefSlice(b.Extras), Promo: deref(b.Promo),
 	}, overrides)
 
-	out := oapi.Quote{
-		Nights:    q.Nights,
-		Lines:     linesToAPI(q.Lines),
-		Total:     q.Total,
-		Currency:  oapi.Currency(p.Currency),
-		MinNights: pricing.MinNights(p, b.UnitId, from, overrides),
-		Deposit:   pricing.Deposit(p, q.Total),
-	}
-	for _, n := range q.Nightly {
-		out.Nightly = append(out.Nightly, struct {
-			Night oapi.Day   `json:"night"`
-			Price oapi.Money `json:"price"`
-		}{day(n.Night), n.Price})
-	}
-	if out.Nightly == nil {
-		out.Nightly = []struct {
-			Night oapi.Day   `json:"night"`
-			Price oapi.Money `json:"price"`
-		}{}
-	}
+	out := quoteToAPI(p, q, pricing.MinNights(p, b.UnitId, from, overrides))
 	return oapi.CreateQuote200JSONResponse(out), nil
 }
 
@@ -535,6 +516,10 @@ func (s *Server) stayToAPI(ctx context.Context, b domain.Booking, money bool) oa
 	for i, e := range b.Extras {
 		out.Extras[i] = e.ExtraID
 	}
+	if b.PaymentMethod != "" {
+		method := oapi.GuestPaymentMethod(b.PaymentMethod)
+		out.PaymentMethod = &method
+	}
 	if b.CancelledAt != nil {
 		out.Cancel = &struct {
 			At     time.Time `json:"at"`
@@ -558,6 +543,25 @@ func (s *Server) stayToAPI(ctx context.Context, b domain.Booking, money bool) oa
 	}
 	out.Total, out.Paid, out.Balance = &b.Total, &paid, &balance
 	out.Lines, out.Payments, out.Slips = &lines, &payments, &slips
+	return out
+}
+
+func quoteToAPI(p domain.PropertyDetail, q pricing.Quote, minNights int) oapi.Quote {
+	out := oapi.Quote{
+		Nights:    q.Nights,
+		Lines:     linesToAPI(q.Lines),
+		Total:     q.Total,
+		Currency:  oapi.Currency(p.Currency),
+		MinNights: minNights,
+		Deposit:   pricing.Deposit(p, q.Total),
+		Nightly: make([]struct {
+			Night oapi.Day   `json:"night"`
+			Price oapi.Money `json:"price"`
+		}, len(q.Nightly)),
+	}
+	for i, n := range q.Nightly {
+		out.Nightly[i].Night, out.Nightly[i].Price = day(n.Night), n.Price
+	}
 	return out
 }
 

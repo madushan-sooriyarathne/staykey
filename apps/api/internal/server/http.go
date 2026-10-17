@@ -19,7 +19,7 @@ func (s *Server) Handler() http.Handler {
 		},
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			if !writeAPIError(w, err) {
-				s.log.Error("request failed", "method", r.Method, "path", r.URL.Path, "error", err)
+				s.log.Error("request failed", "method", r.Method, "path", r.Pattern, "error", err)
 			}
 		},
 	})
@@ -77,9 +77,14 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
+		path := r.URL.Path
+		if strings.HasPrefix(path, "/ical/") {
+			// The file name carries the export token.
+			path = "/ical/{file}"
+		}
 		s.log.LogAttrs(r.Context(), slog.LevelInfo, "request",
 			slog.String("method", r.Method),
-			slog.String("path", r.URL.Path),
+			slog.String("path", path),
 			slog.Int("status", rec.status),
 			slog.Duration("duration", time.Since(start)),
 		)
