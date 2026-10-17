@@ -16,7 +16,7 @@ In scope:
 - Background jobs for request expiry, unpaid cancellations, iCal sync and notifications.
 - Moving every app screen from `apps/mobile/src/data/store.ts` to the API.
 
-Out of scope for now: the Next.js dashboard (V1.1), a channel manager, card payments beyond the PayHere connection request, and multi-currency settlement.
+Out of scope for now: the Next.js dashboard (V1.1), a channel manager, guest card payments, and multi-currency settlement.
 
 ## Key decisions
 

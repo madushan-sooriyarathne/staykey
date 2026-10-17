@@ -30,7 +30,7 @@ I'm continuing StayKey (staykey.direct), a direct booking SaaS for small Sri Lan
   | Guesthouse | up to 6 | $19 | $190 |
   | Collection | up to 20 | $39 | $390 |
 
-  Free until the first direct booking, capped at 60 days, then a 7-day grace period. A lapsed subscription turns the booking page into "message the owner on WhatsApp". Billing runs through RevenueCat (in-app) and PayHere (web).
+  Free until the first direct booking, capped at 60 days, then a 7-day grace period. A lapsed subscription turns the booking page into "message the owner on WhatsApp". Billing runs through RevenueCat (in-app) and Payments.lk (web).
 - **Booking state machine:** requested → awaiting_payment → confirmed → checked_in → checked_out, plus cancelled and declined.
 - **Roles:** owner, manager, caretaker. Caretakers see Today and bookings for their assigned properties only.
 
@@ -222,7 +222,7 @@ All of these pass at the latest commit (32 app tests; 176 Go tests, most of them
 
 Everything left before launch is in `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`. Phase 5 followed `docs/phase-5-plan.md`.
 
-Phase 6 is billing and hardening: RevenueCat and PayHere, the free period (phase 5 doesn't set `accounts.first_direct_booking_at`; backfill it from bookings with source `page` or `widget`), the lapsed booking page ("message the owner on WhatsApp"; `takingBookings` already reads `properties.status`, so pausing only has to write it), row-level security, and rate limits. Public holds and bookings have no rate limits yet, so a script could hold a property's free nights 15 minutes at a time; the booking app should forward the guest's address for those limits.
+Phase 6 is billing and hardening, planned in `docs/phase-6-plan.md`: RevenueCat and Payments.lk (PayHere is dropped), the free period (phase 5 doesn't set `accounts.first_direct_booking_at`; backfill it from bookings with source `page` or `widget`), the lapsed booking page ("message the owner on WhatsApp"; `takingBookings` already reads `properties.status`, so pausing only has to write it), row-level security, and rate limits. Public holds and bookings have no rate limits yet, so a script could hold a property's free nights 15 minutes at a time; the booking app should forward the guest's address for those limits.
 
 **Phase 5 gate status: done locally.** With the seeded API: a served Airbnb-style feed pointed at the villa's Airbnb link and "Sync now" were read within a minute ("Synced, 1 upcoming stay", Activity "Airbnb calendar connected, 1 stay imported") and the nights showed as taken in the booking page's availability. A second event added to the file came in on the next scheduled read, ten minutes later, with an "Airbnb stay imported" line. `TestAnAirbnbStayClosesItsNightsAfterOneImport` covers the same below the app. In Chromium against the booking app: free dates were held, booked with bank transfer, the stay page showed the ref, bank details and deadline, a slip uploaded, and the owner's Activity listed "New direct booking from Sam Lee" and the slip; a second browser that had the same dates open got "Those dates were just taken". The widget's card opened the page with its dates and `from=widget`. The export lists the seeded stays as "Booked" with no guest names. A real Airbnb link waits for hosting, since Airbnb has to reach the API.
 
