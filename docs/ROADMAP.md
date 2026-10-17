@@ -33,7 +33,7 @@ The shortest route to a first paying owner is phase 5 and the billing half of ph
 - [x] App: Team, Join, Activity, Templates, Notifications and Profile on the API; the on-device store goes away (Insights already reads stays from the API)
 - [x] **Gate:** a caretaker joins by link and alerts arrive (checked in a browser and against Expo's push service; a push on a real phone waits for the EAS project below)
 
-### Phase 5 Calendar sync and booking page
+### Phase 5 Calendar sync and booking page (next, see `docs/phase-5-plan.md`)
 
 - [ ] iCal import worker every 15 minutes with backoff, ETags and real feed status
 - [ ] iCal export at `GET /ical/{slug}-{token}.ics`

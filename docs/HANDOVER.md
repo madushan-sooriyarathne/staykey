@@ -189,7 +189,7 @@ All of these pass at the latest commit (32 app tests; 111 Go tests, most of them
 
 ## 6. Next step: phase 5
 
-Everything left before launch is in `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`. Phase 4 followed `docs/phase-4-plan.md`.
+Everything left before launch is in `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`. Phase 4 followed `docs/phase-4-plan.md`; phase 5's execution plan is `docs/phase-5-plan.md`.
 
 Phase 5 adds the iCal import and export workers and the public routes; the booking page's holds use `unit_nights.hold_expires_at`, which the `sweep_expired` job already clears, and slips upload with `files.KindSlip`. Requests and slips from the booking page should write activity through the existing builders (`domain.BookingAdded` already writes "Request from ..." for a requested stay; add one for a slip upload), and the iCal worker's failures belong in activity as `sync` items so the alerts reach the team.
 
