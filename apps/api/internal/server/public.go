@@ -1,6 +1,7 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -58,10 +59,18 @@ func (s *Server) GetPublicProperty(ctx context.Context, req oapi.GetPublicProper
 			MinNights: p.Rules.MinNights, MaxNights: p.Rules.MaxNights, SameDayCutoff: p.Rules.SameDayCutoff,
 			WindowMonths: p.Rules.WindowMonths, ClosedArrival: nonNil(p.Rules.ClosedArrival),
 		},
-		Booking:        oapi.PublicBookingSettings{Mode: oapi.PublicBookingSettingsMode(p.Booking.Mode), HoldMinutes: p.Booking.HoldMinutes},
-		Payments:       oapi.PublicPayments{Bank: p.Payments.Bank.Enabled, AtProperty: p.Payments.AtProperty},
-		Branding:       oapi.PublicBranding{Color: p.Branding.Color},
-		TakingBookings: takingBookings(p),
+		Booking:  oapi.PublicBookingSettings{Mode: oapi.PublicBookingSettingsMode(p.Booking.Mode), HoldMinutes: p.Booking.HoldMinutes},
+		Payments: oapi.PublicPayments{Bank: p.Payments.Bank.Enabled, AtProperty: p.Payments.AtProperty},
+		Branding: oapi.PublicBranding{Color: p.Branding.Color},
+	}
+	reason, whatsapp, err := s.pausedReason(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	out.TakingBookings = reason == ""
+	if reason != "" {
+		out.PausedReason = &reason
+		out.Whatsapp = optional(whatsapp)
 	}
 	for i, ph := range p.Photos {
 		out.Photos[i] = oapi.PublicPhoto{Url: s.files.URL(ctx, ph.Key), Caption: ph.Caption}
@@ -165,8 +174,8 @@ func (s *Server) CreateHold(ctx context.Context, req oapi.CreateHoldRequestObjec
 	if err != nil {
 		return nil, err
 	}
-	if !takingBookings(p) {
-		return nil, errPaused
+	if reason, _, err := s.pausedReason(ctx, p); err != nil || reason != "" {
+		return nil, cmp.Or(err, error(errPaused))
 	}
 	in := domain.StayInput{UnitID: b.UnitId, CheckIn: b.CheckIn.Time, CheckOut: b.CheckOut.Time}
 	now := time.Now()
@@ -195,8 +204,8 @@ func (s *Server) CreateGuestBooking(ctx context.Context, req oapi.CreateGuestBoo
 	if err != nil {
 		return nil, err
 	}
-	if !takingBookings(p) {
-		return nil, errPaused
+	if reason, _, err := s.pausedReason(ctx, p); err != nil || reason != "" {
+		return nil, cmp.Or(err, error(errPaused))
 	}
 	in := domain.StayInput{
 		UnitID: b.UnitId, CheckIn: b.CheckIn.Time, CheckOut: b.CheckOut.Time, Adults: b.Adults,
@@ -440,10 +449,23 @@ func guestErr(err error) error {
 	return apiErr(err, "")
 }
 
-// takingBookings reports whether guests can book: the property isn't paused and offers a way
-// to pay. Cards wait for PayHere.
-func takingBookings(p domain.PropertyDetail) bool {
-	return p.Status != "paused" && (p.Payments.Bank.Enabled || p.Payments.AtProperty)
+// pausedReason says why the booking page isn't taking stays, or "" when it is. A lapsed plan
+// comes first, since the page then offers the owner's WhatsApp number, which is returned with
+// it and only then.
+func (s *Server) pausedReason(ctx context.Context, p domain.PropertyDetail) (oapi.PublicPropertyPausedReason, string, error) {
+	b, err := s.store.AccountBilling(ctx, p.AccountID, time.Now())
+	if err != nil {
+		return "", "", fmt.Errorf("account billing: %w", err)
+	}
+	switch {
+	case !domain.TakesBookings(b.Status):
+		return oapi.PublicPropertyPausedReasonLapsed, b.OwnerPhone, nil
+	case p.Status == "paused":
+		return oapi.PublicPropertyPausedReasonPaused, "", nil
+	case !p.Payments.Bank.Enabled && !p.Payments.AtProperty:
+		return oapi.PublicPropertyPausedReasonNoPaymentMethod, "", nil
+	}
+	return "", "", nil
 }
 
 func takesSlips(s domain.BookingStatus) bool {
