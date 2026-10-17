@@ -811,6 +811,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/public/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Plans and their web prices
+         * @description Web prices are in LKR, the only currency Payments.lk takes. App Store and Google Play
+         *     prices are set in the stores.
+         */
+        get: operations["listPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/public/invites/preview": {
         parameters: {
             query?: never;
@@ -2120,6 +2141,20 @@ export interface components {
              *     from the web billing page while one runs.
              */
             canPurchase: boolean;
+        };
+        PlanList: {
+            items: components["schemas"]["Plan"][];
+        };
+        Plan: {
+            id: components["schemas"]["PlanId"];
+            name: string;
+            /** @description The most bookable units the plan is meant for. */
+            units: number;
+            currency: components["schemas"]["Currency"];
+            /** Format: int64 */
+            monthly: number;
+            /** Format: int64 */
+            yearly: number;
         };
         CheckoutRequest: {
             plan: components["schemas"]["PlanId"];
@@ -3492,6 +3527,27 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plans, smallest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanList"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     previewInvite: {
