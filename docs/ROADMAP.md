@@ -1,6 +1,6 @@
 # StayKey roadmap to launch
 
-As of 17 Oct 2026. Phases 1 to 5 are done and phase 6 Billing and hardening is built, with its gate waiting for sandbox accounts. Sign-in codes reach Sri Lankan numbers through oZone Sender. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
+As of 17 Oct 2026. Phases 1 to 5 are done and phase 6 Billing and hardening is built, with its gate waiting for sandbox accounts. Sign-in codes reach Sri Lankan numbers through oZone Sender. Phases 7 to 12 are next, in order: the gaps noted in the handover, email through AWS SES, guest card payments through Payments.lk, the marketing site, error tracking, then end-to-end and load tests. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
 
 The shortest route to a first paying owner is now the accounts in section 2: Payments.lk, RevenueCat and the stores, then hosting.
 
@@ -29,7 +29,7 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [x] Message templates (four defaults per account) and notification preferences
 - [x] Expo push tokens, push fan-out and the 7:00 morning summary
 - [x] WhatsApp Cloud API sender for team alerts (log sender until the Business number is registered)
-- [ ] Email sender, once an email provider is chosen (not needed for the phase 4 gate)
+- [ ] Email sender (moved to phase 8, AWS SES)
 - [x] App: Team, Join, Activity, Templates, Notifications and Profile on the API; the on-device store goes away (Insights already reads stays from the API)
 - [x] **Gate:** a caretaker joins by link and alerts arrive (checked in a browser and against Expo's push service; a push on a real phone waits for the EAS project below)
 
@@ -39,7 +39,7 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [x] iCal export at `GET /ical/{slug}-{token}.ics`, per unit with `?unit=`
 - [x] Public API: property, availability, quote, holds, bookings, slip upload
 - [x] Booking page and widget (`apps/booking`, `packages/widget`) on live data, with guest checkout and holds
-- [ ] Guest emails (confirmation, payment reminders), once an email provider is chosen
+- [ ] Guest emails, confirmation and payment reminders (moved to phase 8, AWS SES)
 - [x] **Gate:** an Airbnb stay closes the booking page within 15 minutes (checked locally against a served feed; a real Airbnb link waits for hosting)
 
 ### Phase 6 Billing and hardening (built, see `docs/phase-6-plan.md`)
@@ -52,6 +52,53 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [x] Rate limits on public and owner routes (holds and guest bookings included, with the booking app forwarding the guest's address), backups with a tested restore (`bun run db:backup-check`)
 - [x] App: paywall on real purchases, Subscription screen, prototype tools in development builds only
 - [ ] **Gate:** a real purchase ends the free period (checked locally with a stand-in Payments.lk; a StoreKit or Play sandbox purchase and a Payments.lk sandbox payment wait for the accounts below)
+
+### Phase 7 Gaps noted in the handover (next)
+
+- [ ] Account deletion and a data export for owners, as Sri Lanka's Personal Data Protection Act expects; guests' details removable on request
+- [ ] Refund method picker on the cancel screen (refunds go back by the guest's last payment method today)
+- [ ] Account rename
+- [ ] Profile photo uploaded to the server instead of kept on the phone
+- [ ] Invite links as universal links and Android app links, once `staykey.direct` is live (they go through a marketing page today)
+- [ ] **Gate:** an owner renames the account, changes their photo on one phone and sees it on another, and deletes a test account with nothing of it left in the database or the bucket
+
+### Phase 8 Email through AWS SES
+
+- [ ] SES sender in `internal/notify`, with the sending domain verified (SPF, DKIM, DMARC) and out of the SES sandbox
+- [ ] Bounces and complaints from SES (through SNS) stop sending to that address
+- [ ] Guest emails: booking confirmed, payment reminder before the deadline, request answered, built from the account's message templates
+- [ ] Email as an alert channel for the team, beside push and WhatsApp
+- [ ] **Gate:** a guest who books on the page gets the confirmation email, and a bounced address is not emailed again
+
+### Phase 9 Guest card payments through Payments.lk
+
+- [ ] Decide how owners are paid: each owner's own Payments.lk merchant account (keys stored encrypted, the default) or StayKey collecting and paying out
+- [ ] Card payments setting per property (`cards_status`: off, pending, on), switched on only once the owner's Payments.lk account is connected and verified
+- [ ] Booking page checkout by card for the deposit or the full amount, through a Payments.lk hosted checkout
+- [ ] Payments.lk webhooks record the payment on the booking and move it to confirmed, once per event
+- [ ] Refunds by card through Payments.lk's refunds API from the cancel screen
+- [ ] **Gate:** a sandbox card payment on the booking page confirms the stay, and a cancellation refunds it
+
+### Phase 10 Marketing site
+
+- [ ] Pricing from `GET /v1/public/plans`, features, how it works, and links to the App Store and Google Play
+- [ ] Support contact, and terms of service and privacy policy pages
+- [ ] Metadata, sitemap and social images for search and sharing
+- [ ] **Gate:** a visitor finds the price, installs the app and reaches support from the site
+
+### Phase 11 Error tracking
+
+- [ ] Error tracking in the API, booking app, marketing site and owner app (Sentry by default), with releases and no personal data in reports
+- [ ] Uptime monitoring for the API, booking pages and marketing site, with alerts to the owner of StayKey
+- [ ] Log retention and search for the API
+- [ ] **Gate:** an error thrown on purpose in each surface shows up with its release, and stopping the API raises an alert
+
+### Phase 12 End-to-end and load tests
+
+- [ ] Playwright on web against a seeded API: booking page, checkout, stay page and slip, widget, web billing; run in CI
+- [ ] Maestro flows on iOS and Android: sign-in, onboarding, new booking, approve a request, record a payment
+- [ ] Load test booking creation and the public availability route, with targets and results in the repo
+- [ ] **Gate:** both suites pass in CI, and the load test meets its targets on the production setup
 
 ## 2. Accounts and decisions (owner)
 
@@ -66,21 +113,18 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [ ] RevenueCat project linked to App Store Connect and Google Play subscriptions, with products `staykey_<villa|guesthouse|collection>_<monthly|yearly>`, one `staykey` entitlement, and a webhook to `/webhooks/revenuecat`
 - [ ] Apple Developer and Google Play Console accounts
 - [ ] DNS for `staykey.direct` with wildcard subdomains for booking pages, plus `api`, `cdn` and `app`
-- [ ] Email sending domain and provider
+- [ ] AWS account with SES: the sending domain verified and production access (out of the sandbox), for phase 8
+- [ ] Error tracking and uptime provider (Sentry and a monitor by default), for phase 11
 - [x] GitHub repository
 - [ ] CI green on `main` (`.github/workflows/ci.yml`)
 
 ## 3. Launch readiness
 
 - [ ] Sign in on a real phone (the open phase 1 check; possible now with `STAYKEY_SMS_PROVIDER=ozone`)
-- [ ] End-to-end tests: Playwright on web against a seeded API, Maestro on iOS and Android
-- [ ] Load test booking creation and the public availability route
-- [ ] Error tracking, uptime monitoring and log retention
 - [ ] Production secrets set: `STAYKEY_AUTH_SECRET`, `STAYKEY_DATA_KEY`, `STAYKEY_SMS_PROVIDER` with the `STAYKEY_OZONE_*` credentials, the R2 keys. Keep a safe copy of the data key, since losing it makes stored bank details unreadable
 - [ ] EAS builds for iOS and Android, store listings, screenshots, app privacy details
 - [ ] A reviewer test account with a working sign-in for Apple and Google review
 - [ ] Terms of service and privacy policy, reviewed against Sri Lanka's Personal Data Protection Act
-- [ ] Marketing site: pricing, signup links, support contact
 - [ ] Support channel and a plan for onboarding the first owners
 
 ## After launch (not needed to go live)
