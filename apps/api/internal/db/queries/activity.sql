@@ -80,3 +80,9 @@ DELETE FROM push_tokens WHERE token = ANY (@tokens::text[]);
 
 -- name: SkipPendingAlerts :exec
 UPDATE activity SET notified_at = @now::timestamptz WHERE account_id = @account_id AND notified_at IS NULL;
+
+-- Whether a stay already has activity of a kind, so an alert is written once.
+-- name: HasActivity :one
+SELECT EXISTS (
+    SELECT 1 FROM activity WHERE account_id = @account_id AND booking_id = @booking_id AND kind = @kind
+);
