@@ -151,6 +151,8 @@ Built:
 How the app gets its data today: sign-in, accounts, properties, every property setting, bookings, payments, blocks and rate overrides go through the API, with tokens in the secure store and server data through TanStack Query, cached on the device for offline reads (`apps/mobile/src/api`). So do the team, activity, templates, alert preferences and the profile; there is no on-device data store any more. The app keeps its own copy of the pricing rules for instant previews; the server's total is the one stored. In development builds More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
 
 Next (the full checklist to launch is `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`):
+- Phase 7: the gaps noted in the handover (account deletion and data export, refund method picker, account rename, profile photo upload, universal links for invites)
+- Then email through AWS SES, guest card payments through Payments.lk, the marketing site, error tracking, and end-to-end and load tests
 - The phase 6 gate: a sandbox purchase in the stores and a Payments.lk sandbox payment, once those accounts exist
 - An international SMS gateway, hosting and the store submissions
 
