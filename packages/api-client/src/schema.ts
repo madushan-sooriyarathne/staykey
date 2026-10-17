@@ -1910,7 +1910,7 @@ export interface components {
         };
         ConflictError: {
             /** @enum {string} */
-            code: "dates_taken" | "stale" | "bad_status";
+            code: "dates_taken" | "stale" | "bad_status" | "already_subscribed";
             message: string;
             clash?: components["schemas"]["Clash"];
         };
@@ -2116,8 +2116,8 @@ export interface components {
             units: number;
             fits: components["schemas"]["PlanId"];
             /**
-             * @description True for owners unless a plan bought elsewhere still gives access: an App Store or
-             *     Google Play plan for the web, or a web period for the app.
+             * @description True for owners while no paid plan gives access. A web period can still be extended
+             *     from the web billing page while one runs.
              */
             canPurchase: boolean;
         };
