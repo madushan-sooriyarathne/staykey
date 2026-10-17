@@ -1522,7 +1522,10 @@ export interface components {
             /** @description Send as X-Booking-Token to see the booking again. Shown once. */
             token: string;
         };
-        /** @description A booking as its guest sees it. */
+        /**
+         * @description A booking as its guest sees it. It leaves out the guest record, which may be one the
+         *     owner already had for that phone number.
+         */
         GuestBooking: {
             /** Format: uuid */
             id: string;
@@ -1532,7 +1535,6 @@ export interface components {
             propertySlug: components["schemas"]["Slug"];
             propertyCheckIn: components["schemas"]["Clock"];
             unitName: string;
-            guestName: string;
             checkIn: components["schemas"]["Day"];
             checkOut: components["schemas"]["Day"];
             adults: number;
@@ -2031,8 +2033,9 @@ export interface components {
             };
         };
         /**
-         * @description The nights are taken (code dates_taken), the hold lapsed (hold_expired), or the property
-         *     isn't taking bookings (not_taking_bookings). Nothing about other stays is included.
+         * @description The nights are taken (code dates_taken), the property isn't taking bookings
+         *     (not_taking_bookings), or the stay takes no more slips (bad_status). Nothing about other
+         *     stays is included.
          */
         PublicConflict: {
             headers: {
