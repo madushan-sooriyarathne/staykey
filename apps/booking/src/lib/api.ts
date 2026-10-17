@@ -2,6 +2,7 @@ import "server-only";
 import {
   type Availability,
   createStayKeyClient,
+  forwardVisitor,
   type GuestBooking,
   type GuestBookingCreated,
   type GuestBookingRequest,
@@ -10,10 +11,12 @@ import {
   type PublicQuoteRequest,
   type Quote,
 } from "@staykey/api-client";
+import { visitorAddress } from "./visitor";
 
 // The booking app is the only caller: guests' browsers never reach the API, so its address
-// stays private.
+// stays private. The guest's address goes along, so rate limits count guests and not this app.
 const api = createStayKeyClient(process.env.STAYKEY_API_URL ?? "http://localhost:8080");
+api.use(forwardVisitor(process.env.STAYKEY_FORWARD_SECRET, visitorAddress));
 
 /** What went wrong with a guest's request, in words for the guest. */
 export type Problem = { message: string; field?: string; code?: string };

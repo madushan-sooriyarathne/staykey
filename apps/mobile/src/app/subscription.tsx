@@ -1,3 +1,4 @@
+import type { Subscription } from "@staykey/api-client";
 import { colors, radius } from "@staykey/tokens";
 import { router } from "expo-router";
 import { useEffect } from "react";
@@ -9,41 +10,79 @@ import Animated, {
   withDelay,
   withTiming,
 } from "react-native-reanimated";
+import { useSubscription } from "@/api/subscription";
 import { useTeam } from "@/api/team";
 import { Tag } from "@/components/brand";
 import { Button } from "@/components/controls";
 import { Glow } from "@/components/glow";
 import { Appear, Card, KV, List, ListRow, Page, ui } from "@/components/kit";
 import { font } from "@/components/ui";
-import { addDays, formatDay, nightsBetween, today, toISO } from "@/data/dates";
+import { formatDay, toISO } from "@/data/dates";
 import { useProperties } from "@/data/hooks";
 import { plural } from "@/data/labels";
-import { physicalUnits } from "@/data/pricing";
-import { PLANS, planFor, priceLabel, STORE_NAME } from "@/lib/purchases";
-import { useSession } from "@/lib/session";
+import { PLANS, priceLabel, STORE_NAME } from "@/lib/purchases";
 
-const TRIAL_DAYS = 60;
+const DAY = 24 * 60 * 60 * 1000;
+const FREE_DAYS = 60;
 
-/** Plan or free-period status, usage against the plan, payment method and billing history. */
-export default function Subscription() {
-  const { subscription, startedAt } = useSession();
+const day = (iso: string) => formatDay(toISO(new Date(iso)));
+
+/** The headline and the line under it, from the server's view of the plan. */
+function describe(sub: Subscription | undefined): { title: string; line: string } {
+  const plan = PLANS.find((p) => p.id === sub?.plan);
+  switch (sub?.status) {
+    case "active":
+      if (sub.source === "web")
+        return { title: plan?.name ?? "Your plan", line: `Paid until ${day(sub.until)}` };
+      return {
+        title: plan?.name ?? "Your plan",
+        line:
+          plan && sub.period
+            ? `${priceLabel(plan, sub.period)}, ${plan.unitsLabel.toLowerCase()}`
+            : "",
+      };
+    case "grace":
+      return {
+        title: "Choose a plan",
+        line: `Your booking page stays open until ${day(sub.until)}`,
+      };
+    case "lapsed":
+      return {
+        title: "Booking page paused",
+        line: "Guests are asked to message you on WhatsApp until you choose a plan",
+      };
+    case "trial":
+      return {
+        title: "Free until your first direct booking",
+        line: `${plural(Math.max(0, Math.ceil((Date.parse(sub.until) - Date.now()) / DAY)), "day")} left at most, until ${day(sub.until)}`,
+      };
+    default:
+      return { title: "Your plan", line: "" };
+  }
+}
+
+/** Plan or free-period status and usage against the plan, as the server sees them. */
+export default function SubscriptionScreen() {
+  const sub = useSubscription().data;
   const properties = useProperties();
   const team = useTeam().members;
-  const units = properties.reduce((n, p) => n + physicalUnits(p).length, 0);
-  const plan =
-    subscription.status === "active" ? PLANS.find((p) => p.id === subscription.plan) : undefined;
-  const fit = planFor(units);
-  const start = startedAt ? toISO(new Date(startedAt)) : today();
-  const ends = addDays(start, TRIAL_DAYS);
-  const used = Math.min(TRIAL_DAYS, Math.max(0, nightsBetween(start, today())));
+  const plan = PLANS.find((p) => p.id === sub?.plan);
+  const fit = PLANS.find((p) => p.id === sub?.fits);
+  const store = sub?.status === "active" && sub.source !== "web";
+  const web = sub?.status === "active" && sub.source === "web";
+  const { title, line } = describe(sub);
+  const used =
+    sub?.status === "trial"
+      ? Math.min(1, Math.max(0, 1 - (Date.parse(sub.until) - Date.now()) / (FREE_DAYS * DAY)))
+      : 1;
   const progress = useSharedValue(0);
 
   useEffect(() => {
     progress.value = withDelay(
       250,
-      withTiming(plan ? 1 : used / TRIAL_DAYS, { duration: 700, easing: Easing.out(Easing.cubic) }),
+      withTiming(used, { duration: 700, easing: Easing.out(Easing.cubic) }),
     );
-  }, [plan, used, progress]);
+  }, [used, progress]);
   const bar = useAnimatedStyle(() => ({ width: `${Math.max(0.03, progress.value) * 100}%` }));
 
   return (
@@ -51,28 +90,29 @@ export default function Subscription() {
       <Appear index={0} style={s.dark}>
         <Glow size={260} style={{ right: -110, top: -120 }} intensity={0.8} />
         <Text style={s.darkFaint}>Your plan</Text>
-        <Text style={s.darkTitle}>{plan ? plan.name : "Free until your first direct booking"}</Text>
-        <Text style={s.darkFaint}>
-          {plan && subscription.status === "active"
-            ? `${priceLabel(plan, subscription.period)}, ${plan.unitsLabel.toLowerCase()}`
-            : `${plural(TRIAL_DAYS - used, "day")} left at most, until ${formatDay(ends)}`}
-        </Text>
+        <Text style={s.darkTitle}>{title}</Text>
+        {line ? <Text style={s.darkFaint}>{line}</Text> : null}
         <View style={s.track}>
           <Animated.View style={[s.fill, bar]} />
         </View>
-        <Button
-          variant="light"
-          compact
-          title={plan ? "Change plan" : "Choose a plan"}
-          onPress={() => router.push("/paywall")}
-          testID="subscription-choose"
-        />
+        {web ? null : (
+          <Button
+            variant="light"
+            compact
+            title={store ? "Change plan" : "Choose a plan"}
+            onPress={() => router.push("/paywall")}
+            testID="subscription-choose"
+          />
+        )}
       </Appear>
 
       <Appear index={1}>
-        <Card title="Usage" meta={<Tag tone="soft" label={`Fits ${fit.name}`} />}>
+        <Card title="Usage" meta={fit ? <Tag tone="soft" label={`Fits ${fit.name}`} /> : undefined}>
           <KV label="Properties" value={String(properties.length)} />
-          <KV label="Bookable units" value={`${units}${plan ? ` of ${plan.units}` : ""}`} />
+          <KV
+            label="Bookable units"
+            value={`${sub?.units ?? 0}${plan && sub?.status === "active" ? ` of ${plan.units}` : ""}`}
+          />
           <KV label="Team members" value={String(team.length)} />
         </Card>
       </Appear>
@@ -81,9 +121,11 @@ export default function Subscription() {
         <List>
           <ListRow
             title="Payment method"
-            subtitle={plan ? `Billed through ${STORE_NAME}` : "Not added"}
+            subtitle={
+              store ? `Billed through ${STORE_NAME}` : web ? "Paid on the web" : "Not added"
+            }
             onPress={
-              plan
+              store
                 ? () =>
                     Linking.openURL(
                       Platform.OS === "android"
@@ -91,14 +133,6 @@ export default function Subscription() {
                         : "https://apps.apple.com/account/subscriptions",
                     )
                 : undefined
-            }
-          />
-          <ListRow
-            title="Billing history"
-            subtitle={
-              plan && subscription.status === "active"
-                ? `Paid ${priceLabel(plan, subscription.period).split("/")[0]} on ${formatDay(today())}`
-                : "No invoices yet"
             }
           />
         </List>

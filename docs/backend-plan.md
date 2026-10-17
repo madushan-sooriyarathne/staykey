@@ -2,7 +2,7 @@
 
 As of 5 Oct 2026. Live, editable copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d
 
-Status: phases 1 Foundations, 2 Properties and setup, 3 Bookings core, 4 Team, activity and messages and 5 Calendar sync and booking page are done (see `docs/HANDOVER.md`); phase 6 Billing and hardening is next.
+Status: phases 1 Foundations, 2 Properties and setup, 3 Bookings core, 4 Team, activity and messages and 5 Calendar sync and booking page are done, and phase 6 Billing and hardening is built with its gate waiting for sandbox accounts (see `docs/HANDOVER.md`).
 
 ## Goal and scope
 
@@ -16,7 +16,7 @@ In scope:
 - Background jobs for request expiry, unpaid cancellations, iCal sync and notifications.
 - Moving every app screen from `apps/mobile/src/data/store.ts` to the API.
 
-Out of scope for now: the Next.js dashboard (V1.1), a channel manager, card payments beyond the PayHere connection request, and multi-currency settlement.
+Out of scope for now: the Next.js dashboard (V1.1), a channel manager, guest card payments, and multi-currency settlement.
 
 ## Key decisions
 
@@ -111,8 +111,9 @@ Booking statuses (same as the app): requested, awaiting_payment, confirmed, chec
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| subscriptions | account_id, plan, period, store, status, current_period_end, revenuecat_app_user_id | |
-| billing_events | account_id, source, type, payload jsonb, received_at | Raw webhooks. |
+| subscriptions | account_id (PK), source, plan, period, status, will_renew, current_period_end, product_id, external_id, last_event_at | The RevenueCat customer is the account id. |
+| billing_events | account_id, source, event_id, type, payload jsonb, received_at | Unique (source, event_id), so a retried webhook is applied once. Ids and amounts only. |
+| web_checkouts | account_id, plan, period, amount, currency, status, provider_id, provider_order_id, period_start, period_end, paid_at | One prepaid web period through Payments.lk. |
 | idempotency_keys | account_id, key, request_hash, response jsonb, expires_at | |
 
 ### How the ledger blocks double bookings

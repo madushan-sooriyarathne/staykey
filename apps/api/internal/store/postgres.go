@@ -17,6 +17,7 @@ import (
 	"staykey.direct/api/internal/domain"
 	"staykey.direct/api/internal/secret"
 	"staykey.direct/api/internal/store/queries"
+	"staykey.direct/api/internal/tenant"
 )
 
 const uniqueViolation = "23505"
@@ -46,6 +47,7 @@ func NewPostgres(ctx context.Context, databaseURL string, opts ...Option) (*Post
 
 // NewPostgresWithConfig creates a pool from a parsed config, for callers that need to adjust it.
 func NewPostgresWithConfig(ctx context.Context, cfg *pgxpool.Config, opts ...Option) (*Postgres, error) {
+	cfg.PrepareConn = setTenant
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("create pool: %w", err)
@@ -87,6 +89,28 @@ func (s *Postgres) db(ctx context.Context) *queries.Queries {
 		return s.q.WithTx(tx)
 	}
 	return s.q
+}
+
+const tenantSetting = "staykey.account_id"
+
+// setTenant runs as each connection is handed out. It sets the account the row-level security
+// policies (migration 00011) let through: the tenant's when ctx carries one, and none (every
+// row) otherwise. The value is remembered per connection, so it costs a round trip only when
+// it changes.
+func setTenant(ctx context.Context, conn *pgx.Conn) (bool, error) {
+	want := ""
+	if t, ok := tenant.From(ctx); ok {
+		want = t.AccountID.String()
+	}
+	data := conn.PgConn().CustomData()
+	if have, ok := data[tenantSetting].(string); ok && have == want {
+		return true, nil
+	}
+	if _, err := conn.Exec(ctx, "SELECT set_config($1, $2, false)", tenantSetting, want); err != nil {
+		return false, fmt.Errorf("set tenant on connection: %w", err)
+	}
+	data[tenantSetting] = want
+	return true, nil
 }
 
 func notFound(err error) error {

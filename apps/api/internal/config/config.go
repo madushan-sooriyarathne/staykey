@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // Config holds the API's runtime settings.
@@ -46,6 +47,17 @@ type Config struct {
 	// reach internal services.
 	ICalAllowPrivate bool
 
+	// RevenueCat and PaymentsLK are the billing providers. Each is optional: without one, the
+	// routes that need it answer 503 billing_not_configured.
+	RevenueCat RevenueCat
+	PaymentsLK PaymentsLK
+	// BillingURL is the web billing page on the marketing site. Payments.lk returns owners to
+	// it, and to its /done page after paying.
+	BillingURL string
+	// ForwardSecret lets the booking page and the marketing site, which call the API from their
+	// servers, pass on the visitor's address for rate limits.
+	ForwardSecret string
+
 	// DataKey encrypts sensitive columns such as bank account numbers. 32 bytes.
 	DataKey []byte
 
@@ -53,6 +65,20 @@ type Config struct {
 	Storage  string
 	MediaDir string // for local storage
 	R2       R2
+}
+
+// RevenueCat reads App Store and Google Play plans and, with ExternalKey, records web purchases.
+type RevenueCat struct {
+	SecretKey   string
+	WebhookAuth string
+	ExternalKey string
+}
+
+// PaymentsLK takes web payments. SecretKey is sk_test_... in the sandbox, sk_live_... live.
+type PaymentsLK struct {
+	SecretKey     string
+	WebhookSecret string
+	APIURL        string
 }
 
 // WhatsApp holds the WhatsApp Cloud API settings for team alerts.
@@ -110,6 +136,17 @@ func Load() (Config, error) {
 			APIKey:   os.Getenv("STAYKEY_OZONE_API_KEY"),
 			SenderID: os.Getenv("STAYKEY_OZONE_SENDER_ID"),
 		},
+		RevenueCat: RevenueCat{
+			SecretKey:   os.Getenv("STAYKEY_REVENUECAT_SECRET_KEY"),
+			WebhookAuth: os.Getenv("STAYKEY_REVENUECAT_WEBHOOK_AUTH"),
+			ExternalKey: os.Getenv("STAYKEY_REVENUECAT_EXTERNAL_KEY"),
+		},
+		PaymentsLK: PaymentsLK{
+			SecretKey:     os.Getenv("STAYKEY_PAYMENTSLK_SECRET_KEY"),
+			WebhookSecret: os.Getenv("STAYKEY_PAYMENTSLK_WEBHOOK_SECRET"),
+			APIURL:        os.Getenv("STAYKEY_PAYMENTSLK_API_URL"),
+		},
+		ForwardSecret: os.Getenv("STAYKEY_FORWARD_SECRET"),
 		R2: R2{
 			Endpoint:        os.Getenv("STAYKEY_R2_ENDPOINT"),
 			Bucket:          os.Getenv("STAYKEY_R2_BUCKET"),
@@ -148,6 +185,7 @@ func Load() (Config, error) {
 		cfg.Storage = getenv("STAYKEY_STORAGE", "r2")
 		cfg.BookingDomain = getenv("STAYKEY_BOOKING_DOMAIN", "staykey.direct")
 		cfg.BookingScheme = getenv("STAYKEY_BOOKING_SCHEME", "https")
+		cfg.BillingURL = getenv("STAYKEY_BILLING_URL", "https://staykey.direct/billing")
 		return cfg, cfg.validate()
 	}
 
@@ -157,6 +195,7 @@ func Load() (Config, error) {
 	cfg.Storage = getenv("STAYKEY_STORAGE", "local")
 	cfg.BookingDomain = getenv("STAYKEY_BOOKING_DOMAIN", "localhost:3001")
 	cfg.BookingScheme = getenv("STAYKEY_BOOKING_SCHEME", "http")
+	cfg.BillingURL = getenv("STAYKEY_BILLING_URL", "http://localhost:3000/billing")
 	return cfg, cfg.validate()
 }
 
@@ -180,6 +219,20 @@ func (c Config) validate() error {
 		}
 	default:
 		return fmt.Errorf("unknown STAYKEY_WHATSAPP_PROVIDER %q (supported: log, cloud)", c.WhatsAppProvider)
+	}
+	if p := c.PaymentsLK; p.SecretKey != "" {
+		if p.WebhookSecret == "" {
+			return errors.New("payments.lk needs STAYKEY_PAYMENTSLK_WEBHOOK_SECRET with STAYKEY_PAYMENTSLK_SECRET_KEY")
+		}
+		if c.IsProduction() && !strings.HasPrefix(p.SecretKey, "sk_live_") {
+			return errors.New("STAYKEY_PAYMENTSLK_SECRET_KEY must be a live key (sk_live_...) in production")
+		}
+	}
+	if c.RevenueCat.WebhookAuth != "" && c.RevenueCat.SecretKey == "" {
+		return errors.New("the RevenueCat webhook needs STAYKEY_REVENUECAT_SECRET_KEY to read subscribers")
+	}
+	if c.ForwardSecret != "" && len(c.ForwardSecret) < 32 {
+		return errors.New("STAYKEY_FORWARD_SECRET must be at least 32 bytes: openssl rand -base64 32")
 	}
 	switch c.Storage {
 	case "local":

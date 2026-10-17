@@ -1,8 +1,15 @@
 "use client";
 
-import type { Currency, PublicUnit, StayRules, UnitAvailability } from "@staykey/api-client";
+import type {
+  Currency,
+  PublicProperty,
+  PublicUnit,
+  StayRules,
+  UnitAvailability,
+} from "@staykey/api-client";
 import { useEffect, useRef } from "react";
 import { BookingCard } from "@/components/booking-card";
+import { NotTakingBookings } from "@/components/not-taking-bookings";
 
 type Props = {
   slug: string;
@@ -13,6 +20,8 @@ type Props = {
   rules: StayRules;
   today: string;
   takingBookings: boolean;
+  /** Why the property takes no bookings, and the owner's WhatsApp when the plan lapsed. */
+  paused: Pick<PublicProperty, "name" | "pausedReason" | "whatsapp">;
   bookingPageUrl: string;
   hostOrigin: string | null;
 };
@@ -31,6 +40,7 @@ export function EmbedBridge({
   rules,
   today,
   takingBookings,
+  paused,
   bookingPageUrl,
   hostOrigin,
 }: Props) {
@@ -80,9 +90,7 @@ export function EmbedBridge({
           }}
         />
       ) : (
-        <p className="rounded-card border border-cloud bg-snow p-5 text-graphite">
-          Not taking bookings online right now.
-        </p>
+        <NotTakingBookings compact property={paused} />
       )}
     </div>
   );

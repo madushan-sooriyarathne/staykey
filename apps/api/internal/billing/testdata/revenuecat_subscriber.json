@@ -1,0 +1,49 @@
+{
+  "request_date": "2026-10-17T10:00:00Z",
+  "request_date_ms": 1792231200000,
+  "subscriber": {
+    "original_app_user_id": "0192a6b8-6c3e-7d5e-8a7f-0f2a4b6c8d10",
+    "entitlements": {
+      "staykey": {
+        "expires_date": "2026-11-17T10:00:00Z",
+        "grace_period_expires_date": null,
+        "product_identifier": "staykey_guesthouse_monthly",
+        "purchase_date": "2026-10-17T10:00:00Z"
+      }
+    },
+    "subscriptions": {
+      "staykey_guesthouse_monthly": {
+        "auto_resume_date": null,
+        "billing_issues_detected_at": null,
+        "expires_date": "2026-11-17T10:00:00Z",
+        "grace_period_expires_date": null,
+        "is_sandbox": true,
+        "original_purchase_date": "2026-10-17T10:00:00Z",
+        "ownership_type": "PURCHASED",
+        "period_type": "normal",
+        "purchase_date": "2026-10-17T10:00:00Z",
+        "refunded_at": null,
+        "store": "app_store",
+        "store_transaction_id": "2000000712345678",
+        "unsubscribe_detected_at": null
+      },
+      "staykey_villa:monthly": {
+        "billing_issues_detected_at": null,
+        "expires_date": "2026-09-01T10:00:00Z",
+        "grace_period_expires_date": null,
+        "is_sandbox": true,
+        "period_type": "normal",
+        "purchase_date": "2026-08-01T10:00:00Z",
+        "refunded_at": null,
+        "store": "play_store",
+        "store_transaction_id": "GPA.3300-1111-2222-33333",
+        "unsubscribe_detected_at": "2026-08-15T10:00:00Z"
+      },
+      "rc_promo_staykey_lifetime": {
+        "expires_date": "2099-01-01T00:00:00Z",
+        "store": "promotional",
+        "store_transaction_id": "promo"
+      }
+    }
+  }
+}

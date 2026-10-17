@@ -110,7 +110,7 @@ func (s *Server) RegisterPushToken(ctx context.Context, req oapi.RegisterPushTok
 		return nil, &apiError{status: http.StatusBadRequest, code: "invalid_token", field: "token", message: "Send the Expo push token for this device."}
 	}
 	switch req.Body.Platform {
-	case oapi.Ios, oapi.Android, oapi.Web:
+	case oapi.PushTokenPlatformIos, oapi.PushTokenPlatformAndroid, oapi.PushTokenPlatformWeb:
 	default:
 		return nil, &apiError{status: http.StatusBadRequest, code: "invalid_platform", field: "platform", message: "Platform is ios, android or web."}
 	}
