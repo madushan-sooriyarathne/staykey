@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import { cx } from "@/lib/cx";
-import { addDays, addMonths, formatDay } from "@/lib/dates";
+import { addDays, addMonths, formatDay, formatMonth } from "@/lib/dates";
 
 export type Range = { checkIn: string; checkOut: string };
 
@@ -105,11 +105,7 @@ type MonthProps = {
 };
 
 function Month({ month, value, isTaken, isOpen, isClosed, onPick }: MonthProps) {
-  const title = new Date(`${month}T00:00:00Z`).toLocaleDateString("en-GB", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  const title = formatMonth(month);
   const lead = (new Date(`${month}T00:00:00Z`).getUTCDay() + 6) % 7;
   const days: string[] = [];
   for (let day = month; day.slice(0, 7) === month.slice(0, 7); day = addDays(day, 1))
