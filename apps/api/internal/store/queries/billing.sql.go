@@ -233,12 +233,12 @@ func (q *Queries) MarkFirstDirectBooking(ctx context.Context, arg MarkFirstDirec
 	return result.RowsAffected(), nil
 }
 
-const markWebCheckoutFailed = `-- name: MarkWebCheckoutFailed :execrows
-UPDATE web_checkouts SET status = 'failed' WHERE id = $1 AND status = 'pending'
+const markWebCheckoutExpired = `-- name: MarkWebCheckoutExpired :execrows
+UPDATE web_checkouts SET status = 'failed' WHERE provider_id = $1 AND status = 'pending'
 `
 
-func (q *Queries) MarkWebCheckoutFailed(ctx context.Context, id uuid.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, markWebCheckoutFailed, id)
+func (q *Queries) MarkWebCheckoutExpired(ctx context.Context, providerID string) (int64, error) {
+	result, err := q.db.Exec(ctx, markWebCheckoutExpired, providerID)
 	if err != nil {
 		return 0, err
 	}

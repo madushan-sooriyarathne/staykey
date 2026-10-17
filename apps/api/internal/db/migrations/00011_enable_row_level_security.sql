@@ -24,10 +24,10 @@ BEGIN
         EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
         EXECUTE format($p$
             CREATE POLICY tenant_wall ON %I
-            USING (coalesce(current_setting('staykey.account_id', true), '') = ''
-                   OR account_id = current_setting('staykey.account_id', true)::uuid)
-            WITH CHECK (coalesce(current_setting('staykey.account_id', true), '') = ''
-                   OR account_id = current_setting('staykey.account_id', true)::uuid)
+            USING (nullif(current_setting('staykey.account_id', true), '') IS NULL
+                   OR account_id = nullif(current_setting('staykey.account_id', true), '')::uuid)
+            WITH CHECK (nullif(current_setting('staykey.account_id', true), '') IS NULL
+                   OR account_id = nullif(current_setting('staykey.account_id', true), '')::uuid)
         $p$, t);
     END LOOP;
 END;

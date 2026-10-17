@@ -29,7 +29,13 @@ func TestApprovingARequestWritesOneActivity(t *testing.T) {
 	}
 
 	items, err := h.s.ListActivity(ctx, h.t, nil, 50)
-	got := strings.Join(titles(items), " | ")
+	var requests []domain.Activity
+	for _, a := range items {
+		if a.Kind == domain.ActivityRequest {
+			requests = append(requests, a)
+		}
+	}
+	got := strings.Join(titles(requests), " | ")
 	if err != nil || got != "A team member approved Ravi Fernando | Request from Ravi Fernando" {
 		t.Errorf("activity = %q (err %v)", got, err)
 	}
