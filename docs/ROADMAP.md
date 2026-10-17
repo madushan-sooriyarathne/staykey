@@ -1,8 +1,8 @@
 # StayKey roadmap to launch
 
-As of 11 Oct 2026. Phases 1 Foundations, 2 Properties and setup, 3 Bookings core and 4 Team, activity and messages are done, and sign-in codes reach Sri Lankan numbers through oZone Sender. Phase 5 is next. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
+As of 17 Oct 2026. Phases 1 to 5 are done and phase 6 Billing and hardening is built, with its gate waiting for sandbox accounts. Sign-in codes reach Sri Lankan numbers through oZone Sender. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
 
-The shortest route to a first paying owner is phase 5 and the billing half of phase 6.
+The shortest route to a first paying owner is now the accounts in section 2: Payments.lk, RevenueCat and the stores, then hosting.
 
 ## 1. Build phases
 
@@ -42,16 +42,16 @@ The shortest route to a first paying owner is phase 5 and the billing half of ph
 - [ ] Guest emails (confirmation, payment reminders), once an email provider is chosen
 - [x] **Gate:** an Airbnb stay closes the booking page within 15 minutes (checked locally against a served feed; a real Airbnb link waits for hosting)
 
-### Phase 6 Billing and hardening (next, see `docs/phase-6-plan.md`)
+### Phase 6 Billing and hardening (built, see `docs/phase-6-plan.md`)
 
-- [ ] RevenueCat webhooks, subscription state, `GET /subscription`
-- [ ] Payments.lk web purchases (prepaid month or year) on `staykey.direct/billing`, recorded in RevenueCat too
-- [ ] Free period rules: free until the first direct booking, capped at 60 days, then 7 days' grace
-- [ ] Lapsed subscription turns the booking page into "message the owner on WhatsApp"
-- [ ] Postgres row-level security as a second wall behind tenant scoping
-- [ ] Rate limits on public and owner routes (holds and guest bookings included, with the booking app forwarding the guest's address), backups with a tested restore
-- [ ] App: paywall on real purchases, Subscription screen, prototype tools in development builds only
-- [ ] **Gate:** a real purchase ends the free period
+- [x] RevenueCat webhooks, subscription state, `GET /subscription`
+- [x] Payments.lk web purchases (prepaid month or year, in LKR) on `staykey.direct/billing`, recorded in RevenueCat too once its External Purchases beta is on
+- [x] Free period rules: free until the first direct booking, capped at 60 days, then 7 days' grace
+- [x] Lapsed subscription turns the booking page into "message the owner on WhatsApp"
+- [x] Postgres row-level security as a second wall behind tenant scoping
+- [x] Rate limits on public and owner routes (holds and guest bookings included, with the booking app forwarding the guest's address), backups with a tested restore (`bun run db:backup-check`)
+- [x] App: paywall on real purchases, Subscription screen, prototype tools in development builds only
+- [ ] **Gate:** a real purchase ends the free period (checked locally with a stand-in Payments.lk; a StoreKit or Play sandbox purchase and a Payments.lk sandbox payment wait for the accounts below)
 
 ## 2. Accounts and decisions (owner)
 
@@ -61,9 +61,9 @@ The shortest route to a first paying owner is phase 5 and the billing half of ph
 - [ ] Cloudflare R2 bucket and media domain (`media.staykey.direct`); test uploads against the real bucket
 - [ ] WhatsApp Business number for alerts, with an approved alert template
 - [ ] EAS project (`bunx eas-cli init`) so the app can get Expo push tokens; needed for the phase 4 gate
-- [ ] Payments.lk merchant account, with sandbox credentials and API documentation from Payable
+- [ ] Payments.lk merchant account with sandbox keys (`sk_test_...`) and a webhook endpoint pointing at `/webhooks/payments-lk`
 - [ ] Access to RevenueCat's External Purchases API (private beta), for web purchases
-- [ ] RevenueCat project linked to App Store Connect and Google Play subscriptions
+- [ ] RevenueCat project linked to App Store Connect and Google Play subscriptions, with products `staykey_<villa|guesthouse|collection>_<monthly|yearly>`, one `staykey` entitlement, and a webhook to `/webhooks/revenuecat`
 - [ ] Apple Developer and Google Play Console accounts
 - [ ] DNS for `staykey.direct` with wildcard subdomains for booking pages, plus `api`, `cdn` and `app`
 - [ ] Email sending domain and provider
