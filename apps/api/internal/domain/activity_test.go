@@ -16,6 +16,18 @@ func sampleStay(status BookingStatus) Booking {
 	}
 }
 
+func paysAtProperty() Booking {
+	b := sampleStay(StatusAwaitingPayment)
+	b.PaymentMethod = "property"
+	return b
+}
+
+func fromAirbnb() Booking {
+	b := sampleStay(StatusConfirmed)
+	b.Source = "airbnb"
+	return b
+}
+
 func TestActivityText(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -39,6 +51,28 @@ func TestActivityText(t *testing.T) {
 			"Sam Lee's booking cancelled", "12 to 15 Oct, not paid in time"},
 		{"payment recorded", PaymentRecorded(sampleStay(StatusConfirmed), "Nadeesha"), ActivityPayment,
 			"Payment from Sam Lee", "KV-2041, recorded by Nadeesha"},
+		{"direct booking paying by bank", DirectBooking(sampleStay(StatusAwaitingPayment)), ActivityBooking,
+			"New direct booking from Sam Lee", "12 to 15 Oct, pays by bank transfer"},
+		{"direct booking paying at the property", DirectBooking(paysAtProperty()), ActivityBooking,
+			"New direct booking from Sam Lee", "12 to 15 Oct, pays at the property"},
+		{"direct request", DirectBooking(sampleStay(StatusRequested)), ActivityRequest,
+			"Request from Sam Lee", "12 to 15 Oct, 2 guests"},
+		{"slip uploaded", SlipUploaded(sampleStay(StatusAwaitingPayment)), ActivitySlip,
+			"Bank slip from Sam Lee", "KV-2041, waiting for a check"},
+		{"stay imported", StayImported(fromAirbnb()), ActivityImport,
+			"Airbnb stay imported", "12 to 15 Oct"},
+		{"imported stay cancelled", ImportedStayCancelled(fromAirbnb()), ActivityImport,
+			"Airbnb stay cancelled", "12 to 15 Oct, removed from the Airbnb calendar"},
+		{"feed connected", FeedConnected(uuid.New(), "booking", 12), ActivityImport,
+			"Booking.com calendar connected", "12 stays imported"},
+		{"empty feed connected", FeedConnected(uuid.New(), "airbnb", 0), ActivityImport,
+			"Airbnb calendar connected", "no upcoming stays"},
+		{"import clash with a stay", ImportClash(fromAirbnb(), "KV-2041"), ActivitySync,
+			"Airbnb stay overlaps KV-2041", "12 to 15 Oct, check both calendars"},
+		{"import clash with a block", ImportClash(fromAirbnb(), ""), ActivitySync,
+			"Airbnb stay overlaps a block", "12 to 15 Oct, check both calendars"},
+		{"feed failing", FeedFailing(uuid.New(), "agoda", "Kingfisher Villa"), ActivitySync,
+			"Agoda sync failed", "Kingfisher Villa, the calendar link isn't working"},
 		{"slip rejected", SlipRejected(sampleStay(StatusAwaitingPayment), "Nadeesha"), ActivitySlip,
 			"Bank slip from Sam Lee rejected", "KV-2041, rejected by Nadeesha"},
 	}
