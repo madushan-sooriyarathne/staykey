@@ -164,6 +164,10 @@ func run(ownerPhone, ownerName string, reset bool) error {
 		}); err != nil {
 			return err
 		}
+		// The sample calendar links are made up, so the importer must never read them.
+		if err := db.ParkFeeds(ctx, account.ID, time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)); err != nil {
+			return err
+		}
 		// The sample stays are history, not news: nobody should get alerts for them.
 		if err := db.SkipPendingAlerts(ctx, account.ID, time.Now()); err != nil {
 			return err
@@ -178,6 +182,7 @@ func run(ownerPhone, ownerName string, reset bool) error {
 			fmt.Sprintf("            https://staykey.direct/join/%s", token),
 			fmt.Sprintf("            staykey://join?token=%s", token),
 			fmt.Sprintf("Properties: %s (%s), %s (%s), with %d sample stays", villa.Name, villa.Slug, house.Name, house.Slug, stays),
+			fmt.Sprintf("Calendar export for the villa: %s/ical/%s-%s.ics", apiURL(cfg), villa.Slug, villa.IcalExportToken),
 		)
 		return nil
 	})
@@ -188,6 +193,14 @@ func run(ownerPhone, ownerName string, reset bool) error {
 		fmt.Println(line)
 	}
 	return nil
+}
+
+// apiURL is where the local API answers, for the links the seed prints.
+func apiURL(cfg config.Config) string {
+	if cfg.PublicURL != "" {
+		return cfg.PublicURL
+	}
+	return "http://localhost:" + cfg.Port
 }
 
 // clearPrevious finds an earlier sample account by its villa's address. Without reset it reports

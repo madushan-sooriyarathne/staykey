@@ -218,3 +218,18 @@ func (q *Queries) MarkFeedDue(ctx context.Context, arg MarkFeedDueParams) (uuid.
 	err := row.Scan(&property_id)
 	return property_id, err
 }
+
+const parkFeeds = `-- name: ParkFeeds :exec
+UPDATE ical_feeds SET next_sync_at = $1::timestamptz, status = 'ok' WHERE account_id = $2
+`
+
+type ParkFeedsParams struct {
+	Until     time.Time
+	AccountID uuid.UUID
+}
+
+// Keeps sample feeds with made-up links from ever being read, for the development seed.
+func (q *Queries) ParkFeeds(ctx context.Context, arg ParkFeedsParams) error {
+	_, err := q.db.Exec(ctx, parkFeeds, arg.Until, arg.AccountID)
+	return err
+}

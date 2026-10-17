@@ -366,3 +366,12 @@ func (im importer) reportClash(ctx context.Context, b domain.Booking, clash *dom
 	}
 	return im.s.addActivity(ctx, im.feed.AccountID, domain.ImportClash(b, other), nil, im.now)
 }
+
+// ParkFeeds keeps an account's feeds from being read until until, and shows them as working.
+// The development seed uses it for sample feeds whose links are made up.
+func (s *Postgres) ParkFeeds(ctx context.Context, accountID uuid.UUID, until time.Time) error {
+	if err := s.db(ctx).ParkFeeds(ctx, queries.ParkFeedsParams{Until: until, AccountID: accountID}); err != nil {
+		return fmt.Errorf("park feeds: %w", err)
+	}
+	return nil
+}

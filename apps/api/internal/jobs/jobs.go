@@ -1,6 +1,6 @@
 // Package jobs runs StayKey's background work on river, the Postgres job queue: requests that
 // expire, stays that go unpaid, sweeps of expired holds, idempotency keys and uploads that were
-// never attached to anything, the team's alerts and their morning summary.
+// never attached to anything, the team's alerts and their morning summary, and OTA calendars.
 //
 // Each sweep is a periodic river job. River elects one leader to schedule them, so running
 // several API machines doesn't run a sweep several times over.
@@ -19,6 +19,7 @@ import (
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
 	"staykey.direct/api/internal/files"
+	"staykey.direct/api/internal/ical"
 	"staykey.direct/api/internal/notify"
 	"staykey.direct/api/internal/store"
 )
@@ -48,8 +49,8 @@ type sweep struct {
 }
 
 // Start runs the sweeps until ctx is done. Stop the returned client to wait for running jobs.
-func Start(ctx context.Context, pool *pgxpool.Pool, st *store.Postgres, fs files.Store, alerts Alerts, log *slog.Logger) (*river.Client[pgx.Tx], error) {
-	all := sweeps(st, fs, alerts, log)
+func Start(ctx context.Context, pool *pgxpool.Pool, st *store.Postgres, fs files.Store, alerts Alerts, feeds *ical.Fetcher, log *slog.Logger) (*river.Client[pgx.Tx], error) {
+	all := sweeps(st, fs, alerts, feeds, log)
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &sweeper{sweeps: all, now: time.Now})
 	periodic := make([]*river.PeriodicJob, 0, len(all))
@@ -76,7 +77,7 @@ func Start(ctx context.Context, pool *pgxpool.Pool, st *store.Postgres, fs files
 }
 
 // sweeps are the periodic jobs by name.
-func sweeps(st *store.Postgres, fs files.Store, alerts Alerts, log *slog.Logger) map[string]sweep {
+func sweeps(st *store.Postgres, fs files.Store, alerts Alerts, feeds *ical.Fetcher, log *slog.Logger) map[string]sweep {
 	return map[string]sweep{
 		"expire_requests": {time.Minute, func(ctx context.Context, now time.Time) error {
 			n, err := st.DeclineExpiredRequests(ctx, now)
@@ -101,6 +102,9 @@ func sweeps(st *store.Postgres, fs files.Store, alerts Alerts, log *slog.Logger)
 		}},
 		"morning_summary": {15 * time.Minute, func(ctx context.Context, now time.Time) error {
 			return SendSummaries(ctx, st, alerts, now)
+		}},
+		"ical_import": {time.Minute, func(ctx context.Context, now time.Time) error {
+			return ImportFeeds(ctx, st, feeds, log, now)
 		}},
 	}
 }
@@ -230,6 +234,15 @@ type sweeper struct {
 	river.WorkerDefaults[SweepArgs]
 	sweeps map[string]sweep
 	now    func() time.Time
+}
+
+// Timeout gives the calendar import longer than river's default minute: it reads up to
+// importBatch feeds, importParallel at a time, each allowed the fetcher's 20 seconds.
+func (w *sweeper) Timeout(job *river.Job[SweepArgs]) time.Duration {
+	if job.Args.Name == "ical_import" {
+		return 3 * time.Minute
+	}
+	return 0
 }
 
 func (w *sweeper) Work(ctx context.Context, job *river.Job[SweepArgs]) error {
