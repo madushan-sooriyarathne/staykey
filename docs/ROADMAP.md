@@ -42,10 +42,10 @@ The shortest route to a first paying owner is phase 5 and the billing half of ph
 - [ ] Guest emails (confirmation, payment reminders), once an email provider is chosen
 - [x] **Gate:** an Airbnb stay closes the booking page within 15 minutes (checked locally against a served feed; a real Airbnb link waits for hosting)
 
-### Phase 6 Billing and hardening
+### Phase 6 Billing and hardening (next, see `docs/phase-6-plan.md`)
 
 - [ ] RevenueCat webhooks, subscription state, `GET /subscription`
-- [ ] PayHere web subscriptions and the card payments connection (cards turn on only from a PayHere approval)
+- [ ] Payments.lk web purchases (prepaid month or year) on `staykey.direct/billing`, recorded in RevenueCat too
 - [ ] Free period rules: free until the first direct booking, capped at 60 days, then 7 days' grace
 - [ ] Lapsed subscription turns the booking page into "message the owner on WhatsApp"
 - [ ] Postgres row-level security as a second wall behind tenant scoping
@@ -61,7 +61,8 @@ The shortest route to a first paying owner is phase 5 and the billing half of ph
 - [ ] Cloudflare R2 bucket and media domain (`media.staykey.direct`); test uploads against the real bucket
 - [ ] WhatsApp Business number for alerts, with an approved alert template
 - [ ] EAS project (`bunx eas-cli init`) so the app can get Expo push tokens; needed for the phase 4 gate
-- [ ] PayHere merchant account
+- [ ] Payments.lk merchant account, with sandbox credentials and API documentation from Payable
+- [ ] Access to RevenueCat's External Purchases API (private beta), for web purchases
 - [ ] RevenueCat project linked to App Store Connect and Google Play subscriptions
 - [ ] Apple Developer and Google Play Console accounts
 - [ ] DNS for `staykey.direct` with wildcard subdomains for booking pages, plus `api`, `cdn` and `app`
