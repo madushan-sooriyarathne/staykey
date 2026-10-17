@@ -20,13 +20,22 @@ const (
 	ActivityCancellation ActivityKind = "cancellation"
 	ActivitySync         ActivityKind = "sync"
 	ActivityImport       ActivityKind = "import"
+	ActivityBilling      ActivityKind = "billing"
 )
+
+// ActivityKinds lists every kind.
+var ActivityKinds = []ActivityKind{
+	ActivityRequest, ActivityBooking, ActivitySlip, ActivityPayment, ActivityCancellation, ActivitySync, ActivityImport, ActivityBilling,
+}
 
 // HiddenFromCaretakers are the kinds about money, which people without PermPrices never see.
 var HiddenFromCaretakers = []ActivityKind{ActivityPayment, ActivitySlip}
 
-// VisibleTo reports whether a role sees activity of this kind.
+// VisibleTo reports whether a role sees activity of this kind. Billing is for owners only.
 func (k ActivityKind) VisibleTo(r Role) bool {
+	if k == ActivityBilling {
+		return r.Can(PermBilling)
+	}
 	return r.Can(PermPrices) || !slices.Contains(HiddenFromCaretakers, k)
 }
 
@@ -74,6 +83,7 @@ func EventFor(k ActivityKind) NotificationEvent {
 		return EventCancellation
 	case ActivitySync, ActivityImport:
 		return EventSync
+	// Billing alerts follow the booking preference, since a paused page stops bookings.
 	default:
 		return EventBooking
 	}
@@ -204,6 +214,48 @@ func ImportClash(b Booking, other string) Activity {
 func FeedFailing(propertyID uuid.UUID, channel, propertyName string) Activity {
 	return Activity{PropertyID: &propertyID, Kind: ActivitySync, Title: ChannelName(channel) + " sync failed",
 		Subtitle: propertyName + ", the calendar link isn't working"}
+}
+
+// billingLocation is where billing dates are read. Accounts have no time zone of their own,
+// and every owner is in Sri Lanka for now.
+var billingLocation = func() *time.Location {
+	loc, err := time.LoadLocation("Asia/Colombo")
+	if err != nil {
+		return time.FixedZone("Asia/Colombo", 5*3600+1800)
+	}
+	return loc
+}()
+
+func billingDate(t time.Time) string { return t.In(billingLocation).Format("2 Jan") }
+
+// BillingChanged is the line an owner sees when the account moves into b's status, and false when
+// the change needs no line (a plan refunded during the free period, say). Amounts never appear.
+func BillingChanged(b Billing, sub *Subscription) (Activity, bool) {
+	line := func(title, subtitle string) (Activity, bool) {
+		return Activity{Kind: ActivityBilling, Title: title, Subtitle: subtitle}, true
+	}
+	switch b.Status {
+	case StatusActive:
+		name := "Your"
+		if sub != nil {
+			if p, ok := FindPlan(sub.Plan); ok {
+				name = p.Name
+			}
+		}
+		return line(name+" plan active", "Paid until "+billingDate(b.Until))
+	case StatusGrace:
+		switch b.Reason {
+		case GraceFirstBooking:
+			return line("Your first direct booking is in", "Free until "+billingDate(b.Until)+", then choose a plan")
+		case GracePlanEnded:
+			return line("Your plan has ended", "Renew by "+billingDate(b.Until)+" to keep your booking page open")
+		default:
+			return line("Your free period has ended", "Choose a plan by "+billingDate(b.Until)+" to keep your booking page open")
+		}
+	case StatusLapsed:
+		return line("Your booking page is paused", "Guests are asked to message you on WhatsApp until you choose a plan")
+	}
+	return Activity{}, false
 }
 
 func guests(n int) string {
