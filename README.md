@@ -149,5 +149,5 @@ Built:
 How the app gets its data today: sign-in, accounts, properties, every property setting, bookings, payments, blocks and rate overrides go through the API, with tokens in the secure store and server data through TanStack Query, cached on the device for offline reads (`apps/mobile/src/api`). So do the team, activity, templates, alert preferences and the profile; there is no on-device data store any more. The app keeps its own copy of the pricing rules for instant previews; the server's total is the one stored. In development (or with `EXPO_PUBLIC_PROTOTYPE_TOOLS=true`) More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
 
 Next (the full checklist to launch is `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`):
-- Phase 6: billing (RevenueCat, PayHere), the free period, row-level security and rate limits
+- Phase 6: billing (RevenueCat, Payments.lk), the free period, row-level security and rate limits
 - An international SMS gateway, and RevenueCat for in-app subscriptions
