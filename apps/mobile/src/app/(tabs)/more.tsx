@@ -1,8 +1,10 @@
+import type { Subscription } from "@staykey/api-client";
 import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 import { useUnreadCount } from "@/api/activity";
 import { useMe } from "@/api/me";
+import { useSubscription } from "@/api/subscription";
 import { Tag } from "@/components/brand";
 import { I } from "@/components/icons";
 import { Appear, Avatar, List, ListRow, Menu, SectionHeader, Segmented } from "@/components/kit";
@@ -18,6 +20,20 @@ import { PROTOTYPE } from "@/lib/prototype";
 import { PLANS } from "@/lib/purchases";
 import { type Role, useSession } from "@/lib/session";
 
+/** The plan in a word or two, for the Subscription row. */
+function planLabel(sub: Subscription): string {
+  switch (sub.status) {
+    case "active":
+      return PLANS.find((p) => p.id === sub.plan)?.name ?? "Active";
+    case "trial":
+      return "Free";
+    case "grace":
+      return "Choose a plan";
+    default:
+      return "Paused";
+  }
+}
+
 const ROLE_LABEL: Record<Role, string> = {
   owner: "Owner",
   manager: "Manager",
@@ -25,7 +41,8 @@ const ROLE_LABEL: Record<Role, string> = {
 };
 
 export default function MoreScreen() {
-  const { subscription, role, ownerName, accountId, setRole, reset: resetSession } = useSession();
+  const { role, ownerName, accountId, setRole, reset: resetSession } = useSession();
+  const subscription = useSubscription().data;
   const me = useMe().data;
   const properties = useProperties();
   const unread = useUnreadCount();
@@ -33,8 +50,6 @@ export default function MoreScreen() {
   const [switching, setSwitching] = useState(false);
   const clearDraft = useOnboarding((s) => s.clear);
   const can = useCan();
-  const plan =
-    subscription.status === "active" ? PLANS.find((p) => p.id === subscription.plan) : undefined;
   const name = me?.user.name || ownerName || "You";
   const accounts = me?.accounts ?? [];
   const current = accounts.find((a) => a.id === accountId);
@@ -133,7 +148,9 @@ export default function MoreScreen() {
               testID="more-subscription"
               icon={I.crown}
               title="Subscription"
-              trailing={<Tag tone="soft" label={plan ? plan.name : "Trial"} />}
+              trailing={
+                subscription ? <Tag tone="soft" label={planLabel(subscription)} /> : undefined
+              }
               onPress={() => router.push("/subscription")}
             />
           ) : null}

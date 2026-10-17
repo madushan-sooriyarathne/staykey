@@ -19,6 +19,7 @@ import type { Booking, PropertyConfig } from "@/data/types";
 import { useMoveStay } from "@/features/bookings/move";
 import { GuestRow, guestLabel, placeLabel } from "@/features/bookings/rows";
 import { Checklist } from "@/features/today/checklist";
+import { PlanBanner } from "@/features/today/plan-banner";
 import { openWhatsApp } from "@/lib/contact";
 import { haptics } from "@/lib/haptics";
 import { useSession } from "@/lib/session";
@@ -99,6 +100,7 @@ function OwnerToday() {
       }
     >
       <PropertySwitcher properties={properties} value={filter} onChange={setFilter} allowAll />
+      <PlanBanner />
       {error ? (
         <InfoNote icon={I.warning} testID="today-error">
           {error}

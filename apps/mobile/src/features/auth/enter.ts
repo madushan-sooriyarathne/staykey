@@ -7,6 +7,7 @@ import { acceptInvite } from "@/api/team";
 import { toPropertyConfig } from "@/data/from-api";
 import { useOnboarding } from "@/features/onboarding/store";
 import { signOut } from "@/lib/auth";
+import { identify } from "@/lib/purchases";
 import { useSession } from "@/lib/session";
 
 /** Owners land in their own account; team members in the first account they joined. */
@@ -98,6 +99,7 @@ export async function openAccount(
 ): Promise<{ properties: number } | null> {
   const session = useSession.getState();
   session.setAccount(account.id, account.role);
+  void identify(account.id);
   let properties: Awaited<ReturnType<typeof fetchProperties>>;
   try {
     properties = await queryClient.fetchQuery({

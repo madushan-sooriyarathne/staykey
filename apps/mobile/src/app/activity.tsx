@@ -15,7 +15,7 @@ import { dayLabel, formatClock } from "@/data/dates";
 type Tab = "all" | "bookings" | "payments" | "sync";
 
 const KINDS: Record<Exclude<Tab, "all">, ActivityKind[]> = {
-  bookings: ["request", "booking", "cancellation"],
+  bookings: ["request", "booking", "cancellation", "billing"],
   payments: ["slip", "payment"],
   sync: ["sync", "import"],
 };
@@ -28,6 +28,7 @@ const ICON: Record<ActivityKind, keyof typeof I> = {
   payment: "cash",
   sync: "warning",
   import: "sync",
+  billing: "crown",
 };
 
 /**
@@ -55,6 +56,7 @@ export default function ActivityScreen() {
     if (a.bookingId) router.push({ pathname: "/booking/[id]", params: { id: a.bookingId } });
     else if (a.kind === "sync" && a.propertyId)
       router.push({ pathname: "/property/[id]/ical", params: { id: a.propertyId } });
+    else if (a.kind === "billing") router.push("/paywall");
   }
 
   return (
