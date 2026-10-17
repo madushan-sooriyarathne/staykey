@@ -50,8 +50,17 @@ func New(t testing.TB) *store.Postgres {
 		t.Skipf("no test database (%v); start one with `bun run db:up`", err)
 	}
 
+	role, err := appRole(ctx, admin)
+	if err != nil {
+		_ = admin.Close(ctx)
+		t.Fatalf("test role: %v", err)
+	}
 	schema := "test_" + randomHex(6)
-	if _, err := admin.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
+	create := "CREATE SCHEMA " + schema
+	if role != "" {
+		create += " AUTHORIZATION " + role
+	}
+	if _, err := admin.Exec(ctx, create); err != nil {
 		_ = admin.Close(ctx)
 		t.Fatalf("create schema: %v", err)
 	}
@@ -67,6 +76,9 @@ func New(t testing.TB) *store.Postgres {
 		t.Fatalf("parse database url: %v", err)
 	}
 	cfg.ConnConfig.RuntimeParams["search_path"] = schema
+	if role != "" {
+		cfg.ConnConfig.User, cfg.ConnConfig.Password = role, role
+	}
 	cfg.MaxConns = 8
 	s, err := store.NewPostgresWithConfig(ctx, cfg, store.WithSecrets(secret.FromPassphrase("storetest")))
 	if err != nil {
@@ -76,6 +88,28 @@ func New(t testing.TB) *store.Postgres {
 
 	migrate(t, ctx, s.Pool())
 	return s
+}
+
+// rlsRole is an ordinary role the store connects as when the test database's user is a
+// superuser, since superusers skip row-level security and the tests should run behind it.
+const rlsRole = "staykey_rls_test"
+
+// appRole makes sure rlsRole exists when admin is a superuser and returns it, or returns "" to
+// connect as admin's own (ordinary) role.
+func appRole(ctx context.Context, admin *pgx.Conn) (string, error) {
+	var super bool
+	if err := admin.QueryRow(ctx, "SELECT rolsuper FROM pg_roles WHERE rolname = current_user").Scan(&super); err != nil {
+		return "", err
+	}
+	if !super {
+		return "", nil
+	}
+	// Parallel tests may race to create the role; either error means it exists.
+	_, err := admin.Exec(ctx, `DO $$ BEGIN
+		CREATE ROLE `+rlsRole+` LOGIN PASSWORD '`+rlsRole+`' NOSUPERUSER NOBYPASSRLS;
+	EXCEPTION WHEN duplicate_object OR unique_violation THEN NULL;
+	END $$`)
+	return rlsRole, err
 }
 
 func migrate(t testing.TB, ctx context.Context, pool *pgxpool.Pool) {

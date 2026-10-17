@@ -38,8 +38,8 @@ SET status = 'paid', provider_order_id = @provider_order_id, period_start = @per
     period_end = @period_end, paid_at = @paid_at
 WHERE id = @id;
 
--- name: MarkWebCheckoutFailed :execrows
-UPDATE web_checkouts SET status = 'failed' WHERE id = @id AND status = 'pending';
+-- name: MarkWebCheckoutExpired :execrows
+UPDATE web_checkouts SET status = 'failed' WHERE provider_id = @provider_id AND status = 'pending';
 
 -- Everything the account's billing state is worked out from. owner_phone is the first owner's
 -- number, which the booking page offers on WhatsApp once the account lapses.

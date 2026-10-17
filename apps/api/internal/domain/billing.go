@@ -1,8 +1,11 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Account statuses. The owner app works in every one; only the booking page stops taking stays
@@ -205,6 +208,36 @@ func BillingState(now, trialStartedAt time.Time, firstDirectAt *time.Time, sub *
 	}
 	return Billing{Status: status, Until: graceEnd, FreeEndsAt: freeEnd, Reason: reason}
 }
+
+// ErrAlreadySubscribed means a store plan still gives access, so a web period can't be bought.
+var ErrAlreadySubscribed = errors.New("an App Store or Google Play plan is active")
+
+// AccountBilling is everything the subscription screen and the booking page need about an
+// account's plan.
+type AccountBilling struct {
+	Billing
+	// Sub is the plan bought last, or nil.
+	Sub *Subscription
+	// Units is the bookable units across the account's properties.
+	Units int
+	// OwnerPhone is the first owner's number.
+	OwnerPhone string
+}
+
+// PaidPeriod is a web period that was just paid for.
+type PaidPeriod struct {
+	AccountID uuid.UUID
+	PaymentID string
+	Plan      PlanID
+	Period    Period
+	Start     time.Time
+	End       time.Time
+	Amount    int64
+	Currency  string
+}
+
+// ProductID is the product id a period is recorded under, the same shape as the store ids.
+func ProductID(plan PlanID, period Period) string { return "staykey_" + string(plan) + "_" + string(period) }
 
 // TakesBookings reports whether the booking page takes holds and stays in this status.
 func TakesBookings(s AccountStatus) bool { return s != StatusLapsed && s != StatusClosed }
