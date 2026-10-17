@@ -1586,8 +1586,9 @@ components:
             $ref: "#/components/schemas/ConflictError"
     PublicConflict:
       description: |
-        The nights are taken (code dates_taken), the hold lapsed (hold_expired), or the property
-        isn't taking bookings (not_taking_bookings). Nothing about other stays is included.
+        The nights are taken (code dates_taken), the property isn't taking bookings
+        (not_taking_bookings), or the stay takes no more slips (bad_status). Nothing about other
+        stays is included.
       content:
         application/json:
           schema:
@@ -2801,10 +2802,11 @@ components:
 
     GuestBooking:
       type: object
-      description: A booking as its guest sees it.
-      required: [id, ref, status, propertyName, propertySlug, propertyCheckIn, unitName, guestName,
-                 checkIn, checkOut, adults, children, currency, lines, total, deposit, paid,
-                 balance, slips]
+      description: |
+        A booking as its guest sees it. It leaves out the guest record, which may be one the
+        owner already had for that phone number.
+      required: [id, ref, status, propertyName, propertySlug, propertyCheckIn, unitName, checkIn,
+                 checkOut, adults, children, currency, lines, total, deposit, paid, balance, slips]
       properties:
         id:
           type: string
@@ -2820,8 +2822,6 @@ components:
         propertyCheckIn:
           $ref: "#/components/schemas/Clock"
         unitName:
-          type: string
-        guestName:
           type: string
         checkIn:
           $ref: "#/components/schemas/Day"
