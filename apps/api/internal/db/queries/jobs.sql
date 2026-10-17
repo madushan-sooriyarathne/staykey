@@ -17,4 +17,5 @@ RETURNING b.id, b.account_id;
 -- name: FileInUse :one
 SELECT EXISTS (SELECT 1 FROM property_photos WHERE key = @key::text)
     OR EXISTS (SELECT 1 FROM properties WHERE logo_key = @key::text)
-    OR EXISTS (SELECT 1 FROM payment_slips WHERE file_key = @key::text) AS in_use;
+    OR EXISTS (SELECT 1 FROM payment_slips WHERE file_key = @key::text)
+    OR EXISTS (SELECT 1 FROM users WHERE photo_key = @key::text) AS in_use;

@@ -8,6 +8,7 @@ FROM properties p
 WHERE f.id IN (
     SELECT id FROM ical_feeds
     WHERE url <> '' AND (next_sync_at IS NULL OR next_sync_at <= @now::timestamptz)
+      AND account_id IN (SELECT id FROM accounts WHERE status <> 'closed')
     ORDER BY next_sync_at NULLS FIRST, id
     LIMIT @row_limit
     FOR UPDATE SKIP LOCKED
@@ -44,7 +45,9 @@ SELECT property_id FROM ical_feeds WHERE id = @id AND account_id = @account_id;
 
 -- The property behind an export link, for checking its token.
 -- name: GetExportProperty :one
-SELECT id, account_id, name, ical_export_token FROM properties WHERE slug = @slug;
+SELECT p.id, p.account_id, p.name, p.ical_export_token FROM properties p
+JOIN accounts a ON a.id = p.account_id AND a.status <> 'closed'
+WHERE p.slug = @slug;
 
 -- Keeps sample feeds with made-up links from ever being read, for the development seed.
 -- name: ParkFeeds :exec

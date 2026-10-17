@@ -114,6 +114,7 @@ SELECT p.id, p.slug, p.name, p.booking_type, p.location, p.currency, p.created_a
        coalesce((SELECT min(u.rate) FROM units u
                  WHERE u.property_id = p.id AND u.archived_at IS NULL), 0)::bigint AS base_rate
 FROM properties p
+JOIN accounts a ON a.id = p.account_id AND a.status <> 'closed'
 WHERE p.slug = $1
 `
 

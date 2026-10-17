@@ -12,6 +12,20 @@ import (
 	"github.com/google/uuid"
 )
 
+const clearGuestNotes = `-- name: ClearGuestNotes :exec
+UPDATE bookings SET guest_note = '' WHERE guest_id = $1 AND account_id = $2
+`
+
+type ClearGuestNotesParams struct {
+	GuestID   uuid.UUID
+	AccountID uuid.UUID
+}
+
+func (q *Queries) ClearGuestNotes(ctx context.Context, arg ClearGuestNotesParams) error {
+	_, err := q.db.Exec(ctx, clearGuestNotes, arg.GuestID, arg.AccountID)
+	return err
+}
+
 const deleteBookingExtras = `-- name: DeleteBookingExtras :exec
 DELETE FROM booking_extras WHERE booking_id = $1 AND account_id = $2
 `
@@ -37,6 +51,48 @@ type DeleteBookingLinesParams struct {
 
 func (q *Queries) DeleteBookingLines(ctx context.Context, arg DeleteBookingLinesParams) error {
 	_, err := q.db.Exec(ctx, deleteBookingLines, arg.BookingID, arg.AccountID)
+	return err
+}
+
+const eraseGuest = `-- name: EraseGuest :exec
+UPDATE guests SET name = $1, phone = NULL, email = NULL, country = NULL
+WHERE id = $2 AND account_id = $3
+`
+
+type EraseGuestParams struct {
+	Name      string
+	ID        uuid.UUID
+	AccountID uuid.UUID
+}
+
+func (q *Queries) EraseGuest(ctx context.Context, arg EraseGuestParams) error {
+	_, err := q.db.Exec(ctx, eraseGuest, arg.Name, arg.ID, arg.AccountID)
+	return err
+}
+
+const eraseGuestFromActivity = `-- name: EraseGuestFromActivity :exec
+UPDATE activity a SET title = replace(a.title, $1::text, $2::text),
+                      subtitle = replace(a.subtitle, $1::text, $2::text)
+FROM bookings b
+WHERE b.id = a.booking_id AND b.account_id = a.account_id
+  AND b.guest_id = $3 AND a.account_id = $4
+`
+
+type EraseGuestFromActivityParams struct {
+	OldName   string
+	NewName   string
+	GuestID   uuid.UUID
+	AccountID uuid.UUID
+}
+
+// Activity lines name the guest of the stay they are about; this takes the name out of them.
+func (q *Queries) EraseGuestFromActivity(ctx context.Context, arg EraseGuestFromActivityParams) error {
+	_, err := q.db.Exec(ctx, eraseGuestFromActivity,
+		arg.OldName,
+		arg.NewName,
+		arg.GuestID,
+		arg.AccountID,
+	)
 	return err
 }
 
@@ -321,6 +377,31 @@ func (q *Queries) GetSlipForUpdate(ctx context.Context, arg GetSlipForUpdatePara
 		&i.Amount,
 		&i.Status,
 	)
+	return i, err
+}
+
+const guestOfBooking = `-- name: GuestOfBooking :one
+
+SELECT g.id, g.name FROM bookings b JOIN guests g ON g.id = b.guest_id AND g.account_id = b.account_id
+WHERE b.id = $1 AND b.account_id = $2
+`
+
+type GuestOfBookingParams struct {
+	BookingID uuid.UUID
+	AccountID uuid.UUID
+}
+
+type GuestOfBookingRow struct {
+	ID   uuid.UUID
+	Name string
+}
+
+// Bookings ---------------------------------------------------------------------------------
+// The guest behind a booking, for erasing their details.
+func (q *Queries) GuestOfBooking(ctx context.Context, arg GuestOfBookingParams) (GuestOfBookingRow, error) {
+	row := q.db.QueryRow(ctx, guestOfBooking, arg.BookingID, arg.AccountID)
+	var i GuestOfBookingRow
+	err := row.Scan(&i.ID, &i.Name)
 	return i, err
 }
 
@@ -947,11 +1028,9 @@ func (q *Queries) ListSlips(ctx context.Context, arg ListSlipsParams) ([]ListSli
 }
 
 const nextBookingNumber = `-- name: NextBookingNumber :one
-
 UPDATE accounts SET booking_seq = booking_seq + 1 WHERE id = $1 RETURNING booking_seq
 `
 
-// Bookings ---------------------------------------------------------------------------------
 func (q *Queries) NextBookingNumber(ctx context.Context, accountID uuid.UUID) (int32, error) {
 	row := q.db.QueryRow(ctx, nextBookingNumber, accountID)
 	var booking_seq int32
