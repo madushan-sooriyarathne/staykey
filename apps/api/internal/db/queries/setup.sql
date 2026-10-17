@@ -209,7 +209,7 @@ WHERE property_id = @property_id AND account_id = @account_id AND NOT (id = ANY 
 -- Imported calendars -----------------------------------------------------------------------
 
 -- name: ListIcalFeeds :many
-SELECT id, property_id, channel, url, status, last_synced_at, last_error, upcoming
+SELECT id, property_id, unit_id, channel, url, status, last_synced_at, last_error, upcoming
 FROM ical_feeds
 WHERE account_id = @account_id AND property_id = ANY (@property_ids::uuid[])
 ORDER BY property_id, position;
@@ -218,18 +218,21 @@ ORDER BY property_id, position;
 SELECT id FROM ical_feeds WHERE property_id = @property_id AND account_id = @account_id;
 
 -- name: InsertIcalFeed :exec
-INSERT INTO ical_feeds (id, account_id, property_id, channel, url, position)
-VALUES (@id, @account_id, @property_id, @channel, @url, @position);
+INSERT INTO ical_feeds (id, account_id, property_id, unit_id, channel, url, position)
+VALUES (@id, @account_id, @property_id, sqlc.narg('unit_id'), @channel, @url, @position);
 
 -- name: UpdateIcalFeed :exec
--- A new link starts over: pending until the import worker reads it.
+-- A new link starts over: pending until the import worker reads it, which it does next. A new
+-- unit is read again too, so its stays move.
 UPDATE ical_feeds SET
     channel              = @channel,
     position             = @position,
     status               = CASE WHEN url = @url THEN status ELSE 'pending' END,
     last_error           = CASE WHEN url = @url THEN last_error END,
     consecutive_failures = CASE WHEN url = @url THEN consecutive_failures ELSE 0 END,
-    etag                 = CASE WHEN url = @url THEN etag END,
+    etag                 = CASE WHEN url = @url AND unit_id IS NOT DISTINCT FROM sqlc.narg('unit_id')::uuid THEN etag END,
+    next_sync_at         = CASE WHEN url = @url AND unit_id IS NOT DISTINCT FROM sqlc.narg('unit_id')::uuid THEN next_sync_at END,
+    unit_id              = sqlc.narg('unit_id')::uuid,
     url                  = @url
 WHERE id = @id AND property_id = @property_id AND account_id = @account_id;
 

@@ -52,6 +52,51 @@ func (q *Queries) DeleteExpiredHolds(ctx context.Context, now time.Time) (int64,
 	return result.RowsAffected(), nil
 }
 
+const deleteExpiredHoldsOn = `-- name: DeleteExpiredHoldsOn :exec
+DELETE FROM unit_nights
+WHERE account_id = $1 AND unit_id = ANY ($2::uuid[])
+  AND night >= $3::date AND night < $4::date
+  AND hold_expires_at < $5::timestamptz
+`
+
+type DeleteExpiredHoldsOnParams struct {
+	AccountID uuid.UUID
+	UnitIds   []uuid.UUID
+	CheckIn   time.Time
+	CheckOut  time.Time
+	Now       time.Time
+}
+
+// Clears lapsed holds on these units in [check_in, check_out), so a stale hold never blocks a
+// booking that comes before the sweep.
+func (q *Queries) DeleteExpiredHoldsOn(ctx context.Context, arg DeleteExpiredHoldsOnParams) error {
+	_, err := q.db.Exec(ctx, deleteExpiredHoldsOn,
+		arg.AccountID,
+		arg.UnitIds,
+		arg.CheckIn,
+		arg.CheckOut,
+		arg.Now,
+	)
+	return err
+}
+
+const deleteHold = `-- name: DeleteHold :execrows
+DELETE FROM unit_nights WHERE hold_id = $1 AND account_id = $2
+`
+
+type DeleteHoldParams struct {
+	HoldID    *uuid.UUID
+	AccountID uuid.UUID
+}
+
+func (q *Queries) DeleteHold(ctx context.Context, arg DeleteHoldParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteHold, arg.HoldID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteRateOverrides = `-- name: DeleteRateOverrides :exec
 
 DELETE FROM rate_overrides
@@ -77,6 +122,53 @@ func (q *Queries) DeleteRateOverrides(ctx context.Context, arg DeleteRateOverrid
 		arg.RangeTo,
 	)
 	return err
+}
+
+const exportNights = `-- name: ExportNights :many
+SELECT unit_id, night, booking_id, block_id FROM unit_nights
+WHERE account_id = $1 AND property_id = $2 AND hold_id IS NULL
+  AND night >= $3::date
+ORDER BY booking_id, block_id, unit_id, night
+`
+
+type ExportNightsParams struct {
+	AccountID  uuid.UUID
+	PropertyID uuid.UUID
+	RangeFrom  time.Time
+}
+
+type ExportNightsRow struct {
+	UnitID    uuid.UUID
+	Night     time.Time
+	BookingID *uuid.UUID
+	BlockID   *uuid.UUID
+}
+
+// Nights stays and blocks hold on a property from a day on, for the iCal export. Holds are left
+// out: they are a guest at checkout, not a booking.
+func (q *Queries) ExportNights(ctx context.Context, arg ExportNightsParams) ([]ExportNightsRow, error) {
+	rows, err := q.db.Query(ctx, exportNights, arg.AccountID, arg.PropertyID, arg.RangeFrom)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportNightsRow{}
+	for rows.Next() {
+		var i ExportNightsRow
+		if err := rows.Scan(
+			&i.UnitID,
+			&i.Night,
+			&i.BookingID,
+			&i.BlockID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const firstHeldNight = `-- name: FirstHeldNight :one
@@ -172,6 +264,54 @@ func (q *Queries) GetBlock(ctx context.Context, arg GetBlockParams) (GetBlockRow
 	return i, err
 }
 
+const heldNights = `-- name: HeldNights :many
+SELECT unit_id, night FROM unit_nights
+WHERE account_id = $1 AND property_id = $2
+  AND night >= $3::date AND night < $4::date
+  AND (hold_id IS NULL OR hold_expires_at > $5::timestamptz)
+ORDER BY unit_id, night
+`
+
+type HeldNightsParams struct {
+	AccountID  uuid.UUID
+	PropertyID uuid.UUID
+	RangeFrom  time.Time
+	RangeTo    time.Time
+	Now        time.Time
+}
+
+type HeldNightsRow struct {
+	UnitID uuid.UUID
+	Night  time.Time
+}
+
+// Nights taken on a property's units in [from, to): stays, blocks and holds that haven't lapsed.
+func (q *Queries) HeldNights(ctx context.Context, arg HeldNightsParams) ([]HeldNightsRow, error) {
+	rows, err := q.db.Query(ctx, heldNights,
+		arg.AccountID,
+		arg.PropertyID,
+		arg.RangeFrom,
+		arg.RangeTo,
+		arg.Now,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []HeldNightsRow{}
+	for rows.Next() {
+		var i HeldNightsRow
+		if err := rows.Scan(&i.UnitID, &i.Night); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertBlock = `-- name: InsertBlock :exec
 
 INSERT INTO blocks (id, account_id, property_id, starts_on, ends_on, reason, note, created_by)
@@ -262,33 +402,38 @@ func (q *Queries) InsertRateOverrides(ctx context.Context, arg InsertRateOverrid
 const insertUnitNights = `-- name: InsertUnitNights :exec
 
 
-INSERT INTO unit_nights (unit_id, night, account_id, property_id, booking_id, block_id)
+INSERT INTO unit_nights (unit_id, night, account_id, property_id, booking_id, block_id, hold_id, hold_expires_at)
 SELECT u.unit_id, n.night::date, $1::uuid, $2::uuid,
-       $3::uuid, $4::uuid
-FROM unnest($5::uuid[]) AS u (unit_id)
-CROSS JOIN generate_series($6::date, $7::date - 1, interval '1 day') AS n (night)
+       $3::uuid, $4::uuid,
+       $5::uuid, $6::timestamptz
+FROM unnest($7::uuid[]) AS u (unit_id)
+CROSS JOIN generate_series($8::date, $9::date - 1, interval '1 day') AS n (night)
 `
 
 type InsertUnitNightsParams struct {
-	AccountID  uuid.UUID
-	PropertyID uuid.UUID
-	BookingID  *uuid.UUID
-	BlockID    *uuid.UUID
-	UnitIds    []uuid.UUID
-	CheckIn    time.Time
-	CheckOut   time.Time
+	AccountID     uuid.UUID
+	PropertyID    uuid.UUID
+	BookingID     *uuid.UUID
+	BlockID       *uuid.UUID
+	HoldID        *uuid.UUID
+	HoldExpiresAt *time.Time
+	UnitIds       []uuid.UUID
+	CheckIn       time.Time
+	CheckOut      time.Time
 }
 
 // The night ledger, blocks and rate overrides.
 // Night ledger -----------------------------------------------------------------------------
-// Holds every night in [check_in, check_out) on each unit for a booking or a block. A night
-// someone else holds fails the primary key.
+// Holds every night in [check_in, check_out) on each unit for a booking, a block or a checkout
+// hold. A night someone else holds fails the primary key.
 func (q *Queries) InsertUnitNights(ctx context.Context, arg InsertUnitNightsParams) error {
 	_, err := q.db.Exec(ctx, insertUnitNights,
 		arg.AccountID,
 		arg.PropertyID,
 		arg.BookingID,
 		arg.BlockID,
+		arg.HoldID,
+		arg.HoldExpiresAt,
 		arg.UnitIds,
 		arg.CheckIn,
 		arg.CheckOut,

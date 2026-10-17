@@ -47,6 +47,17 @@ export type ActivityPage = Schemas["ActivityPage"];
 export type Template = Schemas["Template"];
 export type NotificationEvent = Schemas["NotificationEvent"];
 export type NotificationPref = Schemas["NotificationPref"];
+export type StayRules = Schemas["StayRules"];
+export type PublicUnit = Schemas["PublicUnit"];
+export type PublicExtra = Schemas["PublicExtra"];
+export type Availability = Schemas["Availability"];
+export type UnitAvailability = Schemas["UnitAvailability"];
+export type PublicQuoteRequest = Schemas["PublicQuoteRequest"];
+export type Hold = Schemas["Hold"];
+export type GuestPaymentMethod = Schemas["GuestPaymentMethod"];
+export type GuestBookingRequest = Schemas["GuestBookingRequest"];
+export type GuestBookingCreated = Schemas["GuestBookingCreated"];
+export type GuestBooking = Schemas["GuestBooking"];
 
 /** Header that names the account an owner route acts on. */
 export const ACCOUNT_HEADER = "X-Account-Id";

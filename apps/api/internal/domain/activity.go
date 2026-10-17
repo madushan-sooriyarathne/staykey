@@ -147,6 +147,65 @@ func SlipRejected(b Booking, actor string) Activity {
 		fmt.Sprintf("%s, rejected by %s", b.Ref, firstName(actor)))
 }
 
+// DirectBooking is a stay a guest booked on the booking page or widget.
+func DirectBooking(b Booking) Activity {
+	if b.Status == StatusRequested {
+		return BookingAdded(b, "")
+	}
+	pays := "pays by bank transfer"
+	if b.PaymentMethod == "property" {
+		pays = "pays at the property"
+	}
+	return stayActivity(b, ActivityBooking, "New direct booking from "+b.Guest.Name,
+		FormatRange(b.CheckIn, b.CheckOut)+", "+pays)
+}
+
+// SlipUploaded is a bank slip a guest sent from their stay page.
+func SlipUploaded(b Booking) Activity {
+	return stayActivity(b, ActivitySlip, "Bank slip from "+b.Guest.Name, b.Ref+", waiting for a check")
+}
+
+// StayImported is a stay that arrived through an OTA calendar.
+func StayImported(b Booking) Activity {
+	return stayActivity(b, ActivityImport, ChannelName(string(b.Source))+" stay imported", FormatRange(b.CheckIn, b.CheckOut))
+}
+
+// ImportedStayCancelled is an imported stay that left its OTA calendar before check-out.
+func ImportedStayCancelled(b Booking) Activity {
+	channel := ChannelName(string(b.Source))
+	return stayActivity(b, ActivityImport, channel+" stay cancelled",
+		FormatRange(b.CheckIn, b.CheckOut)+", removed from the "+channel+" calendar")
+}
+
+// FeedConnected is the first sync of an OTA calendar, which imports quietly and says so once.
+func FeedConnected(propertyID uuid.UUID, channel string, stays int) Activity {
+	imported := "no upcoming stays"
+	switch {
+	case stays == 1:
+		imported = "1 stay imported"
+	case stays > 1:
+		imported = fmt.Sprintf("%d stays imported", stays)
+	}
+	return Activity{PropertyID: &propertyID, Kind: ActivityImport, Title: ChannelName(channel) + " calendar connected", Subtitle: imported}
+}
+
+// ImportClash is an imported stay whose nights another stay or a block already holds. other is
+// that stay's ref, or empty for a block.
+func ImportClash(b Booking, other string) Activity {
+	holder := "a block"
+	if other != "" {
+		holder = other
+	}
+	return stayActivity(b, ActivitySync, fmt.Sprintf("%s stay overlaps %s", ChannelName(string(b.Source)), holder),
+		FormatRange(b.CheckIn, b.CheckOut)+", check both calendars")
+}
+
+// FeedFailing is an OTA calendar that couldn't be read several times in a row.
+func FeedFailing(propertyID uuid.UUID, channel, propertyName string) Activity {
+	return Activity{PropertyID: &propertyID, Kind: ActivitySync, Title: ChannelName(channel) + " sync failed",
+		Subtitle: propertyName + ", the calendar link isn't working"}
+}
+
 func guests(n int) string {
 	if n == 1 {
 		return "1 guest"

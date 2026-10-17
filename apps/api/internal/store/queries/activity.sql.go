@@ -181,6 +181,26 @@ func (q *Queries) GetLastRead(ctx context.Context, arg GetLastReadParams) (time.
 	return last_read_at, err
 }
 
+const hasActivity = `-- name: HasActivity :one
+SELECT EXISTS (
+    SELECT 1 FROM activity WHERE account_id = $1 AND booking_id = $2 AND kind = $3
+)
+`
+
+type HasActivityParams struct {
+	AccountID uuid.UUID
+	BookingID *uuid.UUID
+	Kind      string
+}
+
+// Whether a stay already has activity of a kind, so an alert is written once.
+func (q *Queries) HasActivity(ctx context.Context, arg HasActivityParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasActivity, arg.AccountID, arg.BookingID, arg.Kind)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const insertActivity = `-- name: InsertActivity :exec
 
 INSERT INTO activity (id, account_id, property_id, booking_id, kind, title, subtitle, actor_user_id, created_at)

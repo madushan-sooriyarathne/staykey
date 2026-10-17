@@ -457,6 +457,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ical-feeds/{feedId}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feedId: components["parameters"]["FeedId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read an imported calendar again now
+         * @description Marks the feed due, so the import job reads it within a minute. Returns the feed as it
+         *     stands; fetch the property again shortly after for the result. Owners and managers only.
+         */
+        post: operations["syncIcalFeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/team": {
         parameters: {
             query?: never;
@@ -711,6 +734,187 @@ export interface paths {
         };
         /** Public details for a property's booking page */
         get: operations["getPublicProperty"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/properties/{slug}/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["PropertySlug"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Nights each unit can't be booked, and days guests can't arrive
+         * @description Nights in [from, to) that a stay, block or checkout hold takes, per unit, through
+         *     linked units. The range is at most 13 months.
+         */
+        get: operations["getPublicAvailability"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/properties/{slug}/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["PropertySlug"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Price a stay a guest is choosing
+         * @description Checks the property's stay rules and the promo code, then prices the stay. A broken rule
+         *     is 400 with the field it is about.
+         */
+        post: operations["createPublicQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/properties/{slug}/holds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["PropertySlug"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hold nights while the guest fills in the checkout
+         * @description Holds the nights for the property's holdMinutes. replaces releases the guest's previous
+         *     hold first. Taken nights give 409 dates_taken, with nothing about the other stay.
+         */
+        post: operations["createHold"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/properties/{slug}/bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["PropertySlug"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Book a stay from the booking page or widget
+         * @description Books the held nights (or the nights asked for, when they are free) under the property's
+         *     booking mode. The token in the reply is the guest's only way back to the booking; it is
+         *     not shown again.
+         */
+        post: operations["createGuestBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/bookings/{bookingId}": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The token returned when the guest booked. */
+                "X-Booking-Token": components["parameters"]["BookingToken"];
+            };
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        /** A guest's own booking */
+        get: operations["getGuestBooking"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/bookings/{bookingId}/uploads": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The token returned when the guest booked. */
+                "X-Booking-Token": components["parameters"]["BookingToken"];
+            };
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Get a link to upload a bank slip */
+        post: operations["createGuestUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/bookings/{bookingId}/slips": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The token returned when the guest booked. */
+                "X-Booking-Token": components["parameters"]["BookingToken"];
+            };
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send an uploaded bank slip to the owner */
+        post: operations["addGuestSlip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ical/{file}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The property's calendar for OTAs to import
+         * @description file is the property's slug, a dash, its export token and .ics. Every taken night, as
+         *     "Booked" or "Not available", with nothing about guests. unit limits it to the nights
+         *     that unit can't be sold.
+         */
+        get: operations["getIcalExport"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1141,6 +1345,11 @@ export interface components {
             channel: components["schemas"]["IcalChannel"];
             url: string;
             /**
+             * Format: uuid
+             * @description The unit the calendar is for. Null covers the whole property.
+             */
+            unitId?: string | null;
+            /**
              * @description Pending until the import worker has read the link.
              * @enum {string}
              */
@@ -1155,6 +1364,8 @@ export interface components {
             id?: string;
             channel: components["schemas"]["IcalChannel"];
             url: string;
+            /** @description The unit the calendar is for, as an id or a new unit's id in the same request. Null covers the whole property. */
+            unitId?: string | null;
         };
         UploadRequest: {
             /** @enum {string} */
@@ -1188,6 +1399,7 @@ export interface components {
         PropertyList: {
             items: components["schemas"]["Property"][];
         };
+        /** @description What a booking page shows, with no bank details, promos or feeds. */
         PublicProperty: {
             slug: components["schemas"]["Slug"];
             name: string;
@@ -1196,6 +1408,184 @@ export interface components {
             currency: components["schemas"]["Currency"];
             /** Format: int64 */
             baseRate: number;
+            description: string;
+            amenities: string[];
+            /** @description In display order; the first is the cover. */
+            photos: components["schemas"]["PublicPhoto"][];
+            checkIn: components["schemas"]["Clock"];
+            checkOut: components["schemas"]["Clock"];
+            timeZone: string;
+            houseRules: string[];
+            policy: components["schemas"]["Policy"];
+            depositPercent: number;
+            units: components["schemas"]["PublicUnit"][];
+            /** @description Enabled extras only. */
+            extras: components["schemas"]["PublicExtra"][];
+            rules: components["schemas"]["StayRules"];
+            booking: components["schemas"]["PublicBookingSettings"];
+            payments: components["schemas"]["PublicPayments"];
+            branding: components["schemas"]["PublicBranding"];
+            /** @description False when the property is paused or offers no way to pay. */
+            takingBookings: boolean;
+        };
+        PublicPhoto: {
+            /** Format: uri */
+            url: string;
+            caption: string;
+        };
+        PublicUnit: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            sleeps: number;
+            beds: string;
+            linkedUnitIds: string[];
+        };
+        PublicExtra: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            price: components["schemas"]["Money"];
+            per: components["schemas"]["ExtraPer"];
+            onRequest: boolean;
+        };
+        PublicBookingSettings: {
+            /** @enum {string} */
+            mode: "instant" | "request";
+            holdMinutes: number;
+        };
+        PublicPayments: {
+            /** @description Guests can pay by bank transfer. */
+            bank: boolean;
+            atProperty: boolean;
+        };
+        PublicBranding: {
+            color: string;
+            /** Format: uri */
+            logoUrl?: string;
+        };
+        Availability: {
+            units: components["schemas"]["UnitAvailability"][];
+        };
+        UnitAvailability: {
+            /** Format: uuid */
+            unitId: string;
+            /** @description Nights that can't be booked. */
+            taken: components["schemas"]["Day"][];
+            /** @description Days guests can't arrive on. */
+            closedArrival: components["schemas"]["Day"][];
+        };
+        PublicQuoteRequest: {
+            /** Format: uuid */
+            unitId: string;
+            checkIn: components["schemas"]["Day"];
+            checkOut: components["schemas"]["Day"];
+            adults: number;
+            children?: number;
+            extras?: string[];
+            promo?: string;
+        };
+        NewHold: {
+            /** Format: uuid */
+            unitId: string;
+            checkIn: components["schemas"]["Day"];
+            checkOut: components["schemas"]["Day"];
+            /**
+             * Format: uuid
+             * @description The guest's previous hold, released first.
+             */
+            replaces?: string;
+        };
+        Hold: {
+            /** Format: uuid */
+            holdId: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        /**
+         * @description How a guest who booked on the page said they'd pay.
+         * @enum {string}
+         */
+        GuestPaymentMethod: "bank" | "property";
+        GuestBookingRequest: {
+            /** Format: uuid */
+            holdId?: string;
+            /** Format: uuid */
+            unitId: string;
+            checkIn: components["schemas"]["Day"];
+            checkOut: components["schemas"]["Day"];
+            adults: number;
+            children?: number;
+            extras?: string[];
+            promo?: string;
+            guest: components["schemas"]["Guest"];
+            note?: string;
+            paymentMethod: components["schemas"]["GuestPaymentMethod"];
+            /** @enum {string} */
+            source: "page" | "widget";
+        };
+        GuestBookingCreated: {
+            booking: components["schemas"]["GuestBooking"];
+            /** @description Send as X-Booking-Token to see the booking again. Shown once. */
+            token: string;
+        };
+        /**
+         * @description A booking as its guest sees it. It leaves out the guest record, which may be one the
+         *     owner already had for that phone number.
+         */
+        GuestBooking: {
+            /** Format: uuid */
+            id: string;
+            ref: string;
+            status: components["schemas"]["BookingStatus"];
+            propertyName: string;
+            propertySlug: components["schemas"]["Slug"];
+            propertyCheckIn: components["schemas"]["Clock"];
+            unitName: string;
+            checkIn: components["schemas"]["Day"];
+            checkOut: components["schemas"]["Day"];
+            adults: number;
+            children: number;
+            currency: components["schemas"]["Currency"];
+            lines: components["schemas"]["PriceLine"][];
+            total: components["schemas"]["Money"];
+            deposit: components["schemas"]["Money"];
+            paid: components["schemas"]["Signed"];
+            balance: components["schemas"]["Money"];
+            paymentMethod?: components["schemas"]["GuestPaymentMethod"];
+            /** Format: date-time */
+            paymentDueAt?: string;
+            /** Format: date-time */
+            requestExpiresAt?: string;
+            bank?: components["schemas"]["GuestBank"];
+            slips: components["schemas"]["GuestSlip"][];
+        };
+        /** @description Where to transfer, for guests paying by bank transfer. */
+        GuestBank: {
+            bankName: string;
+            accountName: string;
+            accountNumber: string;
+        };
+        GuestSlip: {
+            amount: components["schemas"]["Money"];
+            /** @enum {string} */
+            status: "pending" | "accepted" | "rejected";
+            /** Format: date-time */
+            uploadedAt: string;
+        };
+        GuestUploadRequest: {
+            /** @enum {string} */
+            contentType: "image/jpeg" | "image/png" | "image/webp" | "image/heic";
+            /**
+             * Format: int64
+             * @description Exact size in bytes, up to 10 MB.
+             */
+            size: number;
+        };
+        GuestSlipInput: {
+            /** @description The key from the booking's uploads. */
+            key: string;
+            amount: components["schemas"]["Money"];
         };
         /** @enum {string} */
         BookingStatus: "requested" | "awaiting_payment" | "confirmed" | "checked_in" | "checked_out" | "cancelled" | "declined";
@@ -1281,6 +1671,7 @@ export interface components {
             requestExpiresAt?: string;
             /** Format: date-time */
             paymentDueAt?: string;
+            paymentMethod?: components["schemas"]["GuestPaymentMethod"];
             cancel?: {
                 reason: string;
                 /** Format: date-time */
@@ -1650,6 +2041,19 @@ export interface components {
                 "application/json": components["schemas"]["ConflictError"];
             };
         };
+        /**
+         * @description The nights are taken (code dates_taken), the property isn't taking bookings
+         *     (not_taking_bookings), or the stay takes no more slips (bad_status). Nothing about other
+         *     stays is included.
+         */
+        PublicConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
         /** @description The Idempotency-Key was already used for a different request */
         KeyReused: {
             headers: {
@@ -1668,6 +2072,10 @@ export interface components {
         InviteId: string;
         MembershipId: string;
         TemplateId: string;
+        FeedId: string;
+        PropertySlug: components["schemas"]["Slug"];
+        /** @description The token returned when the guest booked. */
+        BookingToken: string;
         /**
          * @description Any unique string, such as a UUID made when the form opened. A retry with the same
          *     key and body gets the first reply; the same key with another body gets 422. Keys
@@ -2436,6 +2844,31 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    syncIcalFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feedId: components["parameters"]["FeedId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The feed, due for a read */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IcalFeed"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     getTeam: {
         parameters: {
             query?: never;
@@ -2804,6 +3237,241 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicProperty"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPublicAvailability: {
+        parameters: {
+            query: {
+                from: components["schemas"]["Day"];
+                to: components["schemas"]["Day"];
+            };
+            header?: never;
+            path: {
+                slug: components["parameters"]["PropertySlug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Availability per unit */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Availability"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createPublicQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["PropertySlug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicQuoteRequest"];
+            };
+        };
+        responses: {
+            /** @description The price */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Quote"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createHold: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["PropertySlug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewHold"];
+            };
+        };
+        responses: {
+            /** @description Held */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Hold"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["PublicConflict"];
+        };
+    };
+    createGuestBooking: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Any unique string, such as a UUID made when the form opened. A retry with the same
+                 *     key and body gets the first reply; the same key with another body gets 422. Keys
+                 *     last 24 hours.
+                 */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                slug: components["parameters"]["PropertySlug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestBookingRequest"];
+            };
+        };
+        responses: {
+            /** @description Booked */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestBookingCreated"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["PublicConflict"];
+            422: components["responses"]["KeyReused"];
+        };
+    };
+    getGuestBooking: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The token returned when the guest booked. */
+                "X-Booking-Token": components["parameters"]["BookingToken"];
+            };
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The booking */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestBooking"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createGuestUpload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The token returned when the guest booked. */
+                "X-Booking-Token": components["parameters"]["BookingToken"];
+            };
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Where to upload */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadTicket"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    addGuestSlip: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The token returned when the guest booked. */
+                "X-Booking-Token": components["parameters"]["BookingToken"];
+            };
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestSlipInput"];
+            };
+        };
+        responses: {
+            /** @description The booking with the slip */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestBooking"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["PublicConflict"];
+        };
+    };
+    getIcalExport: {
+        parameters: {
+            query?: {
+                unit?: string;
+            };
+            header?: never;
+            path: {
+                file: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The calendar */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/calendar": string;
                 };
             };
             404: components["responses"]["NotFound"];

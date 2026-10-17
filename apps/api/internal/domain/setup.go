@@ -132,9 +132,11 @@ type Promo struct {
 
 // IcalFeed is an OTA calendar imported into the property's calendar.
 type IcalFeed struct {
-	ID       uuid.UUID
-	Channel  string
-	URL      string
+	ID      uuid.UUID
+	Channel string
+	URL     string
+	// UnitID is the unit the calendar is for; nil means the whole property (see ImportUnits).
+	UnitID   *uuid.UUID
 	Status   string // pending, ok or error
 	LastSync *time.Time
 	Error    string
@@ -144,6 +146,8 @@ type IcalFeed struct {
 // PropertyDetail is a property with its full setup.
 type PropertyDetail struct {
 	Property
+	// Status is live or paused. A paused property shows its page but takes no bookings.
+	Status          string
 	Description     string
 	Amenities       []string
 	CheckIn         string
@@ -217,6 +221,8 @@ type IcalFeedInput struct {
 	Ref     string
 	Channel string
 	URL     string
+	// UnitRef is the unit the calendar is for, by Ref; empty means the whole property.
+	UnitRef string
 }
 
 // PhotoInput lists an uploaded photo, in display order.

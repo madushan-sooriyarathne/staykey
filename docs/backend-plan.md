@@ -2,7 +2,7 @@
 
 As of 5 Oct 2026. Live, editable copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d
 
-Status: phases 1 Foundations, 2 Properties and setup, 3 Bookings core and 4 Team, activity and messages are done (see `docs/HANDOVER.md`); phase 5 Calendar sync and booking page is next.
+Status: phases 1 Foundations, 2 Properties and setup, 3 Bookings core, 4 Team, activity and messages and 5 Calendar sync and booking page are done (see `docs/HANDOVER.md`); phase 6 Billing and hardening is next.
 
 ## Goal and scope
 
@@ -128,7 +128,7 @@ REST under `/v1`, spec-first in `packages/api-spec/openapi.yaml`, Go handlers (o
 | Auth | `POST /auth/otp`, `POST /auth/verify`, `POST /auth/refresh`, `POST /auth/logout`, `GET/PATCH/DELETE /me` | Onboarding phone steps, Profile |
 | Accounts and team | `GET /accounts`, `GET/POST /team`, `PATCH/DELETE /team/{id}`, `POST /invites/{token}/accept` | Team, Join |
 | Onboarding | `POST /properties` with `setup` (property, units, photos, prices, payment settings, feeds in one transaction) | You're live |
-| Properties | `GET/POST /properties`, `GET/PATCH /properties/{id}` (the full setup; a sectioned patch replaces only the sections sent, in one transaction), `POST /uploads` (presigned PUT); `POST /ical-feeds/{id}/sync` arrives in phase 5 | Properties tab, 14 settings screens |
+| Properties | `GET/POST /properties`, `GET/PATCH /properties/{id}` (the full setup; a sectioned patch replaces only the sections sent, in one transaction), `POST /uploads` (presigned PUT); `POST /ical-feeds/{feedId}/sync` marks a feed due | Properties tab, 14 settings screens |
 | Calendar | `GET /properties/{id}/calendar?from&to`, `POST /blocks`, `DELETE /blocks/{id}`, `PUT /rate-overrides` | Calendar, Block dates, Edit rates |
 | Bookings | `GET /bookings`, `POST /bookings`, `GET/PATCH /bookings/{id}`, `POST /bookings/{id}/transitions`, `POST /bookings/{id}/cancel`, `POST /quote` | Today, Bookings, detail, forms |
 | Payments | `POST /bookings/{id}/payments`, `POST /slips/{id}/accept`, `POST /slips/{id}/reject` | Record payment |
