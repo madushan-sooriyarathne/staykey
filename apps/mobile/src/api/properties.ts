@@ -73,3 +73,24 @@ export function useUpdateProperty() {
     onSuccess: (property) => storeProperty(client, accountId, property),
   });
 }
+
+/** How long the import job takes to pick up a feed marked due, give or take. */
+const SYNC_SETTLE_MS = 5000;
+
+/**
+ * "Sync now": marks a feed due so the import job reads it within a minute, then refetches the
+ * properties a little later to show the result.
+ */
+export function useSyncFeed() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (feedId: string) =>
+      unwrap(api.POST("/v1/ical-feeds/{feedId}/sync", { params: { path: { feedId } } })),
+    onSuccess: () =>
+      new Promise<void>((resolve) => {
+        setTimeout(() => {
+          client.invalidateQueries({ queryKey: propertyKeys.all }).finally(resolve);
+        }, SYNC_SETTLE_MS);
+      }),
+  });
+}

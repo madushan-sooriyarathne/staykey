@@ -70,6 +70,8 @@ export type IcalFeed = {
   id: string;
   channel: "airbnb" | "booking" | "agoda" | "expedia" | "other";
   url: string;
+  /** The unit the calendar is for; none covers the whole property. */
+  unitId?: string;
   status: "ok" | "error" | "pending";
   lastSync?: string;
   error?: string;
@@ -193,6 +195,8 @@ export type Booking = {
   ownerNote?: string;
   createdAt: string;
   requestExpiresAt?: string;
+  /** How a guest who booked on the booking page said they'd pay. */
+  paymentMethod?: "bank" | "property";
   cancel?: { reason: string; refund: number; at: string };
   /** Sent back with changes, so an edit made on a stale copy is refused. */
   version: number;
