@@ -146,7 +146,6 @@ func Load() (Config, error) {
 			WebhookSecret: os.Getenv("STAYKEY_PAYMENTSLK_WEBHOOK_SECRET"),
 			APIURL:        os.Getenv("STAYKEY_PAYMENTSLK_API_URL"),
 		},
-		BillingURL:    getenv("STAYKEY_BILLING_URL", "https://staykey.direct/billing"),
 		ForwardSecret: os.Getenv("STAYKEY_FORWARD_SECRET"),
 		R2: R2{
 			Endpoint:        os.Getenv("STAYKEY_R2_ENDPOINT"),
@@ -186,6 +185,7 @@ func Load() (Config, error) {
 		cfg.Storage = getenv("STAYKEY_STORAGE", "r2")
 		cfg.BookingDomain = getenv("STAYKEY_BOOKING_DOMAIN", "staykey.direct")
 		cfg.BookingScheme = getenv("STAYKEY_BOOKING_SCHEME", "https")
+		cfg.BillingURL = getenv("STAYKEY_BILLING_URL", "https://staykey.direct/billing")
 		return cfg, cfg.validate()
 	}
 
@@ -195,6 +195,7 @@ func Load() (Config, error) {
 	cfg.Storage = getenv("STAYKEY_STORAGE", "local")
 	cfg.BookingDomain = getenv("STAYKEY_BOOKING_DOMAIN", "localhost:3001")
 	cfg.BookingScheme = getenv("STAYKEY_BOOKING_SCHEME", "http")
+	cfg.BillingURL = getenv("STAYKEY_BILLING_URL", "http://localhost:3000/billing")
 	return cfg, cfg.validate()
 }
 
