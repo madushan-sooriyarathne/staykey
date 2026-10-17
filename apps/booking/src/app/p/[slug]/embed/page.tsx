@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getPublicProperty } from "@/lib/api";
+import { getAvailability, getPublicProperty } from "@/lib/api";
+import { addMonths, todayIn } from "@/lib/dates";
 import { bookingPageUrl } from "@/lib/tenant";
 import { EmbedBridge } from "./embed-bridge";
 
@@ -19,11 +20,19 @@ export default async function EmbedPage(props: PageProps<"/p/[slug]/embed">) {
   const { host } = await props.searchParams;
   const property = await getPublicProperty(slug);
   if (!property) notFound();
+  const today = todayIn(property.timeZone);
+  const availability = await getAvailability(slug, today, addMonths(today, 12));
 
   return (
     <EmbedBridge
+      slug={slug}
       baseRate={property.baseRate}
       currency={property.currency}
+      units={property.units}
+      availability={availability.units}
+      rules={property.rules}
+      today={today}
+      takingBookings={property.takingBookings}
       bookingPageUrl={bookingPageUrl(slug)}
       hostOrigin={parseOrigin(host)}
     />
