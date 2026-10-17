@@ -2,6 +2,8 @@
 
 Drafted 17 Oct 2026 on top of the phase 5 branch (`feat/phase-5-calendar-sync-booking-page`, PR #3). Merge PR #3 before starting. Written for the agent that executes it; the wider plan is `docs/backend-plan.md`, the checklist `docs/ROADMAP.md`, the state of the code `docs/HANDOVER.md`.
 
+Built on 17 Oct 2026 (branch `feat/phase-6-billing-hardening`). Where the build differs from this plan, mainly Payments.lk's API and rupee prices, the handover's "Calls made without asking" says why.
+
 ## Goal
 
 An owner who buys a plan, in the app through RevenueCat or on the web through Payments.lk, ends their free period on the server. An account whose free period and grace run out turns its booking page into "message the owner on WhatsApp". Public and owner routes are rate limited, tenant queries are walled by Postgres row-level security, and a backup restores cleanly.
