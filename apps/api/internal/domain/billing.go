@@ -237,7 +237,9 @@ type PaidPeriod struct {
 }
 
 // ProductID is the product id a period is recorded under, the same shape as the store ids.
-func ProductID(plan PlanID, period Period) string { return "staykey_" + string(plan) + "_" + string(period) }
+func ProductID(plan PlanID, period Period) string {
+	return "staykey_" + string(plan) + "_" + string(period)
+}
 
 // TakesBookings reports whether the booking page takes holds and stays in this status.
 func TakesBookings(s AccountStatus) bool { return s != StatusLapsed && s != StatusClosed }
