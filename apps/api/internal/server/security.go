@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"net"
@@ -149,16 +150,30 @@ func currentTenant(ctx context.Context) (tenant.Tenant, error) {
 
 type clientIPKey struct{}
 
+// Headers the booking page and the marketing site send from their servers, so limits count
+// the visitor rather than the site.
+const (
+	headerForwardKey = "X-StayKey-Forward-Key"
+	headerGuestIP    = "X-StayKey-Guest-IP"
+)
+
 // withClientIP records the caller's address for rate limits. Behind a proxy, header names the
 // header that carries the real client address (Fly-Client-IP on Fly.io); otherwise the
-// connection's remote address is used.
-func withClientIP(next http.Handler, header string) http.Handler {
+// connection's remote address is used. A request carrying forwardSecret in
+// X-StayKey-Forward-Key comes from one of our sites, and its X-StayKey-Guest-IP is used instead.
+func withClientIP(next http.Handler, header, forwardSecret string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var raw string
 		if header != "" {
 			raw, _, _ = strings.Cut(r.Header.Get(header), ",")
 		} else {
 			raw, _, _ = net.SplitHostPort(r.RemoteAddr)
+		}
+		if key := r.Header.Get(headerForwardKey); forwardSecret != "" && key != "" &&
+			subtle.ConstantTimeCompare([]byte(key), []byte(forwardSecret)) == 1 {
+			if guest := r.Header.Get(headerGuestIP); guest != "" {
+				raw = guest
+			}
 		}
 		if ip, err := netip.ParseAddr(strings.TrimSpace(raw)); err == nil {
 			r = r.WithContext(context.WithValue(r.Context(), clientIPKey{}, ip.Unmap()))

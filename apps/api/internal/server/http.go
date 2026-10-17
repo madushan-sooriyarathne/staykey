@@ -30,14 +30,15 @@ func (s *Server) Handler() http.Handler {
 	}
 	routes := oapi.HandlerWithOptions(strict, oapi.StdHTTPServerOptions{
 		BaseRouter: mux,
-		// Runs after routing (so r.Pattern is set) and before the body is decoded.
-		Middlewares: []oapi.MiddlewareFunc{s.secure},
+		// Run after routing (so r.Pattern is set) and before the body is decoded. The last runs
+		// first: secure, then the rate limits, which count owners by the person secure found.
+		Middlewares: []oapi.MiddlewareFunc{s.limited, s.secure},
 		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
 			writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		},
 	})
 
-	handler := withBaseURL(withClientIP(routes, s.opts.ClientIPHeader), s.opts.PublicURL)
+	handler := withBaseURL(withClientIP(routes, s.opts.ClientIPHeader, s.opts.ForwardSecret), s.opts.PublicURL)
 	return s.logRequests(s.recoverPanics(cors(handler, s.opts.AllowAllOrigins)))
 }
 

@@ -104,6 +104,7 @@ func TestEventFor(t *testing.T) {
 		{ActivityCancellation, EventCancellation},
 		{ActivitySync, EventSync},
 		{ActivityImport, EventSync},
+		{ActivityBilling, EventBooking},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.kind), func(t *testing.T) {
@@ -125,6 +126,8 @@ func TestActivityVisibleTo(t *testing.T) {
 		{"caretaker doesn't see payments", ActivityPayment, RoleCaretaker, false},
 		{"caretaker doesn't see slips", ActivitySlip, RoleCaretaker, false},
 		{"caretaker sees bookings", ActivityBooking, RoleCaretaker, true},
+		{"owner sees billing", ActivityBilling, RoleOwner, true},
+		{"manager doesn't see billing", ActivityBilling, RoleManager, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

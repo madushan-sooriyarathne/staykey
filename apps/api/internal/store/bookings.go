@@ -220,6 +220,9 @@ func (s *Postgres) TransitionBooking(ctx context.Context, t tenant.Tenant, id uu
 		if from != domain.StatusRequested {
 			return nil
 		}
+		if err := s.directBookingMade(ctx, t.AccountID, *b, now); err != nil {
+			return err
+		}
 		actor, err := s.userName(ctx, t.UserID)
 		if err != nil {
 			return err

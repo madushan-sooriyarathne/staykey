@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"staykey.direct/api/internal/auth"
+	"staykey.direct/api/internal/billing"
 	"staykey.direct/api/internal/config"
 	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/ical"
@@ -82,7 +83,7 @@ func run() error {
 		return err
 	}
 
-	srv, err := server.New(db, authService, fileStore, server.Options{
+	opts := server.Options{
 		BookingDomain:   cfg.BookingDomain,
 		BookingScheme:   cfg.BookingScheme,
 		AllowAllOrigins: !cfg.IsProduction(),
@@ -91,7 +92,17 @@ func run() error {
 		InviteURL:       cfg.InviteURL,
 		Media:           media,
 		Logger:          log,
-	})
+		ForwardSecret:   cfg.ForwardSecret,
+		BillingURL:      cfg.BillingURL,
+	}
+	if rc := cfg.RevenueCat; rc.SecretKey != "" {
+		client := billing.RevenueCat{SecretKey: rc.SecretKey, ExternalKey: rc.ExternalKey}
+		opts.Subscribers, opts.ExternalPurchases, opts.RevenueCatWebhookAuth = client, client, rc.WebhookAuth
+	}
+	if lk := cfg.PaymentsLK; lk.SecretKey != "" {
+		opts.WebPayments = billing.PaymentsLK{SecretKey: lk.SecretKey, WebhookSecret: lk.WebhookSecret, BaseURL: lk.APIURL}
+	}
+	srv, err := server.New(db, authService, fileStore, opts)
 	if err != nil {
 		return err
 	}

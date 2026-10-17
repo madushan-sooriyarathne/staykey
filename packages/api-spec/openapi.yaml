@@ -27,6 +27,7 @@ tags:
   - name: team
   - name: activity
   - name: messages
+  - name: billing
   - name: public
 
 paths:
@@ -1169,6 +1170,167 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /v1/subscription:
+    get:
+      tags: [billing]
+      operationId: getSubscription
+      summary: The account's plan, free period and bookable units
+      description: |
+        Every role may read it; only owners may change it. The server decides access from
+        RevenueCat and Payments.lk, so the app reads this rather than the store's entitlements.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The account's billing state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/subscription/refresh:
+    post:
+      tags: [billing]
+      operationId: refreshSubscription
+      summary: Read the account's store plans from RevenueCat now
+      description: |
+        For right after a purchase or a restore in the app, before RevenueCat's webhook arrives.
+        Owners only. 503 billing_not_configured when RevenueCat isn't set up.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The account's billing state after the read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/subscription/checkout:
+    post:
+      tags: [billing]
+      operationId: createCheckout
+      summary: Start a web payment for one prepaid period
+      description: |
+        Returns the Payments.lk checkout to send the owner to. A period bought while another
+        web period runs starts when that one ends. Owners only. 409 already_subscribed while an
+        App Store or Google Play plan gives access; 503 billing_not_configured when Payments.lk
+        isn't set up.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutRequest"
+      responses:
+        "201":
+          description: The checkout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCheckout"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /webhooks/revenuecat:
+    post:
+      tags: [billing]
+      operationId: revenueCatWebhook
+      summary: Subscription events from RevenueCat
+      description: |
+        Checked against the Authorization value set in RevenueCat's dashboard. The event only
+        says which account changed; the plan is read back from RevenueCat.
+      parameters:
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Received
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /webhooks/payments-lk:
+    post:
+      tags: [billing]
+      operationId: paymentsLkWebhook
+      summary: Payment events from Payments.lk
+      description: Verified with the Payments-Signature header against the raw body.
+      parameters:
+        - name: Payments-Signature
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Received
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/public/plans:
+    get:
+      tags: [billing]
+      operationId: listPlans
+      summary: Plans and their web prices
+      description: |
+        Web prices are in LKR, the only currency Payments.lk takes. App Store and Google Play
+        prices are set in the stores.
+      responses:
+        "200":
+          description: The plans, smallest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanList"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /v1/public/invites/preview:
     post:
       tags: [public]
@@ -1192,6 +1354,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /v1/public/properties/{slug}:
     get:
@@ -1213,6 +1377,8 @@ paths:
                 $ref: "#/components/schemas/PublicProperty"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /v1/public/properties/{slug}/availability:
     parameters:
@@ -1246,6 +1412,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /v1/public/properties/{slug}/quote:
     parameters:
@@ -1274,6 +1442,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /v1/public/properties/{slug}/holds:
     parameters:
@@ -1302,6 +1472,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "409":
           $ref: "#/components/responses/PublicConflict"
 
@@ -1335,6 +1507,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "409":
           $ref: "#/components/responses/PublicConflict"
         "422":
@@ -1357,6 +1531,8 @@ paths:
                 $ref: "#/components/schemas/GuestBooking"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /v1/public/bookings/{bookingId}/uploads:
     parameters:
@@ -1383,6 +1559,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /v1/public/bookings/{bookingId}/slips:
     parameters:
@@ -1409,6 +1587,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "409":
           $ref: "#/components/responses/PublicConflict"
 
@@ -1442,6 +1622,8 @@ paths:
                 type: string
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
 components:
   securitySchemes:
@@ -1589,6 +1771,12 @@ components:
         The nights are taken (code dates_taken), the property isn't taking bookings
         (not_taking_bookings), or the stay takes no more slips (bad_status). Nothing about other
         stays is included.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServiceUnavailable:
+      description: A provider this needs isn't set up on the server (code billing_not_configured)
       content:
         application/json:
           schema:
@@ -2604,7 +2792,18 @@ components:
           $ref: "#/components/schemas/PublicBranding"
         takingBookings:
           type: boolean
-          description: False when the property is paused or offers no way to pay.
+          description: False when the property is paused, offers no way to pay, or its plan lapsed.
+        pausedReason:
+          type: string
+          nullable: true
+          enum: [lapsed, paused, no_payment_method]
+          description: Why takingBookings is false. Null while it is true.
+        whatsapp:
+          type: string
+          nullable: true
+          description: |
+            The owner's number, so guests can message them while the plan is lapsed. Only set
+            when pausedReason is lapsed.
 
     PublicPhoto:
       type: object
@@ -3348,7 +3547,7 @@ components:
       properties:
         code:
           type: string
-          enum: [dates_taken, stale, bad_status]
+          enum: [dates_taken, stale, bad_status, already_subscribed]
         message:
           type: string
         clash:
@@ -3602,7 +3801,7 @@ components:
 
     ActivityKind:
       type: string
-      enum: [request, booking, slip, payment, cancellation, sync, import]
+      enum: [request, booking, slip, payment, cancellation, sync, import, billing]
 
     Activity:
       type: object
@@ -3723,6 +3922,108 @@ components:
         platform:
           type: string
           enum: [ios, android, web]
+
+    PlanId:
+      type: string
+      enum: [villa, guesthouse, collection]
+
+    BillingPeriod:
+      type: string
+      enum: [monthly, yearly]
+
+    SubscriptionSource:
+      type: string
+      enum: [app_store, play_store, web]
+
+    Subscription:
+      type: object
+      required: [status, until, freeEndsAt, units, fits, canPurchase]
+      properties:
+        status:
+          $ref: "#/components/schemas/AccountStatus"
+        until:
+          type: string
+          format: date-time
+          description: |
+            When the status next changes on its own: the end of the free period, of the paid
+            period or of grace. For a lapsed account, when grace ended.
+        freeEndsAt:
+          type: string
+          format: date-time
+          description: The end of the free period, which the first direct booking brings forward.
+        plan:
+          $ref: "#/components/schemas/PlanId"
+        period:
+          $ref: "#/components/schemas/BillingPeriod"
+        source:
+          $ref: "#/components/schemas/SubscriptionSource"
+        willRenew:
+          type: boolean
+        periodEnd:
+          type: string
+          format: date-time
+          description: The end of the paid period, when there is a plan.
+        units:
+          type: integer
+          description: Bookable units across the account's properties.
+        fits:
+          $ref: "#/components/schemas/PlanId"
+        canPurchase:
+          type: boolean
+          description: |
+            True for owners while no paid plan gives access. A web period can still be extended
+            from the web billing page while one runs.
+
+    PlanList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Plan"
+
+    Plan:
+      type: object
+      required: [id, name, units, currency, monthly, yearly]
+      properties:
+        id:
+          $ref: "#/components/schemas/PlanId"
+        name:
+          type: string
+        units:
+          type: integer
+          description: The most bookable units the plan is meant for.
+        currency:
+          $ref: "#/components/schemas/Currency"
+        monthly:
+          type: integer
+          format: int64
+        yearly:
+          type: integer
+          format: int64
+
+    CheckoutRequest:
+      type: object
+      required: [plan, period]
+      properties:
+        plan:
+          $ref: "#/components/schemas/PlanId"
+        period:
+          $ref: "#/components/schemas/BillingPeriod"
+
+    WebCheckout:
+      type: object
+      required: [url, amount, currency]
+      properties:
+        url:
+          type: string
+          description: The hosted checkout to send the owner to.
+        amount:
+          type: integer
+          format: int64
+        currency:
+          $ref: "#/components/schemas/Currency"
 
     Error:
       type: object

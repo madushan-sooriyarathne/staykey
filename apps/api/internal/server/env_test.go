@@ -56,6 +56,18 @@ func newEnv(t *testing.T, configure ...func(*auth.Config)) *env {
 
 func newEnvWithStore(t *testing.T, st *store.Postgres, serverStore Store, configure ...func(*auth.Config)) *env {
 	t.Helper()
+	return buildEnv(t, st, serverStore, nil, configure...)
+}
+
+// newEnvWithOptions is newEnv with server options changed, for billing providers and limits.
+func newEnvWithOptions(t *testing.T, set func(*Options)) *env {
+	t.Helper()
+	st := storetest.New(t)
+	return buildEnv(t, st, st, set)
+}
+
+func buildEnv(t *testing.T, st *store.Postgres, serverStore Store, set func(*Options), configure ...func(*auth.Config)) *env {
+	t.Helper()
 	clk := &clock{now: time.Now().UTC().Truncate(time.Second)}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := auth.Config{
@@ -75,12 +87,16 @@ func newEnvWithStore(t *testing.T, st *store.Postgres, serverStore Store, config
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := New(serverStore, authService, local, Options{
+	opts := Options{
 		BookingDomain: "staykey.direct",
 		BookingScheme: "https",
 		Media:         local.Handler(),
 		Logger:        log,
-	})
+	}
+	if set != nil {
+		set(&opts)
+	}
+	srv, err := New(serverStore, authService, local, opts)
 	if err != nil {
 		t.Fatal(err)
 	}

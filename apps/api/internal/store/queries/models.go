@@ -134,6 +134,21 @@ type Session struct {
 	UpdatedAt           time.Time
 }
 
+type Subscription struct {
+	AccountID        uuid.UUID
+	Source           string
+	Plan             string
+	Period           string
+	Status           string
+	WillRenew        bool
+	CurrentPeriodEnd time.Time
+	ProductID        string
+	ExternalID       string
+	LastEventAt      time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
 type User struct {
 	ID        uuid.UUID
 	Phone     string
@@ -143,4 +158,20 @@ type User struct {
 	PhotoKey  *string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type WebCheckout struct {
+	ID              uuid.UUID
+	AccountID       uuid.UUID
+	Plan            string
+	Period          string
+	Amount          int64
+	Currency        string
+	Status          string
+	ProviderID      string
+	ProviderOrderID string
+	PeriodStart     *time.Time
+	PeriodEnd       *time.Time
+	CreatedAt       time.Time
+	PaidAt          *time.Time
 }

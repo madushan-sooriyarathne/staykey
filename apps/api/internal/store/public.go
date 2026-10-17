@@ -91,7 +91,10 @@ func (s *Postgres) CreateGuestBooking(ctx context.Context, accountID uuid.UUID, 
 				return fmt.Errorf("use promo: %w", err)
 			}
 		}
-		return s.addActivity(ctx, accountID, domain.DirectBooking(added), nil, now)
+		if err := s.addActivity(ctx, accountID, domain.DirectBooking(added), nil, now); err != nil {
+			return err
+		}
+		return s.directBookingMade(ctx, accountID, added, now)
 	})
 	if err != nil {
 		return uuid.Nil, err

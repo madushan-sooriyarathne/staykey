@@ -14,6 +14,7 @@ import (
 	"staykey.direct/api/internal/domain"
 	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/oapi"
+	"staykey.direct/api/internal/ratelimit"
 	"staykey.direct/api/internal/store"
 	"staykey.direct/api/internal/tenant"
 )
@@ -77,6 +78,15 @@ type Store interface {
 	NotificationPrefs(ctx context.Context, t tenant.Tenant) ([]domain.NotificationPref, error)
 	SetNotificationPrefs(ctx context.Context, t tenant.Tenant, prefs []domain.NotificationPref) ([]domain.NotificationPref, error)
 	SavePushToken(ctx context.Context, userID, sessionID uuid.UUID, token, platform string) error
+
+	AccountBilling(ctx context.Context, accountID uuid.UUID, now time.Time) (domain.AccountBilling, error)
+	Subscription(ctx context.Context, t tenant.Tenant, now time.Time) (domain.AccountBilling, error)
+	ApplyStoreSubscriptions(ctx context.Context, ev store.BillingEvent, accountID uuid.UUID, subs []domain.Subscription, eventAt, now time.Time) error
+	RecordBillingEvent(ctx context.Context, ev store.BillingEvent) error
+	CreateWebCheckout(ctx context.Context, t tenant.Tenant, plan domain.PlanID, period domain.Period, now time.Time) (uuid.UUID, int64, error)
+	SetWebCheckoutProvider(ctx context.Context, t tenant.Tenant, id uuid.UUID, providerID string) error
+	PayWebCheckout(ctx context.Context, ev store.BillingEvent, pay store.WebPayment, now time.Time) (domain.PaidPeriod, error)
+	ExpireWebCheckout(ctx context.Context, ev store.BillingEvent, providerID string) error
 }
 
 // Options configures a Server.
@@ -96,6 +106,18 @@ type Options struct {
 	// InviteURL is where invite links point, followed by the token. Empty uses
 	// https://staykey.direct/join.
 	InviteURL string
+	// ForwardSecret lets the booking page and the marketing site pass on the visitor's address
+	// in X-StayKey-Guest-IP, for rate limits. Empty ignores those headers.
+	ForwardSecret string
+	// Subscribers reads store plans from RevenueCat; ExternalPurchases mirrors web periods to it.
+	// RevenueCatWebhookAuth is the Authorization value set in RevenueCat's dashboard. Nil or
+	// empty leaves those routes answering 503.
+	Subscribers           SubscriberSource
+	ExternalPurchases     ExternalRecorder
+	RevenueCatWebhookAuth string
+	// WebPayments takes web payments through Payments.lk, returning owners to BillingURL.
+	WebPayments WebGateway
+	BillingURL  string
 	// Media serves the local file store's files and uploads under /media/. Nil when files live
 	// in R2.
 	Media  http.Handler
@@ -110,6 +132,8 @@ type Server struct {
 	opts  Options
 	log   *slog.Logger
 	reqs  map[string]requirement
+	// limiter counts requests per route and caller, in memory.
+	limiter *ratelimit.Limiter
 }
 
 var _ oapi.StrictServerInterface = (*Server)(nil)
@@ -129,7 +153,7 @@ func New(store Store, authService *auth.Service, fileStore files.Store, opts Opt
 	if err != nil {
 		return nil, fmt.Errorf("read security requirements: %w", err)
 	}
-	return &Server{store: store, auth: authService, files: fileStore, opts: opts, log: log, reqs: reqs}, nil
+	return &Server{store: store, auth: authService, files: fileStore, opts: opts, log: log, reqs: reqs, limiter: ratelimit.New(nil)}, nil
 }
 
 // GetHealth reports service health, including whether the database answers.

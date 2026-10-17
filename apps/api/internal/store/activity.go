@@ -114,11 +114,10 @@ func (s *Postgres) userName(ctx context.Context, id uuid.UUID) (string, error) {
 // array as "hide everything".
 func hiddenKinds(t tenant.Tenant) []string {
 	out := []string{}
-	if t.Can(domain.PermPrices) {
-		return out
-	}
-	for _, k := range domain.HiddenFromCaretakers {
-		out = append(out, string(k))
+	for _, k := range domain.ActivityKinds {
+		if !k.VisibleTo(t.Role) {
+			out = append(out, string(k))
+		}
 	}
 	return out
 }

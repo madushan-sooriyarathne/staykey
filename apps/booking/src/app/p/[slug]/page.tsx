@@ -2,6 +2,7 @@ import { formatMoney, type PublicProperty } from "@staykey/api-client";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BookingCard } from "@/components/booking-card";
+import { NotTakingBookings } from "@/components/not-taking-bookings";
 import { getAvailability, getPublicProperty, quoteStay } from "@/lib/api";
 import { addMonths, todayIn } from "@/lib/dates";
 import { stayFromParams } from "@/lib/stay-params";
@@ -117,10 +118,11 @@ export default async function PropertyPage(props: PageProps<"/p/[slug]">) {
               from={initial.from}
             />
           ) : (
-            <div className="rounded-card border border-cloud bg-snow p-5 text-graphite">
-              {property.name} isn't taking bookings online right now. Please contact the property
-              directly.
-            </div>
+            <NotTakingBookings
+              property={property}
+              checkIn={initial.checkIn}
+              checkOut={initial.checkOut}
+            />
           )}
           <p className="mt-3 text-center text-fog text-sm">
             Book direct with the owner. No booking fees.

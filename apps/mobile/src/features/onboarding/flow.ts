@@ -9,6 +9,7 @@ import { queryClient } from "@/api/query-client";
 import { uploadImage } from "@/api/uploads";
 import { toNewProperty } from "@/data/from-api";
 import type { PropertyConfig } from "@/data/types";
+import { identify } from "@/lib/purchases";
 import { useSession } from "@/lib/session";
 import { ChannelsStep, ReviewStep } from "./steps/live";
 import { PaymentStep, PolicyStep, PriceStep } from "./steps/paid";
@@ -190,6 +191,7 @@ export async function publish(d: Draft): Promise<PublishResult> {
     if (!session.accountId) {
       const account = await createAccount(d.propertyName.trim());
       session.setAccount(account.id, account.role);
+      void identify(account.id);
     }
 
     const name = `${d.firstName} ${d.lastName}`.trim();

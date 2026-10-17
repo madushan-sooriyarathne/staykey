@@ -1,4 +1,4 @@
-import createClient, { type ClientOptions } from "openapi-fetch";
+import createClient, { type ClientOptions, type Middleware } from "openapi-fetch";
 import type { components, paths } from "./schema";
 
 export type { Middleware } from "openapi-fetch";
@@ -58,6 +58,11 @@ export type GuestPaymentMethod = Schemas["GuestPaymentMethod"];
 export type GuestBookingRequest = Schemas["GuestBookingRequest"];
 export type GuestBookingCreated = Schemas["GuestBookingCreated"];
 export type GuestBooking = Schemas["GuestBooking"];
+export type Subscription = Schemas["Subscription"];
+export type PlanId = Schemas["PlanId"];
+export type BillingPeriod = Schemas["BillingPeriod"];
+export type Plan = Schemas["Plan"];
+export type WebCheckout = Schemas["WebCheckout"];
 
 /** Header that names the account an owner route acts on. */
 export const ACCOUNT_HEADER = "X-Account-Id";
@@ -70,6 +75,27 @@ export function createStayKeyClient(baseUrl: string = PRODUCTION_API_URL, option
 }
 
 export type StayKeyClient = ReturnType<typeof createStayKeyClient>;
+
+/**
+ * For a site that calls the API from its own server: passes the visitor's address on, with the
+ * secret the API shares with that site, so rate limits count the visitor rather than the site.
+ * Does nothing without a secret or an address.
+ */
+export function forwardVisitor(
+  secret: string | undefined,
+  visitorAddress: () => Promise<string | undefined>,
+): Middleware {
+  return {
+    async onRequest({ request }) {
+      if (!secret) return undefined;
+      const address = await visitorAddress();
+      if (!address) return undefined;
+      request.headers.set("X-StayKey-Forward-Key", secret);
+      request.headers.set("X-StayKey-Guest-IP", address);
+      return request;
+    },
+  };
+}
 
 /** Formats an amount in minor units, for example 18000 USD as "$180". */
 export function formatMoney(amountMinor: number, currency: Currency, locale = "en-US"): string {
