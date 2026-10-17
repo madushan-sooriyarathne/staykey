@@ -205,3 +205,47 @@ func TestAvailabilityLeavesOutLapsedHolds(t *testing.T) {
 		t.Errorf("taken = %v, want nothing", taken)
 	}
 }
+
+func TestAGuestBookingWithAnotherNameGetsItsOwnGuest(t *testing.T) {
+	t.Parallel()
+	h := newHouse(t)
+	ctx := context.Background()
+	owners, err := h.book(ctx, h.r2, "2026-09-10", "2026-09-12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	impostor := domain.Guest{Name: "Someone Else", Phone: owners.Guest.Phone}
+	id, err := h.guestBooking(ctx, nil, impostor, "token", domain.Pricing{Total: 24000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := h.s.GetBooking(ctx, h.t, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Guest.ID == owners.Guest.ID {
+		t.Error("the stay went onto the existing guest's record")
+	}
+}
+
+func TestAReturningGuestIsMatched(t *testing.T) {
+	t.Parallel()
+	h := newHouse(t)
+	ctx := context.Background()
+	owners, err := h.book(ctx, h.r2, "2026-09-10", "2026-09-12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	again := domain.Guest{Name: "nimali perera", Phone: owners.Guest.Phone}
+	id, err := h.guestBooking(ctx, nil, again, "token", domain.Pricing{Total: 24000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := h.s.GetBooking(ctx, h.t, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Guest.ID != owners.Guest.ID {
+		t.Error("a returning guest got a new record")
+	}
+}

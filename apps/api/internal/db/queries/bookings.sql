@@ -10,6 +10,15 @@ WHERE account_id = @account_id
 ORDER BY created_at
 LIMIT 1;
 
+-- The guest with this phone or email and this name, for bookings from the booking page.
+-- name: FindNamedGuest :one
+SELECT id FROM guests
+WHERE account_id = @account_id AND lower(name) = lower(@name::text)
+  AND ((sqlc.narg('phone')::text IS NOT NULL AND phone = sqlc.narg('phone')::text)
+    OR (sqlc.narg('email')::text IS NOT NULL AND lower(email) = lower(sqlc.narg('email')::text)))
+ORDER BY created_at
+LIMIT 1;
+
 -- name: InsertGuest :exec
 INSERT INTO guests (id, account_id, name, phone, email, country)
 VALUES (@id, @account_id, @name, sqlc.narg('phone'), sqlc.narg('email'), sqlc.narg('country'));
