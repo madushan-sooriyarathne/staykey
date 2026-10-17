@@ -83,7 +83,8 @@ func (q *Queries) DeclineExpiredRequests(ctx context.Context, now time.Time) ([]
 const fileInUse = `-- name: FileInUse :one
 SELECT EXISTS (SELECT 1 FROM property_photos WHERE key = $1::text)
     OR EXISTS (SELECT 1 FROM properties WHERE logo_key = $1::text)
-    OR EXISTS (SELECT 1 FROM payment_slips WHERE file_key = $1::text) AS in_use
+    OR EXISTS (SELECT 1 FROM payment_slips WHERE file_key = $1::text)
+    OR EXISTS (SELECT 1 FROM users WHERE photo_key = $1::text) AS in_use
 `
 
 func (q *Queries) FileInUse(ctx context.Context, key string) (*bool, error) {

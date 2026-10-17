@@ -7,12 +7,22 @@ package queries
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
 
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
+}
+
 const getUser = `-- name: GetUser :one
-SELECT id, phone, name, email, language, photo_key, created_at, updated_at FROM users WHERE id = $1
+SELECT id, phone, name, email, language, photo_key, created_at, updated_at, deleted_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -27,12 +37,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.PhotoKey,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUserByPhone = `-- name: GetUserByPhone :one
-SELECT id, phone, name, email, language, photo_key, created_at, updated_at FROM users WHERE phone = $1
+SELECT id, phone, name, email, language, photo_key, created_at, updated_at, deleted_at FROM users WHERE phone = $1
 `
 
 func (q *Queries) GetUserByPhone(ctx context.Context, phone string) (User, error) {
@@ -47,6 +58,7 @@ func (q *Queries) GetUserByPhone(ctx context.Context, phone string) (User, error
 		&i.PhotoKey,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -66,6 +78,46 @@ func (q *Queries) InsertUserIfMissing(ctx context.Context, arg InsertUserIfMissi
 	return err
 }
 
+const markUserDeleted = `-- name: MarkUserDeleted :exec
+UPDATE users SET deleted_at = $1::timestamptz WHERE id = $2
+`
+
+type MarkUserDeletedParams struct {
+	Now time.Time
+	ID  uuid.UUID
+}
+
+func (q *Queries) MarkUserDeleted(ctx context.Context, arg MarkUserDeletedParams) error {
+	_, err := q.db.Exec(ctx, markUserDeleted, arg.Now, arg.ID)
+	return err
+}
+
+const restoreUser = `-- name: RestoreUser :execrows
+UPDATE users SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL
+`
+
+func (q *Queries) RestoreUser(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, restoreUser, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setUserPhoto = `-- name: SetUserPhoto :exec
+UPDATE users SET photo_key = $1 WHERE id = $2
+`
+
+type SetUserPhotoParams struct {
+	PhotoKey *string
+	ID       uuid.UUID
+}
+
+func (q *Queries) SetUserPhoto(ctx context.Context, arg SetUserPhotoParams) error {
+	_, err := q.db.Exec(ctx, setUserPhoto, arg.PhotoKey, arg.ID)
+	return err
+}
+
 const updateUser = `-- name: UpdateUser :one
 UPDATE users SET
     name     = coalesce($1::text, name),
@@ -73,7 +125,7 @@ UPDATE users SET
                     ELSE nullif($2::text, '') END,
     language = coalesce($3::text, language)
 WHERE id = $4
-RETURNING id, phone, name, email, language, photo_key, created_at, updated_at
+RETURNING id, phone, name, email, language, photo_key, created_at, updated_at, deleted_at
 `
 
 type UpdateUserParams struct {
@@ -101,6 +153,31 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.PhotoKey,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const usersDeletedBefore = `-- name: UsersDeletedBefore :many
+SELECT id FROM users WHERE deleted_at < $1::timestamptz ORDER BY id
+`
+
+func (q *Queries) UsersDeletedBefore(ctx context.Context, before time.Time) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, usersDeletedBefore, before)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
