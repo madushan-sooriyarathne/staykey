@@ -66,6 +66,35 @@ func (q *Queries) FindGuest(ctx context.Context, arg FindGuestParams) (uuid.UUID
 	return id, err
 }
 
+const findNamedGuest = `-- name: FindNamedGuest :one
+SELECT id FROM guests
+WHERE account_id = $1 AND lower(name) = lower($2::text)
+  AND (($3::text IS NOT NULL AND phone = $3::text)
+    OR ($4::text IS NOT NULL AND lower(email) = lower($4::text)))
+ORDER BY created_at
+LIMIT 1
+`
+
+type FindNamedGuestParams struct {
+	AccountID uuid.UUID
+	Name      string
+	Phone     *string
+	Email     *string
+}
+
+// The guest with this phone or email and this name, for bookings from the booking page.
+func (q *Queries) FindNamedGuest(ctx context.Context, arg FindNamedGuestParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, findNamedGuest,
+		arg.AccountID,
+		arg.Name,
+		arg.Phone,
+		arg.Email,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getBooking = `-- name: GetBooking :one
 SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
        g.country AS guest_country

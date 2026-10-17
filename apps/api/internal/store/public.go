@@ -143,12 +143,15 @@ func (s *Postgres) AddGuestSlip(ctx context.Context, bookingID uuid.UUID, tokenH
 	})
 }
 
-// findOrAddGuest reuses the account's guest with the same phone or email, as it is, or adds a
-// new one. Someone on the booking page may type another person's number, so it never changes a
-// stored guest.
+// findOrAddGuest reuses the account's guest with the same name and the same phone or email, or
+// adds a new one. Someone on the booking page may type another person's number, so it never
+// changes a stored guest, and a different name makes a guest of its own rather than a stay on
+// someone else's record.
 func (s *Postgres) findOrAddGuest(ctx context.Context, accountID uuid.UUID, g domain.Guest) (uuid.UUID, error) {
 	q := s.db(ctx)
-	id, err := q.FindGuest(ctx, queries.FindGuestParams{AccountID: accountID, Phone: nonEmpty(g.Phone), Email: nonEmpty(g.Email)})
+	id, err := q.FindNamedGuest(ctx, queries.FindNamedGuestParams{
+		AccountID: accountID, Name: g.Name, Phone: nonEmpty(g.Phone), Email: nonEmpty(g.Email),
+	})
 	if err == nil {
 		return id, nil
 	}
