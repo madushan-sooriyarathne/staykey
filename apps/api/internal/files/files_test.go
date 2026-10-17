@@ -128,3 +128,25 @@ func TestR2Presign(t *testing.T) {
 		t.Errorf("public URL %s", up.PublicURL)
 	}
 }
+
+func TestAvatarKeysBelongToTheirPerson(t *testing.T) {
+	user := uuid.Must(uuid.NewV7())
+	key, err := NewAvatarKey(user, "image/png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ValidAvatarKey(key, user) || ValidAvatarKey(key, uuid.New()) {
+		t.Errorf("ValidAvatarKey is wrong for %s", key)
+	}
+}
+
+func TestAnAccountFileIsNotAnAvatar(t *testing.T) {
+	user := uuid.Must(uuid.NewV7())
+	key, err := NewKey(user, KindPhoto, "image/png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ValidAvatarKey(key, user) {
+		t.Errorf("%s passed as an avatar", key)
+	}
+}

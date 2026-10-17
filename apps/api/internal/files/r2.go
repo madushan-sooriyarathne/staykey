@@ -86,18 +86,20 @@ func (r *R2) URL(_ context.Context, key string) string {
 	return strings.TrimRight(r.cfg.PublicURL, "/") + "/" + key
 }
 
-// WrittenBefore pages through the bucket's account files.
+// WrittenBefore pages through the bucket's account files and profile photos.
 func (r *R2) WrittenBefore(ctx context.Context, t time.Time) ([]string, error) {
 	var keys []string
-	pages := s3.NewListObjectsV2Paginator(r.client, &s3.ListObjectsV2Input{Bucket: aws.String(r.cfg.Bucket), Prefix: aws.String("accounts/")})
-	for pages.HasMorePages() {
-		page, err := pages.NextPage(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("list files: %w", err)
-		}
-		for _, o := range page.Contents {
-			if o.LastModified != nil && o.LastModified.Before(t) && ValidKey(aws.ToString(o.Key)) {
-				keys = append(keys, aws.ToString(o.Key))
+	for _, prefix := range []string{"accounts/", "users/"} {
+		pages := s3.NewListObjectsV2Paginator(r.client, &s3.ListObjectsV2Input{Bucket: aws.String(r.cfg.Bucket), Prefix: aws.String(prefix)})
+		for pages.HasMorePages() {
+			page, err := pages.NextPage(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("list files: %w", err)
+			}
+			for _, o := range page.Contents {
+				if o.LastModified != nil && o.LastModified.Before(t) && ValidKey(aws.ToString(o.Key)) {
+					keys = append(keys, aws.ToString(o.Key))
+				}
 			}
 		}
 	}

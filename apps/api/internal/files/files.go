@@ -23,10 +23,12 @@ const (
 	KindLogo  Kind = "logo"
 	// KindSlip is a bank transfer receipt a guest uploads from the booking page.
 	KindSlip Kind = "slip"
+	// KindAvatar is a person's profile photo. It belongs to the person, not an account.
+	KindAvatar Kind = "avatar"
 )
 
 // MaxBytes is the largest upload for each kind.
-var MaxBytes = map[Kind]int64{KindPhoto: 15 << 20, KindLogo: 5 << 20, KindSlip: 10 << 20}
+var MaxBytes = map[Kind]int64{KindPhoto: 15 << 20, KindLogo: 5 << 20, KindSlip: 10 << 20, KindAvatar: 5 << 20}
 
 // extensions maps accepted content types to the key's file extension.
 var extensions = map[string]string{
@@ -72,7 +74,21 @@ func NewKey(accountID uuid.UUID, kind Kind, contentType string) (string, error) 
 	return fmt.Sprintf("accounts/%s/%ss/%s.%s", accountID, kind, uuid.Must(uuid.NewV7()), ext), nil
 }
 
-var keyPattern = regexp.MustCompile(`^accounts/[0-9a-f-]{36}/(photo|logo|slip)s/[0-9a-f-]{36}\.(jpg|png|webp|heic)$`)
+// NewAvatarKey returns a fresh key for a person's profile photo.
+func NewAvatarKey(userID uuid.UUID, contentType string) (string, error) {
+	ext, ok := extensions[contentType]
+	if !ok {
+		return "", fmt.Errorf("unsupported content type %q", contentType)
+	}
+	return fmt.Sprintf("users/%s/avatars/%s.%s", userID, uuid.Must(uuid.NewV7()), ext), nil
+}
+
+// ValidAvatarKey reports whether key is a profile photo of this person.
+func ValidAvatarKey(key string, userID uuid.UUID) bool {
+	return ValidKey(key) && strings.HasPrefix(key, fmt.Sprintf("users/%s/avatars/", userID))
+}
+
+var keyPattern = regexp.MustCompile(`^(accounts/[0-9a-f-]{36}/(photo|logo|slip)s|users/[0-9a-f-]{36}/avatars)/[0-9a-f-]{36}\.(jpg|png|webp|heic)$`)
 
 // ValidKey reports whether key has the shape NewKey produces. It also rules out path tricks.
 func ValidKey(key string) bool { return keyPattern.MatchString(key) }
