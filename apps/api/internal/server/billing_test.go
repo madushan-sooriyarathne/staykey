@@ -278,3 +278,14 @@ func TestAForwardedAddressWithTheSecretIsCountedOnItsOwn(t *testing.T) {
 		t.Errorf("booking from a second guest = %d, want 201", got)
 	}
 }
+
+func TestPlansListWebPricesInRupees(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	rec := e.do(call{method: http.MethodGet, path: "/v1/public/plans"})
+	e.expect(rec, http.StatusOK)
+	got := decode[oapi.PlanList](t, rec)
+	if len(got.Items) != 3 || got.Items[0].Id != oapi.Villa || got.Items[0].Currency != oapi.CurrencyLKR {
+		t.Errorf("plans = %+v", got.Items)
+	}
+}

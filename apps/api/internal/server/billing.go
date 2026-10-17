@@ -139,3 +139,15 @@ func subscriptionToAPI(b domain.AccountBilling, t tenant.Tenant, now time.Time) 
 	}
 	return out
 }
+
+// ListPlans returns the plans with their web prices, for the marketing site.
+func (s *Server) ListPlans(_ context.Context, _ oapi.ListPlansRequestObject) (oapi.ListPlansResponseObject, error) {
+	out := oapi.PlanList{Items: make([]oapi.Plan, len(domain.Plans))}
+	for i, p := range domain.Plans {
+		out.Items[i] = oapi.Plan{
+			Id: oapi.PlanId(p.ID), Name: p.Name, Units: p.Units, Currency: oapi.Currency(domain.WebCurrency),
+			Monthly: p.Monthly, Yearly: p.Yearly,
+		}
+	}
+	return oapi.ListPlans200JSONResponse(out), nil
+}

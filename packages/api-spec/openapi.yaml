@@ -1313,6 +1313,24 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
+  /v1/public/plans:
+    get:
+      tags: [billing]
+      operationId: listPlans
+      summary: Plans and their web prices
+      description: |
+        Web prices are in LKR, the only currency Payments.lk takes. App Store and Google Play
+        prices are set in the stores.
+      responses:
+        "200":
+          description: The plans, smallest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanList"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /v1/public/invites/preview:
     post:
       tags: [public]
@@ -3955,6 +3973,35 @@ components:
           description: |
             True for owners while no paid plan gives access. A web period can still be extended
             from the web billing page while one runs.
+
+    PlanList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Plan"
+
+    Plan:
+      type: object
+      required: [id, name, units, currency, monthly, yearly]
+      properties:
+        id:
+          $ref: "#/components/schemas/PlanId"
+        name:
+          type: string
+        units:
+          type: integer
+          description: The most bookable units the plan is meant for.
+        currency:
+          $ref: "#/components/schemas/Currency"
+        monthly:
+          type: integer
+          format: int64
+        yearly:
+          type: integer
+          format: int64
 
     CheckoutRequest:
       type: object

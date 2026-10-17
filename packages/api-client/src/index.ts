@@ -58,6 +58,11 @@ export type GuestPaymentMethod = Schemas["GuestPaymentMethod"];
 export type GuestBookingRequest = Schemas["GuestBookingRequest"];
 export type GuestBookingCreated = Schemas["GuestBookingCreated"];
 export type GuestBooking = Schemas["GuestBooking"];
+export type Subscription = Schemas["Subscription"];
+export type PlanId = Schemas["PlanId"];
+export type BillingPeriod = Schemas["BillingPeriod"];
+export type Plan = Schemas["Plan"];
+export type WebCheckout = Schemas["WebCheckout"];
 
 /** Header that names the account an owner route acts on. */
 export const ACCOUNT_HEADER = "X-Account-Id";
