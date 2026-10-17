@@ -705,6 +705,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The account's plan, free period and bookable units
+         * @description Every role may read it; only owners may change it. The server decides access from
+         *     RevenueCat and Payments.lk, so the app reads this rather than the store's entitlements.
+         */
+        get: operations["getSubscription"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subscription/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read the account's store plans from RevenueCat now
+         * @description For right after a purchase or a restore in the app, before RevenueCat's webhook arrives.
+         *     Owners only. 503 billing_not_configured when RevenueCat isn't set up.
+         */
+        post: operations["refreshSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subscription/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a web payment for one prepaid period
+         * @description Returns the Payments.lk checkout to send the owner to. A period bought while another
+         *     web period runs starts when that one ends. Owners only. 409 already_subscribed while an
+         *     App Store or Google Play plan gives access; 503 billing_not_configured when Payments.lk
+         *     isn't set up.
+         */
+        post: operations["createCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/revenuecat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Subscription events from RevenueCat
+         * @description Checked against the Authorization value set in RevenueCat's dashboard. The event only
+         *     says which account changed; the plan is read back from RevenueCat.
+         */
+        post: operations["revenueCatWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/payments-lk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Payment events from Payments.lk
+         * @description Verified with the Payments-Signature header against the raw body.
+         */
+        post: operations["paymentsLkWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/public/invites/preview": {
         parameters: {
             query?: never;
@@ -1425,8 +1531,18 @@ export interface components {
             booking: components["schemas"]["PublicBookingSettings"];
             payments: components["schemas"]["PublicPayments"];
             branding: components["schemas"]["PublicBranding"];
-            /** @description False when the property is paused or offers no way to pay. */
+            /** @description False when the property is paused, offers no way to pay, or its plan lapsed. */
             takingBookings: boolean;
+            /**
+             * @description Why takingBookings is false. Null while it is true.
+             * @enum {string|null}
+             */
+            pausedReason?: "lapsed" | "paused" | "no_payment_method" | null;
+            /**
+             * @description The owner's number, so guests can message them while the plan is lapsed. Only set
+             *     when pausedReason is lapsed.
+             */
+            whatsapp?: string | null;
         };
         PublicPhoto: {
             /** Format: uri */
@@ -1912,7 +2028,7 @@ export interface components {
             expiresAt: string;
         };
         /** @enum {string} */
-        ActivityKind: "request" | "booking" | "slip" | "payment" | "cancellation" | "sync" | "import";
+        ActivityKind: "request" | "booking" | "slip" | "payment" | "cancellation" | "sync" | "import" | "billing";
         Activity: {
             /** Format: uuid */
             id: string;
@@ -1967,6 +2083,54 @@ export interface components {
             token: string;
             /** @enum {string} */
             platform: "ios" | "android" | "web";
+        };
+        /** @enum {string} */
+        PlanId: "villa" | "guesthouse" | "collection";
+        /** @enum {string} */
+        BillingPeriod: "monthly" | "yearly";
+        /** @enum {string} */
+        SubscriptionSource: "app_store" | "play_store" | "web";
+        Subscription: {
+            status: components["schemas"]["AccountStatus"];
+            /**
+             * Format: date-time
+             * @description When the status next changes on its own: the end of the free period, of the paid
+             *     period or of grace. For a lapsed account, when grace ended.
+             */
+            until: string;
+            /**
+             * Format: date-time
+             * @description The end of the free period, which the first direct booking brings forward.
+             */
+            freeEndsAt: string;
+            plan?: components["schemas"]["PlanId"];
+            period?: components["schemas"]["BillingPeriod"];
+            source?: components["schemas"]["SubscriptionSource"];
+            willRenew?: boolean;
+            /**
+             * Format: date-time
+             * @description The end of the paid period, when there is a plan.
+             */
+            periodEnd?: string;
+            /** @description Bookable units across the account's properties. */
+            units: number;
+            fits: components["schemas"]["PlanId"];
+            /**
+             * @description True for owners unless a plan bought elsewhere still gives access: an App Store or
+             *     Google Play plan for the web, or a web period for the app.
+             */
+            canPurchase: boolean;
+        };
+        CheckoutRequest: {
+            plan: components["schemas"]["PlanId"];
+            period: components["schemas"]["BillingPeriod"];
+        };
+        WebCheckout: {
+            /** @description The hosted checkout to send the owner to. */
+            url: string;
+            /** Format: int64 */
+            amount: number;
+            currency: components["schemas"]["Currency"];
         };
         Error: {
             /** @example slug_taken */
@@ -2047,6 +2211,15 @@ export interface components {
          *     stays is included.
          */
         PublicConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description A provider this needs isn't set up on the server (code billing_not_configured) */
+        ServiceUnavailable: {
             headers: {
                 [name: string]: unknown;
             };
@@ -3193,6 +3366,134 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    getSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account's billing state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    refreshSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account's billing state after the read */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createCheckout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutRequest"];
+            };
+        };
+        responses: {
+            /** @description The checkout */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebCheckout"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    revenueCatWebhook: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Received */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    paymentsLkWebhook: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Payments-Signature"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Received */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     previewInvite: {
         parameters: {
             query?: never;
@@ -3217,6 +3518,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     getPublicProperty: {
@@ -3240,6 +3542,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     getPublicAvailability: {
@@ -3267,6 +3570,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     createPublicQuote: {
@@ -3295,6 +3599,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     createHold: {
@@ -3324,6 +3629,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["PublicConflict"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     createGuestBooking: {
@@ -3361,6 +3667,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["PublicConflict"];
             422: components["responses"]["KeyReused"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     getGuestBooking: {
@@ -3387,6 +3694,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     createGuestUpload: {
@@ -3418,6 +3726,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     addGuestSlip: {
@@ -3450,6 +3759,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["PublicConflict"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     getIcalExport: {
@@ -3475,6 +3785,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
 }
