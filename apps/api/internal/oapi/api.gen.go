@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -378,6 +379,87 @@ func (e ExtraPer) Valid() bool {
 	}
 }
 
+// Defines values for GuestBookingSlipsStatus.
+const (
+	GuestBookingSlipsStatusAccepted GuestBookingSlipsStatus = "accepted"
+	GuestBookingSlipsStatusPending  GuestBookingSlipsStatus = "pending"
+	GuestBookingSlipsStatusRejected GuestBookingSlipsStatus = "rejected"
+)
+
+// Valid indicates whether the value is a known member of the GuestBookingSlipsStatus enum.
+func (e GuestBookingSlipsStatus) Valid() bool {
+	switch e {
+	case GuestBookingSlipsStatusAccepted:
+		return true
+	case GuestBookingSlipsStatusPending:
+		return true
+	case GuestBookingSlipsStatusRejected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GuestBookingRequestSource.
+const (
+	GuestBookingRequestSourcePage   GuestBookingRequestSource = "page"
+	GuestBookingRequestSourceWidget GuestBookingRequestSource = "widget"
+)
+
+// Valid indicates whether the value is a known member of the GuestBookingRequestSource enum.
+func (e GuestBookingRequestSource) Valid() bool {
+	switch e {
+	case GuestBookingRequestSourcePage:
+		return true
+	case GuestBookingRequestSourceWidget:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GuestPaymentMethod.
+const (
+	GuestPaymentMethodBank     GuestPaymentMethod = "bank"
+	GuestPaymentMethodProperty GuestPaymentMethod = "property"
+)
+
+// Valid indicates whether the value is a known member of the GuestPaymentMethod enum.
+func (e GuestPaymentMethod) Valid() bool {
+	switch e {
+	case GuestPaymentMethodBank:
+		return true
+	case GuestPaymentMethodProperty:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GuestUploadRequestContentType.
+const (
+	GuestUploadRequestContentTypeImageheic GuestUploadRequestContentType = "image/heic"
+	GuestUploadRequestContentTypeImagejpeg GuestUploadRequestContentType = "image/jpeg"
+	GuestUploadRequestContentTypeImagepng  GuestUploadRequestContentType = "image/png"
+	GuestUploadRequestContentTypeImagewebp GuestUploadRequestContentType = "image/webp"
+)
+
+// Valid indicates whether the value is a known member of the GuestUploadRequestContentType enum.
+func (e GuestUploadRequestContentType) Valid() bool {
+	switch e {
+	case GuestUploadRequestContentTypeImageheic:
+		return true
+	case GuestUploadRequestContentTypeImagejpeg:
+		return true
+	case GuestUploadRequestContentTypeImagepng:
+		return true
+	case GuestUploadRequestContentTypeImagewebp:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HealthDatabase.
 const (
 	Down HealthDatabase = "down"
@@ -548,19 +630,19 @@ func (e PaymentKind) Valid() bool {
 
 // Defines values for PaymentMethod.
 const (
-	Bank PaymentMethod = "bank"
-	Card PaymentMethod = "card"
-	Cash PaymentMethod = "cash"
+	PaymentMethodBank PaymentMethod = "bank"
+	PaymentMethodCard PaymentMethod = "card"
+	PaymentMethodCash PaymentMethod = "cash"
 )
 
 // Valid indicates whether the value is a known member of the PaymentMethod enum.
 func (e PaymentMethod) Valid() bool {
 	switch e {
-	case Bank:
+	case PaymentMethodBank:
 		return true
-	case Card:
+	case PaymentMethodCard:
 		return true
-	case Cash:
+	case PaymentMethodCash:
 		return true
 	default:
 		return false
@@ -624,6 +706,24 @@ func (e PriceLineKind) Valid() bool {
 	case PriceLineKindDiscount:
 		return true
 	case PriceLineKindExtra:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PublicPropertyBookingMode.
+const (
+	PublicPropertyBookingModeInstant PublicPropertyBookingMode = "instant"
+	PublicPropertyBookingModeRequest PublicPropertyBookingMode = "request"
+)
+
+// Valid indicates whether the value is a known member of the PublicPropertyBookingMode enum.
+func (e PublicPropertyBookingMode) Valid() bool {
+	switch e {
+	case PublicPropertyBookingModeInstant:
+		return true
+	case PublicPropertyBookingModeRequest:
 		return true
 	default:
 		return false
@@ -764,22 +864,22 @@ func (e TransitionTo) Valid() bool {
 
 // Defines values for UploadRequestContentType.
 const (
-	Imageheic UploadRequestContentType = "image/heic"
-	Imagejpeg UploadRequestContentType = "image/jpeg"
-	Imagepng  UploadRequestContentType = "image/png"
-	Imagewebp UploadRequestContentType = "image/webp"
+	UploadRequestContentTypeImageheic UploadRequestContentType = "image/heic"
+	UploadRequestContentTypeImagejpeg UploadRequestContentType = "image/jpeg"
+	UploadRequestContentTypeImagepng  UploadRequestContentType = "image/png"
+	UploadRequestContentTypeImagewebp UploadRequestContentType = "image/webp"
 )
 
 // Valid indicates whether the value is a known member of the UploadRequestContentType enum.
 func (e UploadRequestContentType) Valid() bool {
 	switch e {
-	case Imageheic:
+	case UploadRequestContentTypeImageheic:
 		return true
-	case Imagejpeg:
+	case UploadRequestContentTypeImagejpeg:
 		return true
-	case Imagepng:
+	case UploadRequestContentTypeImagepng:
 		return true
-	case Imagewebp:
+	case UploadRequestContentTypeImagewebp:
 		return true
 	default:
 		return false
@@ -874,6 +974,18 @@ type AuthTokens struct {
 	RefreshTokenExpiresAt time.Time `json:"refreshTokenExpiresAt"`
 }
 
+// Availability defines model for Availability.
+type Availability struct {
+	Units []struct {
+		// ClosedArrival Days guests can't arrive on.
+		ClosedArrival []Day `json:"closedArrival"`
+
+		// Taken Nights that can't be booked.
+		Taken  []Day              `json:"taken"`
+		UnitId openapi_types.UUID `json:"unitId"`
+	} `json:"units"`
+}
+
 // BankDetails defines model for BankDetails.
 type BankDetails struct {
 	AccountName string `json:"accountName"`
@@ -933,10 +1045,13 @@ type Booking struct {
 	OwnerNote string               `json:"ownerNote"`
 
 	// Paid An amount in minor units that may be negative, such as a discount.
-	Paid         *Signed            `json:"paid,omitempty"`
-	PaymentDueAt *time.Time         `json:"paymentDueAt,omitempty"`
-	Payments     *[]Payment         `json:"payments,omitempty"`
-	PropertyId   openapi_types.UUID `json:"propertyId"`
+	Paid         *Signed    `json:"paid,omitempty"`
+	PaymentDueAt *time.Time `json:"paymentDueAt,omitempty"`
+
+	// PaymentMethod How a guest who booked on the page said they'd pay.
+	PaymentMethod *GuestPaymentMethod `json:"paymentMethod,omitempty"`
+	Payments      *[]Payment          `json:"payments,omitempty"`
+	PropertyId    openapi_types.UUID  `json:"propertyId"`
 
 	// Ref Example: KV-2041
 	Ref              string     `json:"ref"`
@@ -1172,6 +1287,124 @@ type Guest struct {
 	Phone   *string `json:"phone,omitempty"`
 }
 
+// GuestBooking A booking as its guest sees it.
+type GuestBooking struct {
+	Adults int `json:"adults"`
+
+	// Balance An amount in minor units of the property's currency.
+	Balance Money `json:"balance"`
+
+	// Bank Where to transfer, for guests paying by bank transfer.
+	Bank *struct {
+		AccountName   string `json:"accountName"`
+		AccountNumber string `json:"accountNumber"`
+		BankName      string `json:"bankName"`
+	} `json:"bank,omitempty"`
+
+	// CheckIn Example: 2026-12-01
+	CheckIn Day `json:"checkIn"`
+
+	// CheckOut Example: 2026-12-01
+	CheckOut Day      `json:"checkOut"`
+	Children int      `json:"children"`
+	Currency Currency `json:"currency"`
+
+	// Deposit An amount in minor units of the property's currency.
+	Deposit   Money              `json:"deposit"`
+	GuestName string             `json:"guestName"`
+	Id        openapi_types.UUID `json:"id"`
+	Lines     []PriceLine        `json:"lines"`
+
+	// Paid An amount in minor units that may be negative, such as a discount.
+	Paid         Signed     `json:"paid"`
+	PaymentDueAt *time.Time `json:"paymentDueAt,omitempty"`
+
+	// PaymentMethod How a guest who booked on the page said they'd pay.
+	PaymentMethod *GuestPaymentMethod `json:"paymentMethod,omitempty"`
+
+	// PropertyCheckIn Example: 14:00
+	PropertyCheckIn Clock  `json:"propertyCheckIn"`
+	PropertyName    string `json:"propertyName"`
+
+	// PropertySlug Lowercase subdomain label used for the booking page, for example "kingfisher" in kingfisher.staykey.direct.
+	//
+	// Example: kingfisher
+	PropertySlug     Slug       `json:"propertySlug"`
+	Ref              string     `json:"ref"`
+	RequestExpiresAt *time.Time `json:"requestExpiresAt,omitempty"`
+	Slips            []struct {
+		// Amount An amount in minor units of the property's currency.
+		Amount     Money                   `json:"amount"`
+		Status     GuestBookingSlipsStatus `json:"status"`
+		UploadedAt time.Time               `json:"uploadedAt"`
+	} `json:"slips"`
+	Status BookingStatus `json:"status"`
+
+	// Total An amount in minor units of the property's currency.
+	Total    Money  `json:"total"`
+	UnitName string `json:"unitName"`
+}
+
+// GuestBookingSlipsStatus defines model for GuestBooking.Slips.Status.
+type GuestBookingSlipsStatus string
+
+// GuestBookingCreated defines model for GuestBookingCreated.
+type GuestBookingCreated struct {
+	// Booking A booking as its guest sees it.
+	Booking GuestBooking `json:"booking"`
+
+	// Token Send as X-Booking-Token to see the booking again. Shown once.
+	Token string `json:"token"`
+}
+
+// GuestBookingRequest defines model for GuestBookingRequest.
+type GuestBookingRequest struct {
+	Adults int `json:"adults"`
+
+	// CheckIn Example: 2026-12-01
+	CheckIn Day `json:"checkIn"`
+
+	// CheckOut Example: 2026-12-01
+	CheckOut Day                   `json:"checkOut"`
+	Children *int                  `json:"children,omitempty"`
+	Extras   *[]openapi_types.UUID `json:"extras,omitempty"`
+	Guest    Guest                 `json:"guest"`
+	HoldId   *openapi_types.UUID   `json:"holdId,omitempty"`
+	Note     *string               `json:"note,omitempty"`
+
+	// PaymentMethod How a guest who booked on the page said they'd pay.
+	PaymentMethod GuestPaymentMethod        `json:"paymentMethod"`
+	Promo         *string                   `json:"promo,omitempty"`
+	Source        GuestBookingRequestSource `json:"source"`
+	UnitId        openapi_types.UUID        `json:"unitId"`
+}
+
+// GuestBookingRequestSource defines model for GuestBookingRequest.Source.
+type GuestBookingRequestSource string
+
+// GuestPaymentMethod How a guest who booked on the page said they'd pay.
+type GuestPaymentMethod string
+
+// GuestSlipInput defines model for GuestSlipInput.
+type GuestSlipInput struct {
+	// Amount An amount in minor units of the property's currency.
+	Amount Money `json:"amount"`
+
+	// Key The key from the booking's uploads.
+	Key string `json:"key"`
+}
+
+// GuestUploadRequest defines model for GuestUploadRequest.
+type GuestUploadRequest struct {
+	ContentType GuestUploadRequestContentType `json:"contentType"`
+
+	// Size Exact size in bytes, up to 10 MB.
+	Size int64 `json:"size"`
+}
+
+// GuestUploadRequestContentType defines model for GuestUploadRequest.ContentType.
+type GuestUploadRequestContentType string
+
 // Health defines model for Health.
 type Health struct {
 	Database HealthDatabase `json:"database"`
@@ -1183,6 +1416,12 @@ type HealthDatabase string
 
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
+
+// Hold defines model for Hold.
+type Hold struct {
+	ExpiresAt time.Time          `json:"expiresAt"`
+	HoldId    openapi_types.UUID `json:"holdId"`
+}
 
 // IcalChannel defines model for IcalChannel.
 type IcalChannel string
@@ -1197,6 +1436,9 @@ type IcalFeed struct {
 	// Status Pending until the import worker has read the link.
 	Status IcalFeedStatus `json:"status"`
 
+	// UnitId The unit the calendar is for. Null covers the whole property.
+	UnitId *openapi_types.UUID `json:"unitId,omitempty"`
+
 	// Upcoming Imported stays from today on.
 	Upcoming int    `json:"upcoming"`
 	Url      string `json:"url"`
@@ -1209,7 +1451,10 @@ type IcalFeedStatus string
 type IcalFeedInput struct {
 	Channel IcalChannel `json:"channel"`
 	Id      *string     `json:"id,omitempty"`
-	Url     string      `json:"url"`
+
+	// UnitId The unit the calendar is for, as an id or a new unit's id in the same request. Null covers the whole property.
+	UnitId *string `json:"unitId,omitempty"`
+	Url    string  `json:"url"`
 }
 
 // Invite defines model for Invite.
@@ -1336,6 +1581,19 @@ type NewBooking struct {
 	// Source Where the stay came from. airbnb, booking, agoda and expedia arrive by iCal.
 	Source BookingSource      `json:"source"`
 	UnitId openapi_types.UUID `json:"unitId"`
+}
+
+// NewHold defines model for NewHold.
+type NewHold struct {
+	// CheckIn Example: 2026-12-01
+	CheckIn Day `json:"checkIn"`
+
+	// CheckOut Example: 2026-12-01
+	CheckOut Day `json:"checkOut"`
+
+	// Replaces The guest's previous hold, released first.
+	Replaces *openapi_types.UUID `json:"replaces,omitempty"`
+	UnitId   openapi_types.UUID  `json:"unitId"`
 }
 
 // NewInvite defines model for NewInvite.
@@ -1635,20 +1893,92 @@ type PropertyPatch struct {
 	Units           *[]UnitInput      `json:"units,omitempty"`
 }
 
-// PublicProperty defines model for PublicProperty.
+// PublicProperty What a booking page shows, with no bank details, promos or feeds.
 type PublicProperty struct {
-	BaseRate int64 `json:"baseRate"`
+	Amenities []string `json:"amenities"`
+	BaseRate  int64    `json:"baseRate"`
+	Booking   struct {
+		HoldMinutes int                       `json:"holdMinutes"`
+		Mode        PublicPropertyBookingMode `json:"mode"`
+	} `json:"booking"`
 
 	// BookingType Whether guests book the whole place or individual rooms.
 	BookingType BookingType `json:"bookingType"`
-	Currency    Currency    `json:"currency"`
-	Location    *string     `json:"location,omitempty"`
-	Name        string      `json:"name"`
+	Branding    struct {
+		Color   string  `json:"color"`
+		LogoUrl *string `json:"logoUrl,omitempty"`
+	} `json:"branding"`
+
+	// CheckIn Example: 14:00
+	CheckIn Clock `json:"checkIn"`
+
+	// CheckOut Example: 14:00
+	CheckOut       Clock    `json:"checkOut"`
+	Currency       Currency `json:"currency"`
+	DepositPercent int      `json:"depositPercent"`
+	Description    string   `json:"description"`
+
+	// Extras Enabled extras only.
+	Extras []struct {
+		Id        openapi_types.UUID `json:"id"`
+		Name      string             `json:"name"`
+		OnRequest bool               `json:"onRequest"`
+		Per       ExtraPer           `json:"per"`
+
+		// Price An amount in minor units of the property's currency.
+		Price Money `json:"price"`
+	} `json:"extras"`
+	HouseRules []string `json:"houseRules"`
+	Location   *string  `json:"location,omitempty"`
+	Name       string   `json:"name"`
+	Payments   struct {
+		AtProperty bool `json:"atProperty"`
+
+		// Bank Guests can pay by bank transfer.
+		Bank bool `json:"bank"`
+	} `json:"payments"`
+
+	// Photos In display order; the first is the cover.
+	Photos []struct {
+		Caption string `json:"caption"`
+		Url     string `json:"url"`
+	} `json:"photos"`
+	Policy Policy    `json:"policy"`
+	Rules  StayRules `json:"rules"`
 
 	// Slug Lowercase subdomain label used for the booking page, for example "kingfisher" in kingfisher.staykey.direct.
 	//
 	// Example: kingfisher
 	Slug Slug `json:"slug"`
+
+	// TakingBookings False when the property is paused or offers no way to pay.
+	TakingBookings bool   `json:"takingBookings"`
+	TimeZone       string `json:"timeZone"`
+	Units          []struct {
+		Beds          string               `json:"beds"`
+		Id            openapi_types.UUID   `json:"id"`
+		LinkedUnitIds []openapi_types.UUID `json:"linkedUnitIds"`
+		Name          string               `json:"name"`
+		Sleeps        int                  `json:"sleeps"`
+	} `json:"units"`
+}
+
+// PublicPropertyBookingMode defines model for PublicProperty.Booking.Mode.
+type PublicPropertyBookingMode string
+
+// PublicQuoteRequest defines model for PublicQuoteRequest.
+type PublicQuoteRequest struct {
+	Adults int `json:"adults"`
+
+	// CheckIn Example: 2026-12-01
+	CheckIn Day `json:"checkIn"`
+
+	// CheckOut Example: 2026-12-01
+	CheckOut Day                   `json:"checkOut"`
+	Children *int                  `json:"children,omitempty"`
+	Extras   *[]openapi_types.UUID `json:"extras,omitempty"`
+	Promo    *string               `json:"promo,omitempty"`
+	UnitId   openapi_types.UUID    `json:"unitId"`
 }
 
 // PushToken defines model for PushToken.
@@ -1988,6 +2318,12 @@ type BlockId = openapi_types.UUID
 // BookingId defines model for BookingId.
 type BookingId = openapi_types.UUID
 
+// BookingToken defines model for BookingToken.
+type BookingToken = string
+
+// FeedId defines model for FeedId.
+type FeedId = openapi_types.UUID
+
 // Id defines model for Id.
 type Id = openapi_types.UUID
 
@@ -1999,6 +2335,11 @@ type InviteId = openapi_types.UUID
 
 // MembershipId defines model for MembershipId.
 type MembershipId = openapi_types.UUID
+
+// PropertySlug Lowercase subdomain label used for the booking page, for example "kingfisher" in kingfisher.staykey.direct.
+//
+// Example: kingfisher
+type PropertySlug = Slug
 
 // SlipId defines model for SlipId.
 type SlipId = openapi_types.UUID
@@ -2021,11 +2362,19 @@ type KeyReused = Error
 // NotFound defines model for NotFound.
 type NotFound = Error
 
+// PublicConflict defines model for PublicConflict.
+type PublicConflict = Error
+
 // TooManyRequests defines model for TooManyRequests.
 type TooManyRequests = Error
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
+
+// GetIcalExportParams defines parameters for GetIcalExport.
+type GetIcalExportParams struct {
+	Unit *openapi_types.UUID `form:"unit,omitempty" json:"unit,omitempty"`
+}
 
 // ListActivityParams defines parameters for ListActivity.
 type ListActivityParams struct {
@@ -2070,6 +2419,38 @@ type RecordPaymentParams struct {
 type GetCalendarParams struct {
 	From *Day `form:"from,omitempty" json:"from,omitempty"`
 	To   *Day `form:"to,omitempty" json:"to,omitempty"`
+}
+
+// GetGuestBookingParams defines parameters for GetGuestBooking.
+type GetGuestBookingParams struct {
+	// XBookingToken The token returned when the guest booked.
+	XBookingToken BookingToken `json:"X-Booking-Token"`
+}
+
+// AddGuestSlipParams defines parameters for AddGuestSlip.
+type AddGuestSlipParams struct {
+	// XBookingToken The token returned when the guest booked.
+	XBookingToken BookingToken `json:"X-Booking-Token"`
+}
+
+// CreateGuestUploadParams defines parameters for CreateGuestUpload.
+type CreateGuestUploadParams struct {
+	// XBookingToken The token returned when the guest booked.
+	XBookingToken BookingToken `json:"X-Booking-Token"`
+}
+
+// GetPublicAvailabilityParams defines parameters for GetPublicAvailability.
+type GetPublicAvailabilityParams struct {
+	From Day `form:"from" json:"from"`
+	To   Day `form:"to" json:"to"`
+}
+
+// CreateGuestBookingParams defines parameters for CreateGuestBooking.
+type CreateGuestBookingParams struct {
+	// IdempotencyKey Any unique string, such as a UUID made when the form opened. A retry with the same
+	// key and body gets the first reply; the same key with another body gets 422. Keys
+	// last 24 hours.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // CreateAccountJSONRequestBody defines body for CreateAccount for application/json ContentType.
@@ -2120,8 +2501,23 @@ type CreatePropertyJSONRequestBody = NewProperty
 // UpdatePropertyJSONRequestBody defines body for UpdateProperty for application/json ContentType.
 type UpdatePropertyJSONRequestBody = PropertyPatch
 
+// AddGuestSlipJSONRequestBody defines body for AddGuestSlip for application/json ContentType.
+type AddGuestSlipJSONRequestBody = GuestSlipInput
+
+// CreateGuestUploadJSONRequestBody defines body for CreateGuestUpload for application/json ContentType.
+type CreateGuestUploadJSONRequestBody = GuestUploadRequest
+
 // PreviewInviteJSONRequestBody defines body for PreviewInvite for application/json ContentType.
 type PreviewInviteJSONRequestBody = InviteToken
+
+// CreateGuestBookingJSONRequestBody defines body for CreateGuestBooking for application/json ContentType.
+type CreateGuestBookingJSONRequestBody = GuestBookingRequest
+
+// CreateHoldJSONRequestBody defines body for CreateHold for application/json ContentType.
+type CreateHoldJSONRequestBody = NewHold
+
+// CreatePublicQuoteJSONRequestBody defines body for CreatePublicQuote for application/json ContentType.
+type CreatePublicQuoteJSONRequestBody = PublicQuoteRequest
 
 // RegisterPushTokenJSONRequestBody defines body for RegisterPushToken for application/json ContentType.
 type RegisterPushTokenJSONRequestBody = PushToken
@@ -2149,6 +2545,9 @@ type ServerInterface interface {
 	// GetHealth Service and database health
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
+	// GetIcalExport The property's calendar for OTAs to import
+	// (GET /ical/{file})
+	GetIcalExport(w http.ResponseWriter, r *http.Request, file string, params GetIcalExportParams)
 	// ListAccounts Accounts the signed-in user belongs to
 	// (GET /v1/accounts)
 	ListAccounts(w http.ResponseWriter, r *http.Request)
@@ -2200,6 +2599,9 @@ type ServerInterface interface {
 	// TransitionBooking Move a stay to its next status
 	// (POST /v1/bookings/{bookingId}/transitions)
 	TransitionBooking(w http.ResponseWriter, r *http.Request, bookingId BookingId)
+	// SyncIcalFeed Read an imported calendar again now
+	// (POST /v1/ical-feeds/{feedId}/sync)
+	SyncIcalFeed(w http.ResponseWriter, r *http.Request, feedId FeedId)
 	// AcceptInvite Join the account an invite is for
 	// (POST /v1/invites/accept)
 	AcceptInvite(w http.ResponseWriter, r *http.Request)
@@ -2230,12 +2632,33 @@ type ServerInterface interface {
 	// GetCalendar Blocks and rate overrides for a stretch of nights
 	// (GET /v1/properties/{id}/calendar)
 	GetCalendar(w http.ResponseWriter, r *http.Request, id Id, params GetCalendarParams)
+	// GetGuestBooking A guest's own booking
+	// (GET /v1/public/bookings/{bookingId})
+	GetGuestBooking(w http.ResponseWriter, r *http.Request, bookingId BookingId, params GetGuestBookingParams)
+	// AddGuestSlip Send an uploaded bank slip to the owner
+	// (POST /v1/public/bookings/{bookingId}/slips)
+	AddGuestSlip(w http.ResponseWriter, r *http.Request, bookingId BookingId, params AddGuestSlipParams)
+	// CreateGuestUpload Get a link to upload a bank slip
+	// (POST /v1/public/bookings/{bookingId}/uploads)
+	CreateGuestUpload(w http.ResponseWriter, r *http.Request, bookingId BookingId, params CreateGuestUploadParams)
 	// PreviewInvite What an invite link is for, before the person signs in
 	// (POST /v1/public/invites/preview)
 	PreviewInvite(w http.ResponseWriter, r *http.Request)
 	// GetPublicProperty Public details for a property's booking page
 	// (GET /v1/public/properties/{slug})
 	GetPublicProperty(w http.ResponseWriter, r *http.Request, slug Slug)
+	// GetPublicAvailability Nights each unit can't be booked, and days guests can't arrive
+	// (GET /v1/public/properties/{slug}/availability)
+	GetPublicAvailability(w http.ResponseWriter, r *http.Request, slug PropertySlug, params GetPublicAvailabilityParams)
+	// CreateGuestBooking Book a stay from the booking page or widget
+	// (POST /v1/public/properties/{slug}/bookings)
+	CreateGuestBooking(w http.ResponseWriter, r *http.Request, slug PropertySlug, params CreateGuestBookingParams)
+	// CreateHold Hold nights while the guest fills in the checkout
+	// (POST /v1/public/properties/{slug}/holds)
+	CreateHold(w http.ResponseWriter, r *http.Request, slug PropertySlug)
+	// CreatePublicQuote Price a stay a guest is choosing
+	// (POST /v1/public/properties/{slug}/quote)
+	CreatePublicQuote(w http.ResponseWriter, r *http.Request, slug PropertySlug)
 	// RegisterPushToken Register this device's Expo push token for the signed-in session
 	// (POST /v1/push-tokens)
 	RegisterPushToken(w http.ResponseWriter, r *http.Request)
@@ -2288,6 +2711,48 @@ func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHealth(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetIcalExport operation middleware
+func (siw *ServerInterfaceWrapper) GetIcalExport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "file" -------------
+	var file string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "file", r.PathValue("file"), &file, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "file", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetIcalExportParams
+
+	// ------------- Optional query parameter "unit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "unit", r.URL.Query(), &params.Unit, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "unit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "unit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetIcalExport(w, r, file, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2785,6 +3250,32 @@ func (siw *ServerInterfaceWrapper) TransitionBooking(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// SyncIcalFeed operation middleware
+func (siw *ServerInterfaceWrapper) SyncIcalFeed(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "feedId" -------------
+	var feedId FeedId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "feedId", r.PathValue("feedId"), &feedId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "feedId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SyncIcalFeed(w, r, feedId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // AcceptInvite operation middleware
 func (siw *ServerInterfaceWrapper) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 
@@ -2990,6 +3481,168 @@ func (siw *ServerInterfaceWrapper) GetCalendar(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// GetGuestBooking operation middleware
+func (siw *ServerInterfaceWrapper) GetGuestBooking(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "bookingId" -------------
+	var bookingId BookingId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bookingId", r.PathValue("bookingId"), &bookingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bookingId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetGuestBookingParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Booking-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Booking-Token")]; found {
+		var XBookingToken BookingToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Booking-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Booking-Token", valueList[0], &XBookingToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Booking-Token", Err: err})
+			return
+		}
+
+		params.XBookingToken = XBookingToken
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Booking-Token is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Booking-Token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetGuestBooking(w, r, bookingId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddGuestSlip operation middleware
+func (siw *ServerInterfaceWrapper) AddGuestSlip(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "bookingId" -------------
+	var bookingId BookingId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bookingId", r.PathValue("bookingId"), &bookingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bookingId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AddGuestSlipParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Booking-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Booking-Token")]; found {
+		var XBookingToken BookingToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Booking-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Booking-Token", valueList[0], &XBookingToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Booking-Token", Err: err})
+			return
+		}
+
+		params.XBookingToken = XBookingToken
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Booking-Token is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Booking-Token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddGuestSlip(w, r, bookingId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateGuestUpload operation middleware
+func (siw *ServerInterfaceWrapper) CreateGuestUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "bookingId" -------------
+	var bookingId BookingId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "bookingId", r.PathValue("bookingId"), &bookingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bookingId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateGuestUploadParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Booking-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Booking-Token")]; found {
+		var XBookingToken BookingToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Booking-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Booking-Token", valueList[0], &XBookingToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Booking-Token", Err: err})
+			return
+		}
+
+		params.XBookingToken = XBookingToken
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Booking-Token is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Booking-Token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateGuestUpload(w, r, bookingId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PreviewInvite operation middleware
 func (siw *ServerInterfaceWrapper) PreviewInvite(w http.ResponseWriter, r *http.Request) {
 
@@ -3021,6 +3674,163 @@ func (siw *ServerInterfaceWrapper) GetPublicProperty(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetPublicProperty(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicAvailability operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAvailability(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug PropertySlug
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", r.PathValue("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPublicAvailabilityParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAvailability(w, r, slug, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateGuestBooking operation middleware
+func (siw *ServerInterfaceWrapper) CreateGuestBooking(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug PropertySlug
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", r.PathValue("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateGuestBookingParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateGuestBooking(w, r, slug, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateHold operation middleware
+func (siw *ServerInterfaceWrapper) CreateHold(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug PropertySlug
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", r.PathValue("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateHold(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePublicQuote operation middleware
+func (siw *ServerInterfaceWrapper) CreatePublicQuote(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug PropertySlug
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", r.PathValue("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePublicQuote(w, r, slug)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3405,6 +4215,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/blocks", wrapper.CreateBlock)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/v1/blocks/{blockId}", wrapper.DeleteBlock)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/v1/rate-overrides", wrapper.SetRateOverrides)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/ical-feeds/{feedId}/sync", wrapper.SyncIcalFeed)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/team", wrapper.GetTeam)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/team/invites", wrapper.CreateInvite)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/v1/team/invites/{inviteId}", wrapper.RevokeInvite)
@@ -3420,6 +4231,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/push-tokens", wrapper.RegisterPushToken)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/public/invites/preview", wrapper.PreviewInvite)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/public/properties/{slug}", wrapper.GetPublicProperty)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/public/properties/{slug}/availability", wrapper.GetPublicAvailability)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/public/properties/{slug}/quote", wrapper.CreatePublicQuote)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/public/properties/{slug}/holds", wrapper.CreateHold)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/public/properties/{slug}/bookings", wrapper.CreateGuestBooking)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/public/bookings/{bookingId}", wrapper.GetGuestBooking)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/public/bookings/{bookingId}/uploads", wrapper.CreateGuestUpload)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/public/bookings/{bookingId}/slips", wrapper.AddGuestSlip)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ical/{file}", wrapper.GetIcalExport)
 
 	return m
 }
@@ -3433,6 +4252,8 @@ type ForbiddenJSONResponse Error
 type KeyReusedJSONResponse Error
 
 type NotFoundJSONResponse Error
+
+type PublicConflictJSONResponse Error
 
 type TooManyRequestsResponseHeaders struct {
 	RetryAfter *int
@@ -3462,6 +4283,49 @@ func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseW
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetIcalExportRequestObject struct {
+	File   string `json:"file"`
+	Params GetIcalExportParams
+}
+
+type GetIcalExportResponseObject interface {
+	VisitGetIcalExportResponse(w http.ResponseWriter) error
+}
+
+type GetIcalExport200TextcalendarResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response GetIcalExport200TextcalendarResponse) VisitGetIcalExportResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "text/calendar")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetIcalExport404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetIcalExport404JSONResponse) VisitGetIcalExportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -4572,6 +5436,70 @@ func (response TransitionBooking409JSONResponse) VisitTransitionBookingResponse(
 	return err
 }
 
+type SyncIcalFeedRequestObject struct {
+	FeedId FeedId `json:"feedId"`
+}
+
+type SyncIcalFeedResponseObject interface {
+	VisitSyncIcalFeedResponse(w http.ResponseWriter) error
+}
+
+type SyncIcalFeed200JSONResponse IcalFeed
+
+func (response SyncIcalFeed200JSONResponse) VisitSyncIcalFeedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncIcalFeed401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SyncIcalFeed401JSONResponse) VisitSyncIcalFeedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncIcalFeed403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response SyncIcalFeed403JSONResponse) VisitSyncIcalFeedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncIcalFeed404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response SyncIcalFeed404JSONResponse) VisitSyncIcalFeedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type AcceptInviteRequestObject struct {
 	Body *AcceptInviteJSONRequestBody
 }
@@ -5183,6 +6111,161 @@ func (response GetCalendar404JSONResponse) VisitGetCalendarResponse(w http.Respo
 	return err
 }
 
+type GetGuestBookingRequestObject struct {
+	BookingId BookingId `json:"bookingId"`
+	Params    GetGuestBookingParams
+}
+
+type GetGuestBookingResponseObject interface {
+	VisitGetGuestBookingResponse(w http.ResponseWriter) error
+}
+
+type GetGuestBooking200JSONResponse GuestBooking
+
+func (response GetGuestBooking200JSONResponse) VisitGetGuestBookingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGuestBooking404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetGuestBooking404JSONResponse) VisitGetGuestBookingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddGuestSlipRequestObject struct {
+	BookingId BookingId `json:"bookingId"`
+	Params    AddGuestSlipParams
+	Body      *AddGuestSlipJSONRequestBody
+}
+
+type AddGuestSlipResponseObject interface {
+	VisitAddGuestSlipResponse(w http.ResponseWriter) error
+}
+
+type AddGuestSlip201JSONResponse GuestBooking
+
+func (response AddGuestSlip201JSONResponse) VisitAddGuestSlipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddGuestSlip400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AddGuestSlip400JSONResponse) VisitAddGuestSlipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddGuestSlip404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AddGuestSlip404JSONResponse) VisitAddGuestSlipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddGuestSlip409JSONResponse struct{ PublicConflictJSONResponse }
+
+func (response AddGuestSlip409JSONResponse) VisitAddGuestSlipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateGuestUploadRequestObject struct {
+	BookingId BookingId `json:"bookingId"`
+	Params    CreateGuestUploadParams
+	Body      *CreateGuestUploadJSONRequestBody
+}
+
+type CreateGuestUploadResponseObject interface {
+	VisitCreateGuestUploadResponse(w http.ResponseWriter) error
+}
+
+type CreateGuestUpload201JSONResponse UploadTicket
+
+func (response CreateGuestUpload201JSONResponse) VisitCreateGuestUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateGuestUpload400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateGuestUpload400JSONResponse) VisitCreateGuestUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateGuestUpload404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreateGuestUpload404JSONResponse) VisitCreateGuestUploadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type PreviewInviteRequestObject struct {
 	Body *PreviewInviteJSONRequestBody
 }
@@ -5258,6 +6341,253 @@ func (response GetPublicProperty200JSONResponse) VisitGetPublicPropertyResponse(
 type GetPublicProperty404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response GetPublicProperty404JSONResponse) VisitGetPublicPropertyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicAvailabilityRequestObject struct {
+	Slug   PropertySlug `json:"slug"`
+	Params GetPublicAvailabilityParams
+}
+
+type GetPublicAvailabilityResponseObject interface {
+	VisitGetPublicAvailabilityResponse(w http.ResponseWriter) error
+}
+
+type GetPublicAvailability200JSONResponse Availability
+
+func (response GetPublicAvailability200JSONResponse) VisitGetPublicAvailabilityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicAvailability400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetPublicAvailability400JSONResponse) VisitGetPublicAvailabilityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicAvailability404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetPublicAvailability404JSONResponse) VisitGetPublicAvailabilityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateGuestBookingRequestObject struct {
+	Slug   PropertySlug `json:"slug"`
+	Params CreateGuestBookingParams
+	Body   *CreateGuestBookingJSONRequestBody
+}
+
+type CreateGuestBookingResponseObject interface {
+	VisitCreateGuestBookingResponse(w http.ResponseWriter) error
+}
+
+type CreateGuestBooking201JSONResponse GuestBookingCreated
+
+func (response CreateGuestBooking201JSONResponse) VisitCreateGuestBookingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateGuestBooking400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateGuestBooking400JSONResponse) VisitCreateGuestBookingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateGuestBooking404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreateGuestBooking404JSONResponse) VisitCreateGuestBookingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateGuestBooking409JSONResponse struct{ PublicConflictJSONResponse }
+
+func (response CreateGuestBooking409JSONResponse) VisitCreateGuestBookingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateGuestBooking422JSONResponse struct{ KeyReusedJSONResponse }
+
+func (response CreateGuestBooking422JSONResponse) VisitCreateGuestBookingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHoldRequestObject struct {
+	Slug PropertySlug `json:"slug"`
+	Body *CreateHoldJSONRequestBody
+}
+
+type CreateHoldResponseObject interface {
+	VisitCreateHoldResponse(w http.ResponseWriter) error
+}
+
+type CreateHold201JSONResponse Hold
+
+func (response CreateHold201JSONResponse) VisitCreateHoldResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHold400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateHold400JSONResponse) VisitCreateHoldResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHold404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreateHold404JSONResponse) VisitCreateHoldResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHold409JSONResponse struct{ PublicConflictJSONResponse }
+
+func (response CreateHold409JSONResponse) VisitCreateHoldResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePublicQuoteRequestObject struct {
+	Slug PropertySlug `json:"slug"`
+	Body *CreatePublicQuoteJSONRequestBody
+}
+
+type CreatePublicQuoteResponseObject interface {
+	VisitCreatePublicQuoteResponse(w http.ResponseWriter) error
+}
+
+type CreatePublicQuote200JSONResponse Quote
+
+func (response CreatePublicQuote200JSONResponse) VisitCreatePublicQuoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePublicQuote400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreatePublicQuote400JSONResponse) VisitCreatePublicQuoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePublicQuote404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreatePublicQuote404JSONResponse) VisitCreatePublicQuoteResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -6074,6 +7404,9 @@ type StrictServerInterface interface {
 	// GetHealth Service and database health
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
+	// GetIcalExport The property's calendar for OTAs to import
+	// (GET /ical/{file})
+	GetIcalExport(ctx context.Context, request GetIcalExportRequestObject) (GetIcalExportResponseObject, error)
 	// ListAccounts Accounts the signed-in user belongs to
 	// (GET /v1/accounts)
 	ListAccounts(ctx context.Context, request ListAccountsRequestObject) (ListAccountsResponseObject, error)
@@ -6125,6 +7458,9 @@ type StrictServerInterface interface {
 	// TransitionBooking Move a stay to its next status
 	// (POST /v1/bookings/{bookingId}/transitions)
 	TransitionBooking(ctx context.Context, request TransitionBookingRequestObject) (TransitionBookingResponseObject, error)
+	// SyncIcalFeed Read an imported calendar again now
+	// (POST /v1/ical-feeds/{feedId}/sync)
+	SyncIcalFeed(ctx context.Context, request SyncIcalFeedRequestObject) (SyncIcalFeedResponseObject, error)
 	// AcceptInvite Join the account an invite is for
 	// (POST /v1/invites/accept)
 	AcceptInvite(ctx context.Context, request AcceptInviteRequestObject) (AcceptInviteResponseObject, error)
@@ -6155,12 +7491,33 @@ type StrictServerInterface interface {
 	// GetCalendar Blocks and rate overrides for a stretch of nights
 	// (GET /v1/properties/{id}/calendar)
 	GetCalendar(ctx context.Context, request GetCalendarRequestObject) (GetCalendarResponseObject, error)
+	// GetGuestBooking A guest's own booking
+	// (GET /v1/public/bookings/{bookingId})
+	GetGuestBooking(ctx context.Context, request GetGuestBookingRequestObject) (GetGuestBookingResponseObject, error)
+	// AddGuestSlip Send an uploaded bank slip to the owner
+	// (POST /v1/public/bookings/{bookingId}/slips)
+	AddGuestSlip(ctx context.Context, request AddGuestSlipRequestObject) (AddGuestSlipResponseObject, error)
+	// CreateGuestUpload Get a link to upload a bank slip
+	// (POST /v1/public/bookings/{bookingId}/uploads)
+	CreateGuestUpload(ctx context.Context, request CreateGuestUploadRequestObject) (CreateGuestUploadResponseObject, error)
 	// PreviewInvite What an invite link is for, before the person signs in
 	// (POST /v1/public/invites/preview)
 	PreviewInvite(ctx context.Context, request PreviewInviteRequestObject) (PreviewInviteResponseObject, error)
 	// GetPublicProperty Public details for a property's booking page
 	// (GET /v1/public/properties/{slug})
 	GetPublicProperty(ctx context.Context, request GetPublicPropertyRequestObject) (GetPublicPropertyResponseObject, error)
+	// GetPublicAvailability Nights each unit can't be booked, and days guests can't arrive
+	// (GET /v1/public/properties/{slug}/availability)
+	GetPublicAvailability(ctx context.Context, request GetPublicAvailabilityRequestObject) (GetPublicAvailabilityResponseObject, error)
+	// CreateGuestBooking Book a stay from the booking page or widget
+	// (POST /v1/public/properties/{slug}/bookings)
+	CreateGuestBooking(ctx context.Context, request CreateGuestBookingRequestObject) (CreateGuestBookingResponseObject, error)
+	// CreateHold Hold nights while the guest fills in the checkout
+	// (POST /v1/public/properties/{slug}/holds)
+	CreateHold(ctx context.Context, request CreateHoldRequestObject) (CreateHoldResponseObject, error)
+	// CreatePublicQuote Price a stay a guest is choosing
+	// (POST /v1/public/properties/{slug}/quote)
+	CreatePublicQuote(ctx context.Context, request CreatePublicQuoteRequestObject) (CreatePublicQuoteResponseObject, error)
 	// RegisterPushToken Register this device's Expo push token for the signed-in session
 	// (POST /v1/push-tokens)
 	RegisterPushToken(ctx context.Context, request RegisterPushTokenRequestObject) (RegisterPushTokenResponseObject, error)
@@ -6255,6 +7612,33 @@ func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetHealthResponseObject); ok {
 		if err := validResponse.VisitGetHealthResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetIcalExport operation middleware
+func (sh *strictHandler) GetIcalExport(w http.ResponseWriter, r *http.Request, file string, params GetIcalExportParams) {
+	var request GetIcalExportRequestObject
+
+	request.File = file
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetIcalExport(ctx, request.(GetIcalExportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetIcalExport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetIcalExportResponseObject); ok {
+		if err := validResponse.VisitGetIcalExportResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -6767,6 +8151,32 @@ func (sh *strictHandler) TransitionBooking(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// SyncIcalFeed operation middleware
+func (sh *strictHandler) SyncIcalFeed(w http.ResponseWriter, r *http.Request, feedId FeedId) {
+	var request SyncIcalFeedRequestObject
+
+	request.FeedId = feedId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SyncIcalFeed(ctx, request.(SyncIcalFeedRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SyncIcalFeed")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SyncIcalFeedResponseObject); ok {
+		if err := validResponse.VisitSyncIcalFeedResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // AcceptInvite operation middleware
 func (sh *strictHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 	var request AcceptInviteRequestObject
@@ -7049,6 +8459,101 @@ func (sh *strictHandler) GetCalendar(w http.ResponseWriter, r *http.Request, id 
 	}
 }
 
+// GetGuestBooking operation middleware
+func (sh *strictHandler) GetGuestBooking(w http.ResponseWriter, r *http.Request, bookingId BookingId, params GetGuestBookingParams) {
+	var request GetGuestBookingRequestObject
+
+	request.BookingId = bookingId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetGuestBooking(ctx, request.(GetGuestBookingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetGuestBooking")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetGuestBookingResponseObject); ok {
+		if err := validResponse.VisitGetGuestBookingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddGuestSlip operation middleware
+func (sh *strictHandler) AddGuestSlip(w http.ResponseWriter, r *http.Request, bookingId BookingId, params AddGuestSlipParams) {
+	var request AddGuestSlipRequestObject
+
+	request.BookingId = bookingId
+	request.Params = params
+
+	var body AddGuestSlipJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddGuestSlip(ctx, request.(AddGuestSlipRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddGuestSlip")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddGuestSlipResponseObject); ok {
+		if err := validResponse.VisitAddGuestSlipResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateGuestUpload operation middleware
+func (sh *strictHandler) CreateGuestUpload(w http.ResponseWriter, r *http.Request, bookingId BookingId, params CreateGuestUploadParams) {
+	var request CreateGuestUploadRequestObject
+
+	request.BookingId = bookingId
+	request.Params = params
+
+	var body CreateGuestUploadJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateGuestUpload(ctx, request.(CreateGuestUploadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateGuestUpload")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateGuestUploadResponseObject); ok {
+		if err := validResponse.VisitCreateGuestUploadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // PreviewInvite operation middleware
 func (sh *strictHandler) PreviewInvite(w http.ResponseWriter, r *http.Request) {
 	var request PreviewInviteRequestObject
@@ -7099,6 +8604,133 @@ func (sh *strictHandler) GetPublicProperty(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetPublicPropertyResponseObject); ok {
 		if err := validResponse.VisitGetPublicPropertyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPublicAvailability operation middleware
+func (sh *strictHandler) GetPublicAvailability(w http.ResponseWriter, r *http.Request, slug PropertySlug, params GetPublicAvailabilityParams) {
+	var request GetPublicAvailabilityRequestObject
+
+	request.Slug = slug
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPublicAvailability(ctx, request.(GetPublicAvailabilityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPublicAvailability")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPublicAvailabilityResponseObject); ok {
+		if err := validResponse.VisitGetPublicAvailabilityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateGuestBooking operation middleware
+func (sh *strictHandler) CreateGuestBooking(w http.ResponseWriter, r *http.Request, slug PropertySlug, params CreateGuestBookingParams) {
+	var request CreateGuestBookingRequestObject
+
+	request.Slug = slug
+	request.Params = params
+
+	var body CreateGuestBookingJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateGuestBooking(ctx, request.(CreateGuestBookingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateGuestBooking")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateGuestBookingResponseObject); ok {
+		if err := validResponse.VisitCreateGuestBookingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateHold operation middleware
+func (sh *strictHandler) CreateHold(w http.ResponseWriter, r *http.Request, slug PropertySlug) {
+	var request CreateHoldRequestObject
+
+	request.Slug = slug
+
+	var body CreateHoldJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateHold(ctx, request.(CreateHoldRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateHold")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateHoldResponseObject); ok {
+		if err := validResponse.VisitCreateHoldResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreatePublicQuote operation middleware
+func (sh *strictHandler) CreatePublicQuote(w http.ResponseWriter, r *http.Request, slug PropertySlug) {
+	var request CreatePublicQuoteRequestObject
+
+	request.Slug = slug
+
+	var body CreatePublicQuoteJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreatePublicQuote(ctx, request.(CreatePublicQuoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreatePublicQuote")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreatePublicQuoteResponseObject); ok {
+		if err := validResponse.VisitCreatePublicQuoteResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -7458,193 +9090,225 @@ func (sh *strictHandler) CreateUpload(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"7H17c9u2tu9XweicmSRzaVl20uw2/eOO82ib08bxTpy9z9wotwOJkIVtCmAB0Ip2rr/7nbUAkCAFUpRl",
+	"OY+T/tNYJPFcWO/1w6fBVC5yKZgwevDk0yCnii6YYQr/eprJ6eXLFP7JxeDJIKdmPkgGgi7Y4Mlg4p4m",
+	"A8X+Krhi6eCJUQVLBno6ZwsKn82kWlAzeDIoCg5vmlUOn2qjuLgYXF8ng6dSXnJx0d5L+fxW+jmXl0zA",
+	"FynTU8VzwyX0eT5nxMAjopgplGApWc6ZIGbOyEXBtCEwDpYOB4kd5JzRlKlqmP994Do4sD10DXZBP/7B",
+	"xIWZD54cjUbJYMFF+Xds6L8wlrauz8w+3G1xWlvnu7fMFrk0TExXv7PV+sKfiBUpBP+rYMR+lRBdTOeE",
+	"akLJu3cvn5MFTVm1GdAjkTkTLB2SE9gttSJLbub4VNMFG4tLtiJUpGQi0xW5YEbbL7nShiiWZ6ufy5fJ",
+	"JXOfUyHNnKngo0fHx0PyO1vpscioNuT4EZnLQunhWLRRQTDbA5huy64f99n1l+KKG9a+M/7xbvvzii0m",
+	"TOk5z1t7WoSv7NbbmZI5U2b1NisuWnrT8Kirl/9UbDZ4MviPw4pzHdqn+hDbhY7eZh0T0tktTOWcLfKM",
+	"dmyQqV7Ypadr+FjnUmhmeTJN37C/gCXBX1MpDBP4T5rnGZ9SOFeH/9ISmVy/VXuhlFS2q3WuqGxnZEk1",
+	"4eKKZjwdXCeDZ1LMMj69vUH4BjsHI/jF3GhCFSOGAre+P5UpIyk1TP+JvyQVM5hmVM8fJPhvbeiKTOdU",
+	"XLCUaC6mjHAzFjApxWjq2tGGZuxBQqQi3Gj40xSapJJpcc8QmmVyScyca/f6hKZ/2nceAE8ATi3VhKcp",
+	"E7e2LJ3LMaVZxtQ9TZTMGI6TCBkOFMb0O1u9YYVm6d2MqcECkW5oBou8IjAK4OCEkpTPZkwxYTyBwVBP",
+	"pflFFuIORnoqDZlhV8CViknGp7dO0TtSsqPcucxSktEclu4+/PEn+5gDK7F0Cq/kjquOBUdCNRQUEeI0",
+	"J03uC2n+tD/+6X98MCSn0szhPTqRhSFW+sE50YTDUZ9mRcpSR9jnUr6iYuU4j76DNZKSLKhYefLQQ/IG",
+	"ZT2dGWanLQqQS0TOiGZTKVIYtFUITuAdUNWsfMbh4tcH+KQ+PMdwuTDsguFYrpPBO0ELM5eK//uuzg2d",
+	"TpnWTgnlmiy41qgOOaabELfvsOuKXYE2ioLItQ6dn0ynsrCjbGpZhNpnoFghQ+QXgqUHXMChVEQzpgk3",
+	"FffkyjIVLgg3sJSOyLiVQlPFqGHpiamJMKDeA8MXbF2OJQOe9hB3Xnp+Wn/gqfxlquP6ezVCy6St3gJr",
+	"mfEFNywlRg7Ji0VuVmTBqNCEXTG1Ko8P6vaGLXSvcbofqFJ0BX/Dam0igDfwDmwZCo1Nb7vdfGtfhi4V",
+	"p9lbQ9VWK38dah/vrUaPi1yOww2+vsRr3SXBpn8oe5GTf7EpMm833D+41Uzq9FKua/mPHjNfX+bmXLCx",
+	"jsG8LReaiWIBn+CkBsmATg2/gjlfKDqF/1sWC7PMJPzjQ2TPT+Ajblbr86NbHIRJaPFupLOex+aSi3Tz",
+	"strh/86t3Ku2u1cXIMODkzmRMmMUpYMuJoabLH5u257E6BJn4T8J2k1ggd0I4tsdzCzYba9blIsOjWY8",
+	"B1qnqwUT8GhKxZRlGXJ0eL4S00Ey4ItcKtNJBmf0gu1O6ratGEsR7KN5Vigt1TrDO1NMM2FKw1gxFBpS",
+	"gSSxTQ5jm1gIv4319n6TSytvcdTElNolmVNUKuCzhNCpkrpknPSCBZ1UEjR2Ssuuo/tXmDn6TXTkaKFg",
+	"LP02azMKnr9ACam3kUqKzRTT8/bmwxe2br+xEuFUWgbeGFFb/9FFvKI8oxOeRTlUIbipk2X9uWV7J0rx",
+	"K5qt08dz0AvRE6bJlKI5BK8yIkVNbnbR+nMaJXPUdtd7PLUasplT43qcsNALt0OPsBa9mF5j/9x3fshJ",
+	"Y9Fim9Ipv+yexD57SsXlc2Yoz+InAoTbaZum5J+jfry+sC/EVK1y0IcoHGtthuQ3NFrJTMkFmVLFYH5K",
+	"RxnIhIrL1p4tK305eydyyluEBRN0krGWhzld/ZODWfIbeNqc24wvgJsfPf4RnWbur41sx/cTDDmpLV1z",
+	"odZ6X5tPdKfAC76+R7CUPamzr2IszSbFuK8Yd1ZL19hwWm/sq0DGsudk7BGpM5otdemYYhDMseojsauM",
+	"oyvn5RaqdavelNP3SsKCAgkJ2OpBMpBLgbSA9nBU/DtHf8TKQvN5SF5JwVZkxlmWanLfSEOzhGRcMJ0Q",
+	"p3bohIAegj+AbTehGfT/AB0CGZsZAjb5TKqxCM7jWFRL4XlBWmSWrzePQzJwjW7aORxudXp3U24r6upm",
+	"peVu0bgwm87Z9PKl6El1+PbrwvR+nWepYiK+bDewbaeFUkxMVxudnP494IMfjaIRU/ZlqsGnARqYfSUm",
+	"9LY2Ty+8x7hreL96Rxy+fdrGcHoyLKT43orwmeJT9gcXLDZ6PJSt4/GypjMygP4OJ2LgBD4v2DY77L56",
+	"xcxcpr3W8az2RdXEFktiP4gtyNY8fwbvsY90kWfw6Pd/HByPHh3F30Wb6Qa6NHK03rODEE1saloWajPT",
+	"ckz4rX25t0/Ff1b5VIA79+aQvRXHZFDk6bZc5IopzWVEFX7LIJpJp5dEChfF0D8TbshCXjENP6Lbzlpl",
+	"9nkfu8wGpmZx8ToodyLwE104a9pJnYCTVhw74MYBYyz5XchcwoNdTT/kwOE6RkW63c/bcDq5pm7BEAcZ",
+	"jpY4etOHm11yrW4sN6YzaqbziFwuZX+pJD8cdevIdyhY42MaRcdUaCMX51sdxUp83pVQrAmhejR/FOOG",
+	"N+NjW7CYgF9sOOr+zQ4ae8uMgcDQOpmlXOcZXTndpXm2vBb97u3zQTJ48e7NIBn8+vRskAxO3sEvL0/h",
+	"lz9+fxPVpZs7AgGuV1wUhjWMv+OQiH6IEdFCpiwcEBfaUGEGpUSLDgDzQdaNzb8db2VrYt+1xupTSSKL",
+	"2LUXJenUec0/kb1U8Wy6YGizDwnlaiImiY/5JYReyJRiFgz7mLOUU++vmawIf0Yz4Ep+pcCPN0gGS55e",
+	"MFiv5ZwaTXP0ks6lwGc0u+SiNIuSge2w5ljFLpHRY4ddttO6X97tEdrrdEk50OKfgY9WihlXC3yMPIml",
+	"f3IR/CGLwJWLr6VsChpo2jWO81UeX2YMhjp3F8wQF305h4hYntEpwxQBkfIrnhY0I0rKhQ6XlAnDFZIE",
+	"PIkPQVGROjuy4YqTmVR1fe0/Rj+NfhpNomq2vJAutSr67J3K6txE8Y0SyY4gSqFu1C9FXpiOoefUGKbE",
+	"4Mng//7H+9HBT/RgdnLwy4dPj6//c8MkmjY1ZGihY+rw6uiwyDNJU12Gvq1+YQh8f08PyR+Mgk+yMMRI",
+	"ohjoR/gePB/uMO1nNGMipWp9xpgFuYWWAa9H44fUsNdXTCmebmE1vQm+2uhJcUNt9hWfbxATWZtzZeQH",
+	"YvCHqBRUbOYSOupN0IWPVJeEyYV5/GiwSX9Z9LLAGsZX0w9vOy8bi63A9sK1dH5EF3ROVSxaVK1Dk+4d",
+	"t2FqyoRBgl9wIRVBpzFm0cz4R5aCvq8uGHKftaVcX75O7+stxhrtfH2ksTWo3+7UtJ5rz09B3g2SAWbN",
+	"lHbIh21i3S60WG59jmLML0f7lrUwug76vdGif72LvOP6NkO2juCBmvnH2pfVuJ9BZl88CcRm+eIUyrQz",
+	"lxgIyhCoNphSpaNpLZMq4X3jKdgujL9FPMDax62bibvTryXn9llro6c3v7nRji4qp3t0V308pFJejh49",
+	"GY0GSagT3H8/OvoAesGH/3f8fnTw8MODJ+9HBz/Yn6IaQj0/NBK+dCTReV7wJTA4G7ZCkHZn3R2Yc1Dl",
+	"d0apcMG0dhkAm9QKtA78+9FVCxzIdYsKLKfQroqN5Dm1H5Yrfjw6fnxwdHwwOgqlAswytrRtS+oXqWwW",
+	"crPLVVoncQh4xE+lTyLGV6xrG/qElAXMPkwaeQxSoAOr3vOgew+ql8/hkLvjiUkKhKapYhoTG2tMYRh3",
+	"gPoUwpgnzmYaGknASCETNpOK2axDtLukII+OfyJlynYPP1wP8ngBzo71HboNYd4qNaQI8szXm3eyozPf",
+	"EUZ9ZkVgrnjvSFSHFLfNeOlSDbFb0uBAfvVzaSpaVoEiubf48F9Ogky8AeHzYe0rekhOUNCREZLrbLYu",
+	"S/DbLR1hlVax/TLZ/so2WtehRaG5iY7y5dPO7mRz1kNHwlzJ3P+JiStRPl2SYJPRFsKoiPH78u1r8vDo",
+	"8WNilvIgY8YwRYBbALGFDshIV2xBedZ0VP7wqIMBhFVpx/X6pFgH1jNU/+7hcS9lMbbWuDQdkXXPzqEK",
+	"xbhMJJ+1PNxrVByyR1pdcZIYRYWeMZWgSeZcRjldYQb+isDX5TuRgW6byrNNPk7T/O+XBvOlReNvEFpP",
+	"WS41N723uFvjvvtw99cS0HZRw2f9qOOZd3357043pfr7MsHNJX/tts5thrPbXAC9iEyv+bxzZh3AeAJZ",
+	"bp3fisGhazF8rftzh+z/0jwvQ7pBk5vzF+8wzN6PpwUx7HJGNfJqENM60Qa9hYygJZ4dDXxXMW7LA/x0",
+	"K0bkjnQlfDx1bRKFz2wkPOJ2rkTlxoMbRrbj5e+YYEA1aVSxg3zTzCrApQC+oFwMydu5XAoixZRtdqtX",
+	"ISLb/aZJB7rjNxrwvknwekE/vrQv/zDaNZQNHrCX26Wdbg54345EWchGb4+6g+vxIGaUee6a9d3NEbwp",
+	"UF+GcqitRH/WXLb1wgzq9N3lXLpkQPAzYOkneDc05ehUWd1LQfMM45CovFZMr90qwYL5Ta7uXsz7kq3i",
+	"TqAykBewk3uauJBew6Z5OBpt2hfoqNPcxYm9w+ZbWYor7PSBYL9ufEEv2OG/cnYxSNwfuaj+vWSTvPxj",
+	"zvg0urCa/zsSXX7xkU4NgWdQXDlZGaYTUuTAa49G5NXTaCBni1yEcEZuDLHF+Y3RzESSilJq6ITq2moU",
+	"MNlULkV8mmuKjQSaS9mFAsVicwShlNxl39EByywiB9n2el1v5tcYpvsuCfqMjfPllGbP5lQIloVr0iNh",
+	"oivpHFoFHJgIBVd9dZ3PcFgggbzP98bmDtXm7UpMt9CnSzppZNBZNZgUwvDMOtuw9o4spbq0BWgWpAEe",
+	"ZVxc1nJXSh0aic5Oq5v7r3MmeOZL3jDMD069mVRDclpkGZlKCPGGKSBBxXBzoUSRZeBS8kgf6wPJp3IR",
+	"9XK8xGmz1FXhW14pU7pyRVbrekRhczt66MieSuw3Nf3fDaeNlhF9qCXb40ak1+JMvMkGJYgTJAjHqnhK",
+	"BFviu/c0/MRFhfPjzMA+O7p5B1W2DuO0UVzVdyC62gjpE1nm7QsSbsAWd67P9w7BTrcHvrRezb/funsL",
+	"cmSr76PVRS7LzXmLo9XwLCjR7C6Et9vYarnxcpc7z4x9y/qVLuOnAp5YE02kQ/LS2MhZtsJE8ArIbM5U",
+	"I5o2NybXTw4Pgc9cstUw5YpNzeG/JBeH8nI++unv9HR0emqevvnHm+dnv6m/P1KXKr/8Gzv+fZ4fiR//",
+	"Nn21+iW72JzYbCfh5tC+VmeKXXG23L7S8SZkjj2mTzd7n+CFOnHumxjrbtn6SNfI0g5vozaCjZTlzfXl",
+	"Lb0B22KThYNut+n/oOKi8NHZMjESldKoiLZdPue6RDGpD9di5uB4vTp8HJOKPoUktMl/Gm2lRLuuqrZi",
+	"83vFWin2FrAukkGhN8fJ3unI6PHDpBpLfPBAhi2VBZ1YK28YpsBqYpqgK8xjrmjG9OeFWmmcspbpv3Et",
+	"rfNW6MOqFniArHphGF24+hooSScX/IqFyuiCCnqBS18WbUYJ3drKUZQeG1Xmopbs58oB/erd08T7HLuN",
+	"xajv6ZUUZv6cRvrHJ5gmldJVQhTLGTWgmdvNWzGq6nLk6Pjg6IdGYs/o/RFk9Ry9Hx0cf3hw4P9+f3Ts",
+	"8n0eQurPg2iOzylbBhBGjcPv2HVQw8bFxYzrOVPkHzzL6CDpimEe3Tg0ecqWuxd5R9xo8YTZr7+ae8GF",
+	"c1QebUhI7l/V3bYvlRf8e2nU11Ma5es6InF+m7/pXnDQeCWiY1ndUkHEughLJLL+pSeYb3nQ911Otvlo",
+	"9vaAd3i8T9ky7sfb69lTTmOJi3oc9j1NcrBCZKExPxjEX8YoAlYCScZcPXcSYWhZxTZfQSSb58dRcsvW",
+	"erMCtqYC5kxprEjOMqIZ+6LUwBqFO6M/Yu23rPlZxbY+J6/ZQplQbMr4lXcdNRCd2IzCwQUPgpDL4SDp",
+	"aUHrElt5/Sw5dyyCm1gURs/KbYqD7nGObsBLYXPc/kVC5VQzqJNqgZjKVkRRw5o698xVmEnh3I+U/FXw",
+	"6SU4Z5VBhHCAJLXjRBEFVWeamSIfYgs1VfnoR5SEW5LHpF6l2IPx46s3zJrK5LSs9yoHDkioS2oKQRPy",
+	"K83wqIRa9uNRh4+wr67+4+Z0Q1zYjQfF0YC1apFU+yYQxfNGww0IFjVKgtLwmcOFfXHl2EQZhi1jPhUi",
+	"4SYAQl0sFlTFQ7ZhZ2cu86lO9MwPoWvq62MGXl/YQor1tN2yLjjytLF+tnvXWPDlppWDyehdkRzWVufm",
+	"OKKvTd4aOt5GhEZlT0uHb6MyJmVXz2QaYWIIBC5TBnmxLJsNyXN2xTKZI9fVTGGkA9zCCdGSGKYNSdkV",
+	"BwcO+DA0vwAnx/CWogjb6RWKaSbSDbUWrsbCX9CAc4WRT8qojgVHKrnNw9FG/54X/qwGvFgNJrY1PcR/",
+	"L/NsyyrLKsHF8wtXUxuvSdpJodigQNwUbtjVBi58Skwp0rHfWi8dC19lyDSyW6YUmcyUqviiuO/bES6o",
+	"CbWHdcbnU8A7BXCA2HhtB9Nib9A8R/oFIPEVue9UpgfgYgQ1IlV0Se7L2ezBz2Q8kGI8IFO5YC4efEZX",
+	"vzHF7mn4XMmrOpKDnCGaTxUTF5uzL9wiBmvgRx/dC3++GzYA/OwR2dFeBx3KFTbYmgXyxgekuCAvhkeP",
+	"H9mUeXdsyf/66dHf/nZ0/PDRD4//VjvOg/BJ7KSczaWR67s6pbnhUuyS5HDZgqtQ3ABTwZ4EzFmyIXg/",
+	"vpZlNrIt6l7Nq+nvbJtARzJWE1VBzgglOXRf8zmXdXNz2gPRCLqNTktmvF7kOMvYRz6xaqVMmbIlitDs",
+	"NJ7FVyXO35APV4nzTQ6b+sgTpkuoC+ZRq6IDyeiE9ci+sK915qmd+azHHUrMfbHmLoXHeyv/R/z9eHnH",
+	"govTMqy3/rhVMPV3YbubT+pH4Km/GwPhheEdm16CjOp3lhuo3YFfrALVF03NlXI2a+ELzdL2nb8NhIH1",
+	"Wt1Xr0/fvn59ejQaJLdAFLdJBBtcIiFBdL+6K3HE63Drm9eya6Wy0PRfl/yyFIKzAh1hpsgxWwld5Rqj",
+	"bC5cqDHHPu7DZoKv2UAbHWOuyOB5wQC1u60Krs0pgpklcgl2Avo9FDUsaXhHeoKN9CxSaCKQVV8Cwr7D",
+	"L1rPXrksfQrDeiLLINkgmXfxrEwC2KbOz/x7116a9Ddg7cGJbe10y1Krvo7y6oO7Ab91YZuzKlNjnXpq",
+	"ZBlN/gmrujcWE5fBqkh4bOPHcay6QrM3Rbbt8eRTmr34mEtlztuqcaaKQRBMGR/6L/MeGX5oU79Ae359",
+	"fhLHaecudbP/RMsU49iYeyYF1zJ4+nfdyPyJDCB0Tm6RkxhA7vYwiEMOhCpwDJ5ZEIflR6RKmfo5uFyS",
+	"u4szpFMZ+lWCQkexKeelstz5uX3LF89sU4EqF9F+lSfpTi3a0JWlfXTOQpB+C+jfKhOh0bfeouIT+NH/",
+	"cdZoJR1ONKeHz2QmFxPZFqPrP9J3gpt+CPUOoaTbcRzI3TUZV4e9DYkuCRSBlhhsuRYl4fqZ1vhktVXr",
+	"Z9VvfEl4a1x6TbOo8cBKzAVYv44mg5MYFkCUsjRkV+sMsksHuw3kX9/WDn7ieuQhxtHhXxhrc/jM5GSi",
+	"rYfWPUJIT3s724pQxX4mGddGExe8DpLV4fc9KovxnMnRXhS8O1DArHl1Yy2s/PzOVbF1HamCwx1t3JqG",
+	"9rQ5Kecu1anWRd1Fp7qZttM6lG9Sl+mvkbSuy12oJa2d35Vu0jqA7dWHlqZiScn2Itp298I/wVlF69Bm",
+	"ei6X2t3bKaTFm0ltHCIhdu3BrTuDw3GLQqPyHmznB6h334D7vh1Q7zg2d9hVTILfjkBqQUO+A2Dm/XsG",
+	"PqeZr2PXmCFyl78kByLcNZuroRH+T0LD6wPkclNJu7vwulnstb75v5Y3EUKCWRRoa0OGynrYM7Zqt+oF",
+	"6B+evEl8cXNQcVdJfgPhu405jxeU+8DM+pL/QjPNSpzQytGOOYYYwcHo5YwpDYJwSVdgbTk8jHW6Cr0H",
+	"PZwEjZRCp2nugBV2ydJ3u9+V13HkdMZYrnvgl9duhLYfJXaGzYFufcHl9k6Rdr9H6dfY5ACp+STafRk1",
+	"90jo/qj8E6HTonJVNAj1Q6si9/dCGvYdzGh7MKPeMEB7hfSJb2xwV3B9P/OMGhhFTV1FgqUiVRJHtWST",
+	"+DU4vsnKj/nio92lssf3H6P/fYjg5mxfvptUw49NGyk5IsL2h81YZWncIq5iLba8HvXUc6kwP9K64jKI",
+	"gqYuEZxrghRywFugOITNJe8QGtsgt+8CeYvd+Cb66AGiIwGjF3Cf36y2Imq/NusAeYEQqDanIpJWWvzO",
+	"VfvoBiUf3bXK9O6qyGI7XrvkpuXi8nMZXF2+ru1tSjPa09G8BQnlj3NzmpsWqi15sM9qbZEeVFvYirwf",
+	"/7DpzJXLuGVNzJaU+9WUOkf3097938rslH1eKiSbrlwO3o525wrqymxidxV2X1iDt2Uten2YbHOqWAlK",
+	"0N+G2nSk2+Fd+NTLipSD+KfZWb2sf7NHM15Hhk3j9QGYOcXT4SCyzFhA1n9Buqw1bCnBBS4nFtvZ0Kl9",
+	"O9vTvR1byN5IwerjOC7C3W0bJkLD33U8sRK8soYodvtbvPXu8gvxUuwXi0aw5Tsdq9I5V0XpleEay4kO",
+	"uCAulwGXq9Bxj5yzezYPqzCWa+mdUHFcZ8kaPE41u7bVZekWaC2YUrwAryQjgl1Qw69YDbLAhQZ7JlHi",
+	"Pdl3VHP0eTDKd6in6MQzb0fa88Dy9R39Qy6ZmlLNiC4mqVxQLgim79sEcV8RHIbf6iUs40GVkzoeAF20",
+	"5qjWK1yq1+poOu/pwb8BNOf+/37i/nnw4dNR8vDHa/8kDqRTOWFbFMBA/WuEGBm7TAF98qL0sN8z/u5Y",
+	"KRIywhm/LURK6/GWkuc/3mTarJnl9GObDrkpP7y/nAGe/Rwu4DVQJBWBWS6UQyBdzvl0jjz+ALA3qV0q",
+	"G2yAvXcYkqZQAg47W/j7f8rRHD+sL0ELomQwuiUXqVyiRKhP7PjRdhcRB0Z0tazN2Tf6SxpEETsx54wu",
+	"2rAMt0i6KFEN12gAgRr6twTjseAOG53QvumkHG7bBF2DLcHDdYeRa3nOc6frbWSwALG4HWvcD97m+lxq",
+	"QG5cu7lBdAULN0CUy8+L5WFRPKz4volJja+4j6sQajsKSLBbcYJZgM+Uxe5mSONlgw4Cdhsqt30E6Lk3",
+	"zMx2hYBerIf3aSu24CK1okcxx+6gjTkVl/GrD1uJ0nAPbdy7GFL46zbc2pSNJHYhu9Y+grNtL76KQg5U",
+	"w/Tf30b2qG9rh+xR30QLGqOnpzXA4W38/O1rqajQfOeLno0Md2HDFe7l3ewdt7nH9q3/pcxGDqrXY9PG",
+	"zO79B3Yb0JlSLsAEwDzeAwxUWpsT9ArIDr5gZt7IGri9iLCipr/jsj18DGEsdslE+qZ/e1uEnF0J8ObI",
+	"c5Vc17qNm1CweNyuYx+5NhaS3tn+6BGgYkUM+4h1cX8VzOOLl5eb1iDIh9vF/Xvv6iY/yQ03eQtNej+7",
+	"j+OObvPnu8BjDYIDS3Vs9t5uN34MCSbZan/xxw/k1dOEQLv+px9u4SoQV8ra80YQu9DnfHrJzO1ctMFo",
+	"ylSnz27tm4ZVZlvwIOcVEqS18hOwvKfgwqMawXhF1BvXhuKwWAMUOXt33uHT6JWwWTozovdFYpJYhncc",
+	"Y2V5ildoEe+0GG4sXY3egVMNL6lAVvzq10Fu2jwi3rm3+80D/uLRm18sUqGGd+bZ+/duy0jqcTNAObZN",
+	"dwDAcrZoc+UCrYsdNK7s4Mk0Y9RdUYFfNO98jd7lusvadcvKWLr6P5jis1UHZ25iEjz68fino4cNFxd4",
+	"sT49vo76sSxQlUfqb9RU4Q10TgZDSRTUymp01oID2n5aR+EbnPIFzUCgn7l9vU2YzBaIKVyGdRoBacGm",
+	"heJm9RbaqbnsLd9rgQ+yrwA2OQboiJKFgZ8NJEEPybktF86YIotCG/BCUwGPwYNnrXrUL6E9yyM8fT8Z",
+	"/PeBCwEcvAzOJs357+4uXEYVU+CPt1oW/PWLP9D/9c/zQZOBn0ynTAP/vmSiwpuhhZkfXiH1gF5V/uQi",
+	"lEPyBwXf49EP4FcvjN1FXG2MH2C31fDmxuSDa1hQLmZyfdGeSWEUnVoFDYgFvKO/M0gZnl7i1RmvcR2Z",
+	"SHPJhQGPxxXo5SnDsSUkx3S+sajeQIfwZFXzBVtQByzTw0voGs0c2laGY4Fakb2LfklXDmUeJXhLROH+",
+	"FOjtgRV/VBC4F7pEgB+LsXhdEYJG0GSoEsFlIjTcARggFSTcZmJpgAgKRjcMfyw8iRkJdINUdeL3UCqi",
+	"5YJJgdWIMAshoSjF+YuwXp2akkovmNFj8Wj0KKkiZ/bOnrITeD2VzDaEqvdwLNANYPDQ+u06OXsZ2HRP",
+	"BqPh0XCEufk5EzTngyeDh8PR0PEX60c9nOM1Z/+Gf19YtQZYFGawgw9p8Csz7ia0ZFBe2g+vHY9GgXoJ",
+	"/wS8LocqePgvZxZbFrCJQbgekEbXFJzMzImLXlxfV7CPTwZvmQIW5gD57c1oZO4Ha+iFxhTblTZsMfgA",
+	"3x5CGdzhJ9AwroMZ17v0+kfjRgFI1U0gOkX1PEHgEgc1UFHOkE/hVgd0+1lkbkxOAViTsRgjpg5LxwM4",
+	"0mNAdST0inJ0fI8HZYWSmQOZ0Qmgpfq79NEERjejJhzJDgaHjeuxsBA98IoNRkwY0TJLLZGs7ebLsngY",
+	"6UDRBTOohL7/ZHke0EbF8WA1BiHjth76al9jQZqDh7Of6NH0eAIrEtPRXFd/FUytqr5gDoOw7U3+yw8b",
+	"aRLM0UMPDlEnyGZja7R3HuBKwDF6NHrURsjlKABb8xdZiLRBq+d1YvLNlhAVsKf2VreAdC1DdKQLMiCI",
+	"V0cPK7jrTqqo7d7Oq+sDuostnB9CQmSWguUfxAGwBMSu5tHm1XwnQO5Jxf/N0ppKgOQaStv3H64/hAvu",
+	"x2C5aqn1FJopMmGZRGwrGSx2dRkMVn7oyPLaK6tcy1WJ3VPnfryVpQ2u+Li+vm4evOu1TT267U2Nbai/",
+	"qwu3bbR5255W/oj977QdXCgxSyu4se9UI9/2aVuRnS8PmuFX3KyCg9ZYEJ/npf39z1yFESILJ+tBr32Z",
+	"BDB+vNZ6SM6o1kSwj+ZZobRUYwG6Fgxwin+Xqhi8gspTjJvb4+6GGmfmDQ5rWx8kHWywhTej9Kl9mFp8",
+	"dFuh0FJ5H3PBfNgrY7KrcYa2W4Qz2ZpgwHB0b94dTd9IgISHoGH7vP+QdJ4LLIae0zxnDlPUVMZRAm5Y",
+	"9MkiOw7PgluWtbNwqBi191JEeeMrqi796r+BN9d2+VHkQiWqLln6lawnDNbGdK2KZt2QAq6fdvev+kNr",
+	"rcvuVQVzDtyZhWlf0z/s8/0ImkbubC9hE9lCm/1FZGGG5J24FOBzsIlkhCpGfFIUMVIOGzrRC2cNaqbB",
+	"YiETNudgfxFn5hJfelMuI+xLfQmlydvXz83ttcn3tIYB+nmv9RvdZs8Ig96mtsqUkSUF6STMTVnc8U+b",
+	"PzmX8hUV3sfVtNDOQXpR8vgg5RfcVLmPMDojLY5uCYvcvdGOJsLNXp92jXCIkoYaFMYuFQPO5ZCcKQar",
+	"AkcYOkfrCZbKAfiOhf0uJYpdyUumQxoFhzoQtItlYUEUuVDUpsdymdrmMmY0oWMxzTgThihm1Cqg6+Vc",
+	"akb8IoJFJ9yNpBbmOybr3XF9a8fxBfGEWxTeQRrrOlmfsqVjLDvolBXv+eiuKWxwG9xYUXXVSZPWQ9fO",
+	"f6z/d3/sp+5fvuPdcknVkZ1yIoGLgPHcSpcvlJKqk+VxTZZKigtyH//3J/z4ICE2wGPvwHYw3eigvA/P",
+	"/3RPH0AMeyyAFYDfBZ7btoyURM4ME+S+kfLPBRWrP6kxbJEb/QDOap20nkGOBqF2QOAWcjdIJDbn2zkR",
+	"rUUihcNEcKyxld4mgDKi27mfTWQk1JZmwjzdbRD4Id7YZSOA5NHoJ+fQbYDseoCQmM1r73fcm8Vrm79j",
+	"ezfo9DNbu/DRw80f/SLVhKcpEzfQfeGDHuL8mRSzjE/Nzsrys0xq76EEKtdyYTN5QpZaOtcaZH74Cf//",
+	"Mr22hJ6xGA5zfxp+ji1UNLxJp7Xvp1/ubu64Oa9zJiAAAgtyT/tdoheUi/jurPkWYgOtXrFH62U6uP7g",
+	"9zVALYk6VCCG4SpDABYmozl5D+GwhBiJjDllykaUyirzpg+F1F0oY7HuQyHrfpvGBc0rkkl5SejMMFU5",
+	"cBZSsFWbB6YEuujlganVOfb3dLd4ZVx5ZD+G50qp4i2hL/QW2tmLh+l4FLqYfvisLia33a2+79LDBJJY",
+	"f7vuJX9iy2A6XpbFWAKHNEiSdtyk5AChe715Tyb3t6ajFnMfzi8FCyy45PdB4pQZbirOJVLismfh98TH",
+	"gcdC5japqn5t7pB4dckpSaXSFFWXSn8yGHQUwu+toifCIpwCFWDmbMNJX6ZskUvDxHSFKQYf9qeDuRHe",
+	"tRYWdvtdD1vTw8APc7z5g9/Z6g0Dm2bnc32Spt6MgJNoU2gMCEVbmJet4qe6IekPP7l/OS2uLbngaXDz",
+	"4345dpvhCFP9Snjua+FYY3l5ii3NRtSYpIozodUJgaZWBrydOud3EvlP3gbh7dy5LgGFrGRh3eI+62fG",
+	"WZY6Jc96X1LIm7H/BIkJ9kECqRxMJ2PhCiyxfBQRLPOGfECFlRQiY7omImzyKLD5E3gxK4c0FsDSdcXT",
+	"0UTHV7bj6e/ytMbT98GSn3r0e1jtO/btbDgxbvOCk/PdSr6Zlex9kLiS27LVQ3svLox3p/McVcZ+Ucyd",
+	"Natk2bxJe7MmHDAb/SolROJ+WHpvek55+rNTmoLre4nFG8STRXRxcYFnnJstdSps8QvXqZ4F0/7SDrAd",
+	"2vcj/DkULEsXXscCeldsKlWK5VP2gG3PCmr4wbfODN4yp1C8TG3OK8bA4PCjkL6nLbowvFEl35TG1on/",
+	"JzgC7bTHwhdAls8CA247ZvAGV++srKP8Ug0sP8Ivx8Dy2u/ann3nCHfKESwFWy9jdapQhG7PCUxZrrwn",
+	"ZnCC9yozUMxdmTIGUZEKEn+ME+unhbQjqdy/MUfEZkcrmdk7yvFJqetzm0ctC/Ozqxy1cOHgyY3cCwlX",
+	"ucMAgI3MmvpKhFNUldz7Vd2rfr4wuY+HnQvrO2PLMq3+uwp/86wwOAreXyLdyn40pMRbaj++UIxwgPeO",
+	"HH6C/8Hp1Ssx3f7Y4j09XWcWctfs6YCOSFqwhGirvtusc/IvOUFrHQsMQB7AWXTlRf5q8qAFTKUd42Uj",
+	"qf6ZzJiZzhv3YaN1jhky2coGVMoEOcV0kW0p5t+uxLS8gXGPR6jso+UMwfQTWEGXAwSL9s1GCt9Y/40j",
+	"EpZWhQt2e4VcdsZzHaDQodUYu5O3qmRtmxXmi/OQSLEdKAZmP6OebP32NnHMYg9gRkfikrZSTOXwaR/2",
+	"6wRrrcij0aMhOcHxYKENzkMF9I0lWFXFQowW7ecOrGk/MsQ2brFI7zoPq70QIKyvtOA/SaU82jjQPW2l",
+	"O4qZryj81XUM/kvW06fxSOAGOe0kOASG0UV1ABasy/n9iu2Tk71ibVuIAI/7r8w4j5RgiDRcSBdztwU5",
+	"jXocm/8U+JtjPthX+zp/VYH6HZ8+B80Z3zeccxrs35dWjGN3JVJ8cw/899JVE8Zz3IQ0fOYW7SBXbKa7",
+	"zs5p8PYZvrzHTVnvLLJDEJ1hAlJ9c6Yg5Vh8LbH83+QyjOQvKZ5MCcW0ypWiMjqd2znZUhKozi4L4fx+",
+	"LpjW9IK5GFMR2bi3bRu3B5dLfM/u7iT3IhprD+PC4hFhM6aYmDKnMZsy3PLtZpK8CS7wLXWIaiV0aTbg",
+	"KrmahijROUZSh9nYVMBXwTfaLMVGGZ9LFJOaDaPpXwFezx5pqXadc4SMqlE0Sru+WaqBlYgk8DWykcJq",
+	"6vK9jhwkZ5Ha+k3N8SBWNq3XWeSSqtR2l2dUDAk6yP0tXdYwHIu/Cj69JIhSbpVksGpsjBsKQZkpAm/5",
+	"DCBz7W94WeNEUpWifxyKwPWc6TF+SbMMnWqC2cv8KN6O3Z545Alnf8nbZQ937Niu9/s/KHVo/7UUtQt0",
+	"aZoqprXFY7HFE4Zas3THQJgr3A58RhBbNjraf9tJXuP5h594d8pR7UjsmV+3rXBePv8qmO1JtUdl6lHF",
+	"sTqY7EZ8EZ52oov0QADpykdCAW7r95BPNrOPQIhoch8LExLirsKG2AXehG/zqCSR4sFYqEBLQXhSxNR6",
+	"QhCh0jVLlbLd8RRrzAOkTHgNK2KdDZeMhf3S5ap6lxZP8S2apuBbsQcCXsvYzEBgBJ8qtpBQJ0gAKRML",
+	"bceCqukcigeJotiQmVNBbO1EOiSnDnXTobRDEzOmlFV7JuWg0RpfMmhPM4+kgLBUNWROuzC4Wj4ri4vK",
+	"eeZv/rDBHqyWHgs8S0zHhNcNcq/2LNZ885/FA7CJd3gvQJ2HfCNS7nYyqlCRhxNYQ3Dq4lVxMVKDDooa",
+	"Ei6TnItavUpZdmKWLANYObxIAA6aq2kYEps/P4WBwodjEUZ0AwgTWpkkq5dpYk8jutFkC8LTMz/mXgUp",
+	"n7GEZJ9lGuUi9AJ2+hYNJCzCskxVgZ4l3cV32hevG4VROzkj5UWUt1D7FZZ9WQCrrXPCf7X8fO+J4bV+",
+	"ulXhXfG/TspMKQDIqG5QXoP62iE3O+n7sosq9dilQ5tF/uTTHY6qDX3rJE1xw/C+p/2I/bJ9C5t+xwbt",
+	"FuQYyAdYjZvysH1kVtirvev5FQFkowXY9HjOQd5gmE3cgYHXRay21S+EXK11i3tqgcP3SbN1DPg7ptsa",
+	"LnqEbh20t3S7fjfUWiO7X5khFE2YahiEVsS3md58IkOu2BVny+5MBoskYhS9YllpGcH9ImBMcnt9tkZj",
+	"Ts48/mwmL/S6g/nMdvetZhrYrt0k21geL+/EumOqQQC1KtKP5GPD/QmZsJl0ePU5U1oKDHfCZm+mpdDG",
+	"AFTZbmcVfhOYu5tdKtBmp1OlE9YFPt6vat6YUiyagW9UPqeUGcozveuGumZda04NDgzE0O14g208dHC+",
+	"POuCjowZjA4SGhlD4mqQfdossAmoR7al0El5DSsYmUoWF/OxsL4Z/NXX6aAVDB5bQxZSG3L00NmgLTaj",
+	"XZqTcALbWI83o7XN1uQu7e4VZzJcqBgKQPC83LHPwMIcsWHwvo4QPUEw6sSBZ8fvs7wN+8Qfc8tXPmw6",
+	"QiFQyE4dtQX4ntqLpOaMzFmWegSB+x4qxP5J9aW9zzTxN/eyFTpeZ4qxBw6yvo4PPhaeeyxkyoak0gPK",
+	"W5DybOVxxUtjEPzTS2qh9r0K7Br6GVQFrsdCSEM0XuaAyYrtsb6G3fxFFsKEY/xM+mo4hDJQuH6GLVz7",
+	"F21b3axSpfIQIdSNzV0v7+6uxd6kcnc13EQcgtTa30H+TWZpWPBRZokEAh1G8MrdkEFcAEcTxTJGNauf",
+	"RFTsZaHHAj6yyRNDcl6h+Ad4IFih/icGQaOw/dBuBSzSfl5hCvuLy2Prd3y0qj4bm8Wy9OvxUsAs/KYv",
+	"5zxjFaXA7VSVTecVtJucjr8K6e5G3cfpQBDC9Tss4KSrIguuYsmVXEgEQsCohWiiLED55kShIIMPx4JD",
+	"Cv0oSFwBVAcrqiz5d+Si4Fr8HSe+p7hd1cNngsW0s2uN+vPp57BkEVmprDh2lMw1mc6l1C2O6JJ+9fzA",
+	"gaG2Oj0A8RPYn3NphKDO2sgcEkeYsimlxutFw0gh7wXXhqmzQlsc2L0RiW//pqDXfqRf6pUIfnw2T9fe",
+	"9HVPE7j2hcCGBli39UxtXcILt2dXVoyr1QE2UYxepggFHvqsZZGlQBCKJfYoBBcWBlxKIQBMmY0xFvXw",
+	"VUJSrv0FIw4aBhHAbNLGTdC59smSvlFm9A3mDoRcsrNwE+jxoKRHPAqFiXEJp3CiPuhfr+DI0SCnwqka",
+	"dY/QkPzBKBRZF8ZuFLw4FgsuTivMO7zyc5pJzdJzeWIh98iMZhq97ReyZlUWuqCZPVvhERmLzZWXzEBa",
+	"6+tywnsCHw/62CL+FruTgF6x9Dtlh2E3g/7EjFFvIzmSClVCf3VdZzqAOwIYFz78ZDFBrg8Vw0sbt9Zm",
+	"MdbaVbjcH+T3DQ6hDA5/xgJ7H5YN75n6Xi/vawILJQiqBjQM/pb2lY8MdzJgrLFsc7A3ECYQgg7ah4+G",
+	"Md/3ObS2R5rB9iME88rWGCce2gJ9Di7n04YbY7UcX3zeUVAjfE/7QmqclcyZj6bp1opZ+MuHW9u1zBCQ",
+	"IIzPSTFlP1vBWF2U6CJ0UhAI6emTPAerFgAw3Kf2vbHAZDtbVF65i6AFHLkUFUxgtz6513jtaRkPvmPn",
+	"ju21w2NaRWvLTH7YlO+SuDocdg3LG2InKwd2ADaMl3Aoqn19Wq9zcvjJ/qMfYn6b/ATghIByNxvBV/KS",
+	"fcvYFzA/vEa64ls2g8PStfNtLKVqJPO5jdo6AuP2sAqT4R47Dnr4qcKk2LDP5yVubxnuKysGNtAAvGXl",
+	"Uk8awGa/YRpYWHwfu/ZVlGS99vmGm/4q2NQueN1yT+/p8DrVcoPLkpbODfagCeUG3754so1/lsIJULTc",
+	"3Fqk08I9/S6Q1iBo7dJ49JZ6LK28HGO9qrYplBZ5Rg3rvqL4vHxrr8RgO2mrmEYsJ1koUo3569Sv0T8b",
+	"zKLLd1u+dfjJ/9PJku241nn5cRfP6m+8W77kW90XLJ9r/jPxJje3FlI05fPvvGmNN/nFuacJXOjeSeJh",
+	"Enin6eiubzzIsGry3Zs/XBYeYntpLFIEuBoIaLGPFC4+sOEUKEF197r9G65lPnt37gKhNlCsWBXVsLhi",
+	"LCVznLJ2MVbtsfIvGeIx0loiUT6XRiLw/URRASAAQ7gp9ne2uklsY6/J5/8j8s6/wZPVkhCPlAeEB/QW",
+	"nDJ/pj5c247VlZcTaygkaYE1vYNkUKhs8GQwNybXTw4Pac6H4B29ZKuhvUgEay3q3/8hpzSDeCXLZO7g",
+	"nKtmnhweZvDCXGrz5MfRjyOUPW6Mn8rs55U2bIGNu19ga2p/+/veg98qRSf81c87+Kl0Rga/BbWE5W+o",
+	"F9U6Le8bL38rmVc4EBt/v/5w/f8HAA==",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
