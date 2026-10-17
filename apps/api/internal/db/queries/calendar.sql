@@ -2,12 +2,13 @@
 
 -- Night ledger -----------------------------------------------------------------------------
 
--- Holds every night in [check_in, check_out) on each unit for a booking or a block. A night
--- someone else holds fails the primary key.
+-- Holds every night in [check_in, check_out) on each unit for a booking, a block or a checkout
+-- hold. A night someone else holds fails the primary key.
 -- name: InsertUnitNights :exec
-INSERT INTO unit_nights (unit_id, night, account_id, property_id, booking_id, block_id)
+INSERT INTO unit_nights (unit_id, night, account_id, property_id, booking_id, block_id, hold_id, hold_expires_at)
 SELECT u.unit_id, n.night::date, @account_id::uuid, @property_id::uuid,
-       sqlc.narg('booking_id')::uuid, sqlc.narg('block_id')::uuid
+       sqlc.narg('booking_id')::uuid, sqlc.narg('block_id')::uuid,
+       sqlc.narg('hold_id')::uuid, sqlc.narg('hold_expires_at')::timestamptz
 FROM unnest(sqlc.arg('unit_ids')::uuid[]) AS u (unit_id)
 CROSS JOIN generate_series(sqlc.arg('check_in')::date, sqlc.arg('check_out')::date - 1, interval '1 day') AS n (night);
 
@@ -31,6 +32,33 @@ LIMIT 1;
 
 -- name: DeleteExpiredHolds :execrows
 DELETE FROM unit_nights WHERE hold_expires_at < @now::timestamptz;
+
+-- Clears lapsed holds on these units in [check_in, check_out), so a stale hold never blocks a
+-- booking that comes before the sweep.
+-- name: DeleteExpiredHoldsOn :exec
+DELETE FROM unit_nights
+WHERE account_id = @account_id AND unit_id = ANY (@unit_ids::uuid[])
+  AND night >= @check_in::date AND night < @check_out::date
+  AND hold_expires_at < @now::timestamptz;
+
+-- name: DeleteHold :execrows
+DELETE FROM unit_nights WHERE hold_id = @hold_id AND account_id = @account_id;
+
+-- Nights taken on a property's units in [from, to): stays, blocks and holds that haven't lapsed.
+-- name: HeldNights :many
+SELECT unit_id, night FROM unit_nights
+WHERE account_id = @account_id AND property_id = @property_id
+  AND night >= @range_from::date AND night < @range_to::date
+  AND (hold_id IS NULL OR hold_expires_at > @now::timestamptz)
+ORDER BY unit_id, night;
+
+-- Nights stays and blocks hold on a property from a day on, for the iCal export. Holds are left
+-- out: they are a guest at checkout, not a booking.
+-- name: ExportNights :many
+SELECT unit_id, night, booking_id, block_id FROM unit_nights
+WHERE account_id = @account_id AND property_id = @property_id AND hold_id IS NULL
+  AND night >= @range_from::date
+ORDER BY booking_id, block_id, unit_id, night;
 
 -- Blocks -----------------------------------------------------------------------------------
 

@@ -357,14 +357,15 @@ func (q *Queries) InsertExtra(ctx context.Context, arg InsertExtraParams) error 
 }
 
 const insertIcalFeed = `-- name: InsertIcalFeed :exec
-INSERT INTO ical_feeds (id, account_id, property_id, channel, url, position)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO ical_feeds (id, account_id, property_id, unit_id, channel, url, position)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type InsertIcalFeedParams struct {
 	ID         uuid.UUID
 	AccountID  uuid.UUID
 	PropertyID uuid.UUID
+	UnitID     *uuid.UUID
 	Channel    string
 	Url        string
 	Position   int16
@@ -375,6 +376,7 @@ func (q *Queries) InsertIcalFeed(ctx context.Context, arg InsertIcalFeedParams) 
 		arg.ID,
 		arg.AccountID,
 		arg.PropertyID,
+		arg.UnitID,
 		arg.Channel,
 		arg.Url,
 		arg.Position,
@@ -684,7 +686,7 @@ func (q *Queries) ListExtras(ctx context.Context, arg ListExtrasParams) ([]ListE
 
 const listIcalFeeds = `-- name: ListIcalFeeds :many
 
-SELECT id, property_id, channel, url, status, last_synced_at, last_error, upcoming
+SELECT id, property_id, unit_id, channel, url, status, last_synced_at, last_error, upcoming
 FROM ical_feeds
 WHERE account_id = $1 AND property_id = ANY ($2::uuid[])
 ORDER BY property_id, position
@@ -698,6 +700,7 @@ type ListIcalFeedsParams struct {
 type ListIcalFeedsRow struct {
 	ID           uuid.UUID
 	PropertyID   uuid.UUID
+	UnitID       *uuid.UUID
 	Channel      string
 	Url          string
 	Status       string
@@ -719,6 +722,7 @@ func (q *Queries) ListIcalFeeds(ctx context.Context, arg ListIcalFeedsParams) ([
 		if err := rows.Scan(
 			&i.ID,
 			&i.PropertyID,
+			&i.UnitID,
 			&i.Channel,
 			&i.Url,
 			&i.Status,
@@ -1281,26 +1285,31 @@ UPDATE ical_feeds SET
     status               = CASE WHEN url = $3 THEN status ELSE 'pending' END,
     last_error           = CASE WHEN url = $3 THEN last_error END,
     consecutive_failures = CASE WHEN url = $3 THEN consecutive_failures ELSE 0 END,
-    etag                 = CASE WHEN url = $3 THEN etag END,
+    etag                 = CASE WHEN url = $3 AND unit_id IS NOT DISTINCT FROM $4::uuid THEN etag END,
+    next_sync_at         = CASE WHEN url = $3 AND unit_id IS NOT DISTINCT FROM $4::uuid THEN next_sync_at END,
+    unit_id              = $4::uuid,
     url                  = $3
-WHERE id = $4 AND property_id = $5 AND account_id = $6
+WHERE id = $5 AND property_id = $6 AND account_id = $7
 `
 
 type UpdateIcalFeedParams struct {
 	Channel    string
 	Position   int16
 	Url        string
+	UnitID     *uuid.UUID
 	ID         uuid.UUID
 	PropertyID uuid.UUID
 	AccountID  uuid.UUID
 }
 
-// A new link starts over: pending until the import worker reads it.
+// A new link starts over: pending until the import worker reads it, which it does next. A new
+// unit is read again too, so its stays move.
 func (q *Queries) UpdateIcalFeed(ctx context.Context, arg UpdateIcalFeedParams) error {
 	_, err := q.db.Exec(ctx, updateIcalFeed,
 		arg.Channel,
 		arg.Position,
 		arg.Url,
+		arg.UnitID,
 		arg.ID,
 		arg.PropertyID,
 		arg.AccountID,
