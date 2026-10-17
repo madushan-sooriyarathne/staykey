@@ -41,6 +41,11 @@ type Config struct {
 	WhatsAppProvider string
 	WhatsApp         WhatsApp
 
+	// ICalAllowPrivate lets calendar links reach loopback and private addresses, for a feed
+	// served from a laptop in development. Refused in production, where owner links must not
+	// reach internal services.
+	ICalAllowPrivate bool
+
 	// DataKey encrypts sensitive columns such as bank account numbers. 32 bytes.
 	DataKey []byte
 
@@ -113,6 +118,15 @@ func Load() (Config, error) {
 			PublicURL:       os.Getenv("STAYKEY_MEDIA_URL"),
 		},
 	}
+	allowPrivate := getenv("STAYKEY_ICAL_ALLOW_PRIVATE", "")
+	if allowPrivate != "" && allowPrivate != "true" && allowPrivate != "false" {
+		return Config{}, errors.New("STAYKEY_ICAL_ALLOW_PRIVATE must be true or false")
+	}
+	if cfg.IsProduction() && allowPrivate == "true" {
+		return Config{}, errors.New("STAYKEY_ICAL_ALLOW_PRIVATE can't be true in production")
+	}
+	cfg.ICalAllowPrivate = !cfg.IsProduction() && allowPrivate != "false"
+
 	key, err := dataKey(cfg.IsProduction())
 	if err != nil {
 		return Config{}, err

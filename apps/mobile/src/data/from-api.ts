@@ -85,6 +85,7 @@ export function toPropertyConfig(p: Property): PropertyConfig {
       id: f.id,
       channel: f.channel,
       url: f.url,
+      unitId: f.unitId ?? undefined,
       status: f.status,
       lastSync: f.lastSync ?? undefined,
       error: f.error ?? undefined,
@@ -166,7 +167,12 @@ export function toPatch(changes: Partial<PropertyConfig>): PropertyPatch {
     patch.photos = c.photos.flatMap((ph) => (ph.key ? [{ key: ph.key, caption: ph.caption }] : []));
   }
   if (c.ical !== undefined) {
-    patch.icalFeeds = c.ical.map((f) => ({ id: f.id, channel: f.channel, url: f.url }));
+    patch.icalFeeds = c.ical.map((f) => ({
+      id: f.id,
+      channel: f.channel,
+      url: f.url,
+      unitId: f.unitId ?? null,
+    }));
   }
   return patch;
 }
@@ -220,6 +226,7 @@ export function toBooking(b: ApiBooking): Booking {
     ownerNote: b.ownerNote || undefined,
     createdAt: b.createdAt,
     requestExpiresAt: b.requestExpiresAt,
+    paymentMethod: b.paymentMethod,
     cancel: b.cancel && {
       reason: b.cancel.reason,
       at: b.cancel.at,

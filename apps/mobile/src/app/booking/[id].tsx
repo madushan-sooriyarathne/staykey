@@ -316,6 +316,13 @@ function PaymentCard({ booking: b, property }: { booking: Booking; property: Pro
           />
         ))}
         <KV label="Total" value={m(b.total)} total />
+        {b.paymentMethod ? (
+          <KV
+            label="Pays"
+            value={b.paymentMethod === "bank" ? "By bank transfer" : "At the property"}
+            muted
+          />
+        ) : null}
         {b.payments.map((p) => (
           <KV
             key={p.id}

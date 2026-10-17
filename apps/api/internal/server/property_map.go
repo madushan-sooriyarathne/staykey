@@ -99,10 +99,7 @@ func (s *Server) propertyToAPI(ctx context.Context, d domain.PropertyDetail, can
 		}
 	}
 	for i, f := range d.IcalFeeds {
-		out.IcalFeeds[i] = oapi.IcalFeed{
-			Id: f.ID, Channel: oapi.IcalChannel(f.Channel), Url: f.URL, Status: oapi.IcalFeedStatus(f.Status),
-			LastSync: f.LastSync, Error: optional(f.Error), Upcoming: f.Upcoming,
-		}
+		out.IcalFeeds[i] = feedToAPI(f)
 	}
 	if !canSeeSettings {
 		out.Payments.Bank.AccountName, out.Payments.Bank.AccountNumber = "", ""
@@ -246,11 +243,18 @@ func patchFromAPI(in oapi.PropertyPatch) domain.PropertyPatch {
 	if in.IcalFeeds != nil {
 		feeds := make([]domain.IcalFeedInput, len(*in.IcalFeeds))
 		for i, f := range *in.IcalFeeds {
-			feeds[i] = domain.IcalFeedInput{Ref: ref(f.Id, i), Channel: string(f.Channel), URL: f.Url}
+			feeds[i] = domain.IcalFeedInput{Ref: ref(f.Id, i), Channel: string(f.Channel), URL: f.Url, UnitRef: deref(f.UnitId)}
 		}
 		p.IcalFeeds = &feeds
 	}
 	return p
+}
+
+func feedToAPI(f domain.IcalFeed) oapi.IcalFeed {
+	return oapi.IcalFeed{
+		Id: f.ID, Channel: oapi.IcalChannel(f.Channel), Url: f.URL, UnitId: f.UnitID, Status: oapi.IcalFeedStatus(f.Status),
+		LastSync: f.LastSync, Error: optional(f.Error), Upcoming: f.Upcoming,
+	}
 }
 
 // ref is an item's id, or a placeholder that marks it as new.

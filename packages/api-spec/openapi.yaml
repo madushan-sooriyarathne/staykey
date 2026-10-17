@@ -813,6 +813,33 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /v1/ical-feeds/{feedId}/sync:
+    parameters:
+      - $ref: "#/components/parameters/FeedId"
+    post:
+      tags: [calendar]
+      operationId: syncIcalFeed
+      summary: Read an imported calendar again now
+      description: |
+        Marks the feed due, so the import job reads it within a minute. Returns the feed as it
+        stands; fetch the property again shortly after for the result. Owners and managers only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The feed, due for a read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IcalFeed"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /v1/team:
     get:
       tags: [team]
@@ -1187,6 +1214,235 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /v1/public/properties/{slug}/availability:
+    parameters:
+      - $ref: "#/components/parameters/PropertySlug"
+    get:
+      tags: [public]
+      operationId: getPublicAvailability
+      summary: Nights each unit can't be booked, and days guests can't arrive
+      description: |
+        Nights in [from, to) that a stay, block or checkout hold takes, per unit, through
+        linked units. The range is at most 13 months.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/Day"
+        - name: to
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/Day"
+      responses:
+        "200":
+          description: Availability per unit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Availability"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/public/properties/{slug}/quote:
+    parameters:
+      - $ref: "#/components/parameters/PropertySlug"
+    post:
+      tags: [public]
+      operationId: createPublicQuote
+      summary: Price a stay a guest is choosing
+      description: |
+        Checks the property's stay rules and the promo code, then prices the stay. A broken rule
+        is 400 with the field it is about.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicQuoteRequest"
+      responses:
+        "200":
+          description: The price
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/public/properties/{slug}/holds:
+    parameters:
+      - $ref: "#/components/parameters/PropertySlug"
+    post:
+      tags: [public]
+      operationId: createHold
+      summary: Hold nights while the guest fills in the checkout
+      description: |
+        Holds the nights for the property's holdMinutes. replaces releases the guest's previous
+        hold first. Taken nights give 409 dates_taken, with nothing about the other stay.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewHold"
+      responses:
+        "201":
+          description: Held
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hold"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/PublicConflict"
+
+  /v1/public/properties/{slug}/bookings:
+    parameters:
+      - $ref: "#/components/parameters/PropertySlug"
+    post:
+      tags: [public]
+      operationId: createGuestBooking
+      summary: Book a stay from the booking page or widget
+      description: |
+        Books the held nights (or the nights asked for, when they are free) under the property's
+        booking mode. The token in the reply is the guest's only way back to the booking; it is
+        not shown again.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestBookingRequest"
+      responses:
+        "201":
+          description: Booked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestBookingCreated"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/PublicConflict"
+        "422":
+          $ref: "#/components/responses/KeyReused"
+
+  /v1/public/bookings/{bookingId}:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+      - $ref: "#/components/parameters/BookingToken"
+    get:
+      tags: [public]
+      operationId: getGuestBooking
+      summary: A guest's own booking
+      responses:
+        "200":
+          description: The booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestBooking"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/public/bookings/{bookingId}/uploads:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+      - $ref: "#/components/parameters/BookingToken"
+    post:
+      tags: [public]
+      operationId: createGuestUpload
+      summary: Get a link to upload a bank slip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestUploadRequest"
+      responses:
+        "201":
+          description: Where to upload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadTicket"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/public/bookings/{bookingId}/slips:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+      - $ref: "#/components/parameters/BookingToken"
+    post:
+      tags: [public]
+      operationId: addGuestSlip
+      summary: Send an uploaded bank slip to the owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestSlipInput"
+      responses:
+        "201":
+          description: The booking with the slip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestBooking"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/PublicConflict"
+
+  /ical/{file}:
+    get:
+      tags: [public]
+      operationId: getIcalExport
+      summary: The property's calendar for OTAs to import
+      description: |
+        file is the property's slug, a dash, its export token and .ics. Every taken night, as
+        "Booked" or "Not available", with nothing about guests. unit limits it to the nights
+        that unit can't be sold.
+      parameters:
+        - name: file
+          in: path
+          required: true
+          schema:
+            type: string
+            example: kingfisher-3f9a1c2b.ics
+        - name: unit
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The calendar
+          content:
+            text/calendar:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1250,6 +1506,28 @@ components:
       schema:
         type: string
         format: uuid
+    FeedId:
+      name: feedId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PropertySlug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Slug"
+    BookingToken:
+      name: X-Booking-Token
+      in: header
+      required: true
+      description: The token returned when the guest booked.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -1306,6 +1584,15 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ConflictError"
+    PublicConflict:
+      description: |
+        The nights are taken (code dates_taken), the property isn't taking bookings
+        (not_taking_bookings), or the stay takes no more slips (bad_status). Nothing about other
+        stays is included.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
     KeyReused:
       description: The Idempotency-Key was already used for a different request
       content:
@@ -2169,6 +2456,11 @@ components:
           $ref: "#/components/schemas/IcalChannel"
         url:
           type: string
+        unitId:
+          type: string
+          format: uuid
+          nullable: true
+          description: The unit the calendar is for. Null covers the whole property.
         status:
           type: string
           enum: [pending, ok, error]
@@ -2193,6 +2485,10 @@ components:
         url:
           type: string
           maxLength: 1000
+        unitId:
+          type: string
+          nullable: true
+          description: The unit the calendar is for, as an id or a new unit's id in the same request. Null covers the whole property.
 
     UploadRequest:
       type: object
@@ -2246,7 +2542,10 @@ components:
 
     PublicProperty:
       type: object
-      required: [slug, name, bookingType, currency, baseRate]
+      description: What a booking page shows, with no bank details, promos or feeds.
+      required: [slug, name, bookingType, currency, baseRate, description, amenities, photos,
+                 checkIn, checkOut, timeZone, houseRules, policy, depositPercent, units, extras,
+                 rules, booking, payments, branding, takingBookings]
       properties:
         slug:
           $ref: "#/components/schemas/Slug"
@@ -2261,6 +2560,375 @@ components:
         baseRate:
           type: integer
           format: int64
+        description:
+          type: string
+        amenities:
+          type: array
+          items:
+            type: string
+        photos:
+          type: array
+          description: In display order; the first is the cover.
+          items:
+            $ref: "#/components/schemas/PublicPhoto"
+        checkIn:
+          $ref: "#/components/schemas/Clock"
+        checkOut:
+          $ref: "#/components/schemas/Clock"
+        timeZone:
+          type: string
+        houseRules:
+          type: array
+          items:
+            type: string
+        policy:
+          $ref: "#/components/schemas/Policy"
+        depositPercent:
+          type: integer
+        units:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicUnit"
+        extras:
+          type: array
+          description: Enabled extras only.
+          items:
+            $ref: "#/components/schemas/PublicExtra"
+        rules:
+          $ref: "#/components/schemas/StayRules"
+        booking:
+          $ref: "#/components/schemas/PublicBookingSettings"
+        payments:
+          $ref: "#/components/schemas/PublicPayments"
+        branding:
+          $ref: "#/components/schemas/PublicBranding"
+        takingBookings:
+          type: boolean
+          description: False when the property is paused or offers no way to pay.
+
+    PublicPhoto:
+      type: object
+      required: [url, caption]
+      properties:
+        url:
+          type: string
+          format: uri
+        caption:
+          type: string
+
+    PublicUnit:
+      type: object
+      required: [id, name, sleeps, beds, linkedUnitIds]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        sleeps:
+          type: integer
+        beds:
+          type: string
+        linkedUnitIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    PublicExtra:
+      type: object
+      required: [id, name, price, per, onRequest]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        price:
+          $ref: "#/components/schemas/Money"
+        per:
+          $ref: "#/components/schemas/ExtraPer"
+        onRequest:
+          type: boolean
+
+    PublicBookingSettings:
+      type: object
+      required: [mode, holdMinutes]
+      properties:
+        mode:
+          type: string
+          enum: [instant, request]
+        holdMinutes:
+          type: integer
+
+    PublicPayments:
+      type: object
+      required: [bank, atProperty]
+      properties:
+        bank:
+          type: boolean
+          description: Guests can pay by bank transfer.
+        atProperty:
+          type: boolean
+
+    PublicBranding:
+      type: object
+      required: [color]
+      properties:
+        color:
+          type: string
+        logoUrl:
+          type: string
+          format: uri
+
+    Availability:
+      type: object
+      required: [units]
+      properties:
+        units:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnitAvailability"
+
+    UnitAvailability:
+      type: object
+      required: [unitId, taken, closedArrival]
+      properties:
+        unitId:
+          type: string
+          format: uuid
+        taken:
+          type: array
+          description: Nights that can't be booked.
+          items:
+            $ref: "#/components/schemas/Day"
+        closedArrival:
+          type: array
+          description: Days guests can't arrive on.
+          items:
+            $ref: "#/components/schemas/Day"
+
+    PublicQuoteRequest:
+      type: object
+      required: [unitId, checkIn, checkOut, adults]
+      properties:
+        unitId:
+          type: string
+          format: uuid
+        checkIn:
+          $ref: "#/components/schemas/Day"
+        checkOut:
+          $ref: "#/components/schemas/Day"
+        adults:
+          type: integer
+          minimum: 1
+          maximum: 30
+        children:
+          type: integer
+          minimum: 0
+          maximum: 30
+        extras:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
+        promo:
+          type: string
+          maxLength: 40
+
+    NewHold:
+      type: object
+      required: [unitId, checkIn, checkOut]
+      properties:
+        unitId:
+          type: string
+          format: uuid
+        checkIn:
+          $ref: "#/components/schemas/Day"
+        checkOut:
+          $ref: "#/components/schemas/Day"
+        replaces:
+          type: string
+          format: uuid
+          description: The guest's previous hold, released first.
+
+    Hold:
+      type: object
+      required: [holdId, expiresAt]
+      properties:
+        holdId:
+          type: string
+          format: uuid
+        expiresAt:
+          type: string
+          format: date-time
+
+    GuestPaymentMethod:
+      type: string
+      enum: [bank, property]
+      description: How a guest who booked on the page said they'd pay.
+
+    GuestBookingRequest:
+      type: object
+      required: [unitId, checkIn, checkOut, adults, guest, paymentMethod, source]
+      properties:
+        holdId:
+          type: string
+          format: uuid
+        unitId:
+          type: string
+          format: uuid
+        checkIn:
+          $ref: "#/components/schemas/Day"
+        checkOut:
+          $ref: "#/components/schemas/Day"
+        adults:
+          type: integer
+          minimum: 1
+          maximum: 30
+        children:
+          type: integer
+          minimum: 0
+          maximum: 30
+        extras:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
+        promo:
+          type: string
+          maxLength: 40
+        guest:
+          $ref: "#/components/schemas/Guest"
+        note:
+          type: string
+          maxLength: 2000
+        paymentMethod:
+          $ref: "#/components/schemas/GuestPaymentMethod"
+        source:
+          type: string
+          enum: [page, widget]
+
+    GuestBookingCreated:
+      type: object
+      required: [booking, token]
+      properties:
+        booking:
+          $ref: "#/components/schemas/GuestBooking"
+        token:
+          type: string
+          description: Send as X-Booking-Token to see the booking again. Shown once.
+
+    GuestBooking:
+      type: object
+      description: |
+        A booking as its guest sees it. It leaves out the guest record, which may be one the
+        owner already had for that phone number.
+      required: [id, ref, status, propertyName, propertySlug, propertyCheckIn, unitName, checkIn,
+                 checkOut, adults, children, currency, lines, total, deposit, paid, balance, slips]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ref:
+          type: string
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        propertyName:
+          type: string
+        propertySlug:
+          $ref: "#/components/schemas/Slug"
+        propertyCheckIn:
+          $ref: "#/components/schemas/Clock"
+        unitName:
+          type: string
+        checkIn:
+          $ref: "#/components/schemas/Day"
+        checkOut:
+          $ref: "#/components/schemas/Day"
+        adults:
+          type: integer
+        children:
+          type: integer
+        currency:
+          $ref: "#/components/schemas/Currency"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/PriceLine"
+        total:
+          $ref: "#/components/schemas/Money"
+        deposit:
+          $ref: "#/components/schemas/Money"
+        paid:
+          $ref: "#/components/schemas/Signed"
+        balance:
+          $ref: "#/components/schemas/Money"
+        paymentMethod:
+          $ref: "#/components/schemas/GuestPaymentMethod"
+        paymentDueAt:
+          type: string
+          format: date-time
+        requestExpiresAt:
+          type: string
+          format: date-time
+        bank:
+          $ref: "#/components/schemas/GuestBank"
+        slips:
+          type: array
+          items:
+            $ref: "#/components/schemas/GuestSlip"
+
+    GuestBank:
+      type: object
+      description: Where to transfer, for guests paying by bank transfer.
+      required: [bankName, accountName, accountNumber]
+      properties:
+        bankName:
+          type: string
+        accountName:
+          type: string
+        accountNumber:
+          type: string
+
+    GuestSlip:
+      type: object
+      required: [amount, status, uploadedAt]
+      properties:
+        amount:
+          $ref: "#/components/schemas/Money"
+        status:
+          type: string
+          enum: [pending, accepted, rejected]
+        uploadedAt:
+          type: string
+          format: date-time
+
+    GuestUploadRequest:
+      type: object
+      required: [contentType, size]
+      properties:
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp, image/heic]
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Exact size in bytes, up to 10 MB.
+
+    GuestSlipInput:
+      type: object
+      required: [key, amount]
+      properties:
+        key:
+          type: string
+          maxLength: 300
+          description: The key from the booking's uploads.
+        amount:
+          $ref: "#/components/schemas/Money"
 
     BookingStatus:
       type: string
@@ -2420,6 +3088,8 @@ components:
         paymentDueAt:
           type: string
           format: date-time
+        paymentMethod:
+          $ref: "#/components/schemas/GuestPaymentMethod"
         cancel:
           type: object
           required: [reason, at]

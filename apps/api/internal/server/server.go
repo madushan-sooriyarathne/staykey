@@ -35,6 +35,14 @@ type Store interface {
 	UpdateProperty(ctx context.Context, t tenant.Tenant, id uuid.UUID, p domain.PropertyPatch) (domain.PropertyDetail, error)
 
 	GetPropertyBySlug(ctx context.Context, slug string) (domain.Property, error)
+	PublicProperty(ctx context.Context, slug string) (domain.PropertyDetail, error)
+	Availability(ctx context.Context, accountID, propertyID uuid.UUID, from, to, now time.Time) (map[uuid.UUID][]time.Time, error)
+	CreateHold(ctx context.Context, accountID, propertyID uuid.UUID, units []uuid.UUID, from, to, expiresAt, now time.Time, replaces *uuid.UUID) (uuid.UUID, error)
+	CreateGuestBooking(ctx context.Context, accountID uuid.UUID, in domain.NewBooking, now time.Time) (uuid.UUID, error)
+	GuestBooking(ctx context.Context, id uuid.UUID, tokenHash []byte) (domain.GuestBooking, error)
+	AddGuestSlip(ctx context.Context, bookingID uuid.UUID, tokenHash []byte, key string, amount int64, now time.Time) error
+	MarkFeedDue(ctx context.Context, t tenant.Tenant, feedID uuid.UUID) (domain.IcalFeed, error)
+	ExportCalendar(ctx context.Context, slug, token string, unitID *uuid.UUID, from time.Time) (string, []domain.ExportRun, error)
 
 	ListBookings(ctx context.Context, t tenant.Tenant, f domain.BookingFilter) ([]domain.Booking, error)
 	GetBooking(ctx context.Context, t tenant.Tenant, id uuid.UUID) (domain.Booking, error)

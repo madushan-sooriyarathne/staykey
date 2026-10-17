@@ -1,11 +1,11 @@
 import { colors, radius } from "@staykey/tokens";
-import { useQueryClient } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeInDown, LinearTransition } from "react-native-reanimated";
-import { propertyKeys } from "@/api/properties";
+import { API_URL } from "@/api/client";
+import { useSyncFeed } from "@/api/properties";
 import { IconBox, Tag } from "@/components/brand";
 import { Button, Field, InfoNote, Pill } from "@/components/controls";
 import { I } from "@/components/icons";
@@ -24,13 +24,14 @@ export default function IcalSync() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = useProperty(id);
   const live = useLiveSave(id);
-  const client = useQueryClient();
+  const sync = useSyncFeed();
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [copied, setCopied] = useState(false);
   if (!p) return null;
-  const exportUrl = `https://api.staykey.direct/ical/${p.slug}-${p.icalExportToken}.ics`;
+  const exportUrl = `${API_URL}/ical/${p.slug}-${p.icalExportToken}.ics`;
+  const manyUnits = p.units.length > 1;
 
   /** Saves a feed's link. The import worker reads it on its next run and reports back. */
   async function connect(feed: IcalFeed, url: string) {
@@ -46,16 +47,31 @@ export default function IcalSync() {
     }
   }
 
-  /** Fetches the latest sync status from the server. */
+  /** Has the import job read the feed now, then shows what it found. */
   async function refresh(feed: IcalFeed) {
     setSyncing(feed.id);
-    await client.invalidateQueries({ queryKey: propertyKeys.all });
-    setSyncing(null);
+    setSyncError(null);
+    try {
+      await sync.mutateAsync(feed.id);
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : "That didn't work. Please try again.");
+    } finally {
+      setSyncing(null);
+    }
+  }
+
+  /** Ties a feed to one unit, or to the whole property. */
+  async function pickUnit(feed: IcalFeed, unitId: string | undefined) {
+    if (!p || feed.unitId === unitId) return;
+    if (await live.apply({ ical: p.ical.map((f) => (f.id === feed.id ? { ...f, unitId } : f)) })) {
+      haptics.select();
+    }
   }
 
   return (
     <Page title="iCal sync">
       {live.error ? <InfoNote icon={I.warning}>{live.error}</InfoNote> : null}
+      {syncError ? <InfoNote icon={I.warning}>{syncError}</InfoNote> : null}
       <SectionHeader title="Calendars you import" />
       {p.ical.map((f, i) => (
         <Appear key={f.id} index={i}>
@@ -84,6 +100,23 @@ export default function IcalSync() {
                 <Tag tone="spark" label="Synced" />
               ) : null}
             </View>
+            {manyUnits ? (
+              <View style={s.units}>
+                <Pill
+                  label="Whole property"
+                  selected={!f.unitId}
+                  onPress={() => pickUnit(f, undefined)}
+                />
+                {p.units.map((u) => (
+                  <Pill
+                    key={u.id}
+                    label={u.name}
+                    selected={f.unitId === u.id}
+                    onPress={() => pickUnit(f, u.id)}
+                  />
+                ))}
+              </View>
+            ) : null}
             {(f.status === "pending" && !f.url) || editing === f.id ? (
               <Animated.View entering={FadeInDown.duration(200)} style={{ gap: 10 }}>
                 <FeedLink feed={f} busy={syncing === f.id} onConnect={(url) => connect(f, url)} />
@@ -140,30 +173,50 @@ export default function IcalSync() {
       )}
 
       <SectionHeader title="Your calendar for OTAs" />
-      <View style={s.card}>
-        <Text style={ui.muted}>
-          Paste this link into Airbnb and Booking.com so they close the dates booked here.
-        </Text>
-        <View style={s.export}>
-          <Text style={s.exportText} numberOfLines={1} selectable>
-            {exportUrl.replace("https://", "")}
-          </Text>
-        </View>
-        <Button
-          compact
-          variant="ghost"
-          title={copied ? "Copied" : "Copy link"}
-          icon={copied ? I.check : I.copy}
-          onPress={async () => {
-            await Clipboard.setStringAsync(exportUrl);
-            haptics.select();
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1600);
-          }}
-        />
-      </View>
+      <ExportLink
+        label={manyUnits ? "Whole property" : undefined}
+        url={exportUrl}
+        note="Paste this link into Airbnb and Booking.com so they close the dates booked here."
+      />
+      {manyUnits
+        ? p.units.map((u) => (
+            <ExportLink
+              key={u.id}
+              label={u.name}
+              url={`${exportUrl}?unit=${u.id}`}
+              note={`For a listing of ${u.name} alone: the nights it can't be sold.`}
+            />
+          ))
+        : null}
       <Hint>OTAs refresh imported calendars on their own schedule, often every few hours.</Hint>
     </Page>
+  );
+}
+
+function ExportLink({ label, url, note }: { label?: string; url: string; note: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <View style={s.card}>
+      {label ? <Text style={ui.strong}>{label}</Text> : null}
+      <Text style={ui.muted}>{note}</Text>
+      <View style={s.export}>
+        <Text style={s.exportText} numberOfLines={1} selectable>
+          {url.replace(/^https?:\/\//, "")}
+        </Text>
+      </View>
+      <Button
+        compact
+        variant="ghost"
+        title={copied ? "Copied" : "Copy link"}
+        icon={copied ? I.check : I.copy}
+        onPress={async () => {
+          await Clipboard.setStringAsync(url);
+          haptics.select();
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1600);
+        }}
+      />
+    </View>
   );
 }
 
@@ -254,6 +307,7 @@ const s = StyleSheet.create({
     gap: 12,
   },
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  units: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   export: {
     backgroundColor: colors.paper,
     borderRadius: radius.input,
