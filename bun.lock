@@ -37,10 +37,12 @@
     "apps/marketing": {
       "name": "@staykey/marketing",
       "dependencies": {
+        "@staykey/api-client": "workspace:*",
         "@staykey/tokens": "workspace:*",
         "next": "16.3.8",
         "react": "19.2.8",
         "react-dom": "19.2.8",
+        "server-only": "^0.0.1",
       },
       "devDependencies": {
         "@tailwindcss/postcss": "^4",
