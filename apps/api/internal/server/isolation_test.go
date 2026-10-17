@@ -105,6 +105,11 @@ func TestTenantIsolation(t *testing.T) {
 	rec = e.do(call{method: http.MethodGet, path: "/v1/templates", as: alice, account: aliceAccount})
 	e.expect(rec, http.StatusOK)
 	aliceTemplate := decode[oapi.TemplateList](t, rec).Items[0]
+	rec = e.do(call{method: http.MethodPatch, path: "/v1/properties/" + aliceVilla.Id.String(), as: alice, account: aliceAccount, body: map[string]any{
+		"icalFeeds": []any{map[string]any{"channel": "airbnb", "url": "https://www.airbnb.com/calendar/ical/1.ics"}},
+	}})
+	e.expect(rec, http.StatusOK)
+	aliceFeed := decode[oapi.Property](t, rec).IcalFeeds[0]
 
 	// Alice's records, by the path parameter names routes use for them. Later phases add units,
 	// team members and so on here as their routes arrive.
@@ -117,6 +122,7 @@ func TestTenantIsolation(t *testing.T) {
 		"inviteId":     aliceInvite.Id.String(),
 		"membershipId": aliceMember.ID.String(),
 		"templateId":   aliceTemplate.Id.String(),
+		"feedId":       aliceFeed.Id.String(),
 	}
 
 	routes := ownerRoutes(t)
