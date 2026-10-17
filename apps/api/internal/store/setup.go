@@ -155,7 +155,8 @@ func (s *Postgres) loadSetup(ctx context.Context, accountID uuid.UUID, details [
 	}
 	for _, f := range feeds {
 		feed := domain.IcalFeed{
-			ID: f.ID, Channel: f.Channel, URL: f.Url, Status: f.Status, LastSync: f.LastSyncedAt, Upcoming: int(f.Upcoming),
+			ID: f.ID, Channel: f.Channel, URL: f.Url, UnitID: f.UnitID, Status: f.Status, LastSync: f.LastSyncedAt,
+			Upcoming: int(f.Upcoming),
 		}
 		if f.LastError != nil {
 			feed.Error = *f.LastError
@@ -293,7 +294,7 @@ func (s *Postgres) applySetup(ctx context.Context, accountID, propertyID uuid.UU
 		}
 	}
 	if p.IcalFeeds != nil {
-		if err := s.applyFeeds(ctx, accountID, propertyID, *p.IcalFeeds); err != nil {
+		if err := s.applyFeeds(ctx, accountID, propertyID, *p.IcalFeeds, unitRef); err != nil {
 			return err
 		}
 	}
@@ -555,7 +556,8 @@ func (s *Postgres) applyPromos(ctx context.Context, accountID, propertyID uuid.U
 	return nil
 }
 
-func (s *Postgres) applyFeeds(ctx context.Context, accountID, propertyID uuid.UUID, feeds []domain.IcalFeedInput) error {
+// applyFeeds writes the imported calendars. A changed link or unit makes the feed due now.
+func (s *Postgres) applyFeeds(ctx context.Context, accountID, propertyID uuid.UUID, feeds []domain.IcalFeedInput, unitRef map[string]uuid.UUID) error {
 	q := s.db(ctx)
 	ids, err := q.IcalFeedIDs(ctx, queries.IcalFeedIDsParams{PropertyID: propertyID, AccountID: accountID})
 	if err != nil {
@@ -564,15 +566,25 @@ func (s *Postgres) applyFeeds(ctx context.Context, accountID, propertyID uuid.UU
 	existing := set(ids)
 	keep := make([]uuid.UUID, 0, len(feeds))
 	for i, f := range feeds {
+		var unitID *uuid.UUID
+		if f.UnitRef != "" {
+			id, ok := unitRef[f.UnitRef]
+			if !ok {
+				return &domain.ValidationError{Field: fmt.Sprintf("icalFeeds[%d].unitId", i), Message: "must be a unit of this property"}
+			}
+			unitID = &id
+		}
 		if id, ok := domain.RefID(f.Ref, existing); ok {
 			err = q.UpdateIcalFeed(ctx, queries.UpdateIcalFeedParams{
-				ID: id, PropertyID: propertyID, AccountID: accountID, Channel: f.Channel, Url: f.URL, Position: int16(i),
+				ID: id, PropertyID: propertyID, AccountID: accountID, Channel: f.Channel, Url: f.URL, UnitID: unitID,
+				Position: int16(i),
 			})
 			keep = append(keep, id)
 		} else {
 			id := domain.NewID()
 			err = q.InsertIcalFeed(ctx, queries.InsertIcalFeedParams{
-				ID: id, AccountID: accountID, PropertyID: propertyID, Channel: f.Channel, Url: f.URL, Position: int16(i),
+				ID: id, AccountID: accountID, PropertyID: propertyID, Channel: f.Channel, Url: f.URL, UnitID: unitID,
+				Position: int16(i),
 			})
 			keep = append(keep, id)
 		}

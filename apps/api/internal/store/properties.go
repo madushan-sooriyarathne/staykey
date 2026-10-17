@@ -164,6 +164,7 @@ func propertyDetail(r queries.GetPropertyRow) domain.PropertyDetail {
 			BaseRateMinor: r.BaseRate,
 			CreatedAt:     r.CreatedAt,
 		},
+		Status:         r.Status,
 		Description:    r.Description,
 		Amenities:      r.Amenities,
 		CheckIn:        r.CheckInTime,

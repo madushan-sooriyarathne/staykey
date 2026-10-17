@@ -373,3 +373,13 @@ type BookingFilter struct {
 	AfterID      *uuid.UUID
 	Limit        int
 }
+
+// GuestBooking is a stay as the guest who booked it on the booking page sees it.
+type GuestBooking struct {
+	Booking
+	AccountID       uuid.UUID
+	PropertySlug    string
+	PropertyName    string
+	PropertyCheckIn string
+	UnitName        string
+}

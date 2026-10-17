@@ -68,59 +68,20 @@ func (s *Postgres) CreateBooking(ctx context.Context, t tenant.Tenant, in domain
 	if !t.CanSeeProperty(in.PropertyID) {
 		return domain.Booking{}, domain.ErrNotFound
 	}
-	id := domain.NewID()
+	var id uuid.UUID
 	err := s.InTx(ctx, func(ctx context.Context) error {
-		q := s.db(ctx)
-		n, err := q.NextBookingNumber(ctx, t.AccountID)
-		if err != nil {
-			return fmt.Errorf("next booking number: %w", err)
-		}
 		guestID, err := s.matchGuest(ctx, t.AccountID, in.Stay.Guest)
 		if err != nil {
 			return err
 		}
-		stay := in.Stay
-		ref := fmt.Sprintf("%s-%d", in.RefPrefix, n)
-		if err := q.InsertBooking(ctx, queries.InsertBookingParams{
-			ID:         id,
-			AccountID:  t.AccountID,
-			PropertyID: in.PropertyID,
-			UnitID:     stay.UnitID,
-			Ref:        ref,
-			Source:     string(stay.Source),
-			Status:     string(in.Status),
-			GuestID:    guestID,
-			Adults:     int16(stay.Adults),
-			Children:   int16(stay.Children),
-			CheckIn:    stay.CheckIn,
-			CheckOut:   stay.CheckOut,
-			Currency:   in.Currency,
-			Total:      in.Price.Total,
-			OwnerNote:  stay.OwnerNote,
-			GuestNote:  in.GuestNote,
-			PromoID:    in.Price.PromoID,
-			CreatedBy:  &t.UserID,
-
-			RequestExpiresAt: in.RequestExpiresAt,
-		}); err != nil {
-			return fmt.Errorf("insert booking: %w", err)
-		}
-		if err := s.writePrice(ctx, t.AccountID, id, in.Price); err != nil {
-			return err
-		}
-		if err := s.holdNights(ctx, t.AccountID, in.PropertyID, in.LedgerUnits, stay.CheckIn, stay.CheckOut, &id, nil); err != nil {
-			return err
-		}
-		if err := s.addEvent(ctx, t.AccountID, id, "", in.Status, &t.UserID, ""); err != nil {
-			return err
-		}
-		actor, err := s.userName(ctx, t.UserID)
+		added, err := s.insertBooking(ctx, t.AccountID, guestID, &t.UserID, in, now)
 		if err != nil {
 			return err
 		}
-		added := domain.Booking{
-			ID: id, PropertyID: in.PropertyID, Ref: ref, Status: in.Status, Guest: stay.Guest,
-			Adults: stay.Adults, Children: stay.Children, CheckIn: stay.CheckIn, CheckOut: stay.CheckOut,
+		id = added.ID
+		actor, err := s.userName(ctx, t.UserID)
+		if err != nil {
+			return err
 		}
 		if err := s.addActivity(ctx, t.AccountID, domain.BookingAdded(added, actor), &t.UserID, now); err != nil {
 			return err
@@ -135,6 +96,70 @@ func (s *Postgres) CreateBooking(ctx context.Context, t tenant.Tenant, in domain
 		return domain.Booking{}, err
 	}
 	return s.GetBooking(ctx, t, id)
+}
+
+// insertBooking adds a stay for guestID inside the caller's transaction: the booking row, its
+// price, its nights and its first event. A hold in in.HoldID gives its nights up to the stay.
+// actor is nil for guests and imports. It returns what activity lines need.
+func (s *Postgres) insertBooking(ctx context.Context, accountID, guestID uuid.UUID, actor *uuid.UUID, in domain.NewBooking, now time.Time) (domain.Booking, error) {
+	q := s.db(ctx)
+	n, err := q.NextBookingNumber(ctx, accountID)
+	if err != nil {
+		return domain.Booking{}, fmt.Errorf("next booking number: %w", err)
+	}
+	if in.HoldID != nil {
+		if _, err := q.DeleteHold(ctx, queries.DeleteHoldParams{HoldID: in.HoldID, AccountID: accountID}); err != nil {
+			return domain.Booking{}, fmt.Errorf("release hold: %w", err)
+		}
+	}
+	id := domain.NewID()
+	stay := in.Stay
+	ref := fmt.Sprintf("%s-%d", in.RefPrefix, n)
+	if err := q.InsertBooking(ctx, queries.InsertBookingParams{
+		ID:         id,
+		AccountID:  accountID,
+		PropertyID: in.PropertyID,
+		UnitID:     stay.UnitID,
+		Ref:        ref,
+		Source:     string(stay.Source),
+		Status:     string(in.Status),
+		GuestID:    guestID,
+		Adults:     int16(stay.Adults),
+		Children:   int16(stay.Children),
+		CheckIn:    stay.CheckIn,
+		CheckOut:   stay.CheckOut,
+		Currency:   in.Currency,
+		Total:      in.Price.Total,
+		OwnerNote:  stay.OwnerNote,
+		GuestNote:  in.GuestNote,
+		PromoID:    in.Price.PromoID,
+		CreatedBy:  actor,
+
+		RequestExpiresAt: in.RequestExpiresAt,
+		PaymentDueAt:     in.PaymentDueAt,
+		FeedID:           in.FeedID,
+		ExternalUid:      nonEmpty(in.ExternalUID),
+		PaymentMethod:    nonEmpty(in.PaymentMethod),
+		GuestTokenHash:   in.GuestTokenHash,
+	}); err != nil {
+		return domain.Booking{}, fmt.Errorf("insert booking: %w", err)
+	}
+	if err := s.writePrice(ctx, accountID, id, in.Price); err != nil {
+		return domain.Booking{}, err
+	}
+	if len(in.LedgerUnits) > 0 {
+		if err := s.holdNights(ctx, accountID, in.PropertyID, in.LedgerUnits, stay.CheckIn, stay.CheckOut, nightsFor{bookingID: &id}, now); err != nil {
+			return domain.Booking{}, err
+		}
+	}
+	if err := s.addEvent(ctx, accountID, id, "", in.Status, actor, ""); err != nil {
+		return domain.Booking{}, err
+	}
+	return domain.Booking{
+		ID: id, PropertyID: in.PropertyID, UnitID: stay.UnitID, Ref: ref, Source: stay.Source, Status: in.Status,
+		Guest: stay.Guest, Adults: stay.Adults, Children: stay.Children, CheckIn: stay.CheckIn, CheckOut: stay.CheckOut,
+		Currency: in.Currency, Total: in.Price.Total, PaymentMethod: in.PaymentMethod,
+	}, nil
 }
 
 // UpdateBooking applies an edit made against version c.Version. It returns domain.ErrStale
@@ -166,7 +191,7 @@ func (s *Postgres) UpdateBooking(ctx context.Context, t tenant.Tenant, id uuid.U
 		if err := q.DeleteBookingNights(ctx, queries.DeleteBookingNightsParams{BookingID: &id, AccountID: t.AccountID}); err != nil {
 			return fmt.Errorf("release nights: %w", err)
 		}
-		return s.holdNights(ctx, t.AccountID, b.PropertyID, c.LedgerUnits, stay.CheckIn, stay.CheckOut, &id, nil)
+		return s.holdNights(ctx, t.AccountID, b.PropertyID, c.LedgerUnits, stay.CheckIn, stay.CheckOut, nightsFor{bookingID: &id}, time.Now())
 	})
 }
 
@@ -182,7 +207,8 @@ func (s *Postgres) TransitionBooking(ctx context.Context, t tenant.Tenant, id uu
 			if err != nil {
 				return fmt.Errorf("load property: %w", err)
 			}
-			if p.Payments.Bank.CancelIfUnpaid {
+			// Guests paying at the property pay on arrival, so they have no deadline.
+			if p.Payments.Bank.CancelIfUnpaid && b.PaymentMethod != "property" {
 				due := now.Add(time.Duration(p.Payments.Bank.PayWithinHours) * time.Hour)
 				b.PaymentDueAt = &due
 			}
@@ -361,16 +387,29 @@ func (s *Postgres) saveBooking(ctx context.Context, accountID uuid.UUID, b domai
 	return nil
 }
 
-// holdNights puts every night in [from, to) on the ledger for each unit. A night someone else
-// holds rolls back to a savepoint and comes back as a *domain.ConflictError naming the clash.
+// nightsFor is what ledger rows belong to: a booking, a block or a checkout hold, which lasts
+// until holdExpiresAt.
+type nightsFor struct {
+	bookingID, blockID, holdID *uuid.UUID
+	holdExpiresAt              *time.Time
+}
+
+// holdNights puts every night in [from, to) on the ledger for each unit, after clearing holds on
+// them that lapsed before now. A night someone else holds rolls back to a savepoint and comes
+// back as a *domain.ConflictError naming the clash; a clash with a checkout hold names nothing.
 // Units go in sorted, so two transactions take ledger rows in the same order and can't deadlock.
-func (s *Postgres) holdNights(ctx context.Context, accountID, propertyID uuid.UUID, units []uuid.UUID, from, to time.Time, bookingID, blockID *uuid.UUID) error {
+func (s *Postgres) holdNights(ctx context.Context, accountID, propertyID uuid.UUID, units []uuid.UUID, from, to time.Time, by nightsFor, now time.Time) error {
 	units = slices.Clone(units)
 	slices.SortFunc(units, func(a, b uuid.UUID) int { return bytes.Compare(a[:], b[:]) })
+	if err := s.db(ctx).DeleteExpiredHoldsOn(ctx, queries.DeleteExpiredHoldsOnParams{
+		AccountID: accountID, UnitIds: units, CheckIn: from, CheckOut: to, Now: now,
+	}); err != nil {
+		return fmt.Errorf("clear lapsed holds: %w", err)
+	}
 	err := s.InTx(ctx, func(ctx context.Context) error {
 		return s.db(ctx).InsertUnitNights(ctx, queries.InsertUnitNightsParams{
-			AccountID: accountID, PropertyID: propertyID, BookingID: bookingID, BlockID: blockID,
-			UnitIds: units, CheckIn: from, CheckOut: to,
+			AccountID: accountID, PropertyID: propertyID, BookingID: by.bookingID, BlockID: by.blockID,
+			HoldID: by.holdID, HoldExpiresAt: by.holdExpiresAt, UnitIds: units, CheckIn: from, CheckOut: to,
 		})
 	})
 	if !violates(err, "unit_nights_pkey") {
@@ -385,7 +424,7 @@ func (s *Postgres) holdNights(ctx context.Context, accountID, propertyID uuid.UU
 	if err != nil {
 		return fmt.Errorf("find the clash: %w", err)
 	}
-	c := &domain.ConflictError{Night: r.Night, BookingID: r.BookingID, BlockID: r.BlockID}
+	c := &domain.ConflictError{Night: r.Night, BookingID: r.BookingID, BlockID: r.BlockID, From: from, To: to}
 	switch {
 	case r.BookingID != nil:
 		c.Ref, c.GuestName, c.From, c.To = deref(r.BookingRef), deref(r.GuestName), deref(r.BookingCheckIn), deref(r.BookingCheckOut)
@@ -549,6 +588,7 @@ func booking(r queries.GetBookingRow) domain.Booking {
 		OwnerNote:        b.OwnerNote,
 		RequestExpiresAt: b.RequestExpiresAt,
 		PaymentDueAt:     b.PaymentDueAt,
+		PaymentMethod:    deref(b.PaymentMethod),
 		CancelReason:     deref(b.CancelReason),
 		CancelledAt:      b.CancelledAt,
 		Version:          int(b.Version),

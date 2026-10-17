@@ -35,7 +35,7 @@ func (s *Postgres) CreateBlock(ctx context.Context, t tenant.Tenant, b domain.Bl
 				return fmt.Errorf("insert block unit: %w", err)
 			}
 		}
-		return s.holdNights(ctx, t.AccountID, b.PropertyID, ledgerUnits, b.From, b.To, nil, &b.ID)
+		return s.holdNights(ctx, t.AccountID, b.PropertyID, ledgerUnits, b.From, b.To, nightsFor{blockID: &b.ID}, time.Now())
 	})
 	if err != nil {
 		return domain.Block{}, err
