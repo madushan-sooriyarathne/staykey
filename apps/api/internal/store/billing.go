@@ -181,6 +181,9 @@ func (s *Postgres) PayWebCheckout(ctx context.Context, ev BillingEvent, pay WebP
 			AccountID: c.AccountID, PaymentID: pay.PaymentID, Plan: plan, Period: period,
 			Start: start, End: end, Amount: c.Amount, Currency: c.Currency,
 		}
+		if err := s.queueReceipt(ctx, c.ID, out, now); err != nil {
+			return err
+		}
 		return s.recomputeBilling(ctx, c.AccountID, now)
 	})
 	return out, err
@@ -319,4 +322,20 @@ func subscription(r queries.GetAccountBillingRow) *domain.Subscription {
 		WillRenew: *r.SubWillRenew,
 		PeriodEnd: *r.SubPeriodEnd,
 	}
+}
+
+// queueReceipt queues the receipt for a paid web period to the account's first owner, when
+// they have a confirmed email.
+func (s *Postgres) queueReceipt(ctx context.Context, checkoutID uuid.UUID, p domain.PaidPeriod, now time.Time) error {
+	owner, err := s.db(ctx).OwnerConfirmedEmail(ctx, p.AccountID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("owner email: %w", err)
+	}
+	return s.queueEmail(ctx, queuedEmail{
+		accountID: &p.AccountID, userID: &owner.ID, kind: domain.EmailPlanReceipt, to: owner.Email,
+		payload: emailPayload{Name: owner.Name, Receipt: &p}, dedupeKey: checkoutID.String() + ":plan_receipt", at: now,
+	})
 }

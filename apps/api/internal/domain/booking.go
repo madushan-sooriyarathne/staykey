@@ -306,9 +306,11 @@ type NewBooking struct {
 	GuestNote string
 	// PaymentDueAt is when an unpaid stay is cancelled. Nil means no deadline.
 	PaymentDueAt *time.Time
-	// PaymentMethod, GuestTokenHash and HoldID are set for bookings from the booking page. The
-	// hold's nights become the booking's in the same transaction.
+	// PaymentMethod, GuestToken, GuestTokenHash and HoldID are set for bookings from the booking
+	// page. The hold's nights become the booking's in the same transaction, and the token is
+	// kept sealed so emails can link to the stay.
 	PaymentMethod  string
+	GuestToken     string
 	GuestTokenHash []byte
 	HoldID         *uuid.UUID
 	// FeedID and ExternalUID are set for stays imported from an OTA calendar.

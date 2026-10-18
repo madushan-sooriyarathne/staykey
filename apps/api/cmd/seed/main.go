@@ -93,7 +93,7 @@ func run(ownerPhone, ownerName string, reset bool) error {
 		if err != nil {
 			return err
 		}
-		if _, err := db.UpdateUser(ctx, owner.ID, domain.UserPatch{Name: &ownerName}); err != nil {
+		if _, err := db.UpdateUser(ctx, owner.ID, domain.UserPatch{Name: &ownerName}, time.Now()); err != nil {
 			return err
 		}
 
@@ -129,7 +129,7 @@ func run(ownerPhone, ownerName string, reset bool) error {
 				return err
 			}
 			name := m.name
-			if _, err := db.UpdateUser(ctx, u.ID, domain.UserPatch{Name: &name}); err != nil {
+			if _, err := db.UpdateUser(ctx, u.ID, domain.UserPatch{Name: &name}, time.Now()); err != nil {
 				return err
 			}
 			var scope []uuid.UUID
@@ -168,8 +168,11 @@ func run(ownerPhone, ownerName string, reset bool) error {
 		if err := db.ParkFeeds(ctx, account.ID, time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)); err != nil {
 			return err
 		}
-		// The sample stays are history, not news: nobody should get alerts for them.
+		// The sample stays are history, not news: nobody should get alerts or emails for them.
 		if err := db.SkipPendingAlerts(ctx, account.ID, time.Now()); err != nil {
+			return err
+		}
+		if err := db.SkipPendingEmails(ctx, account.ID); err != nil {
 			return err
 		}
 

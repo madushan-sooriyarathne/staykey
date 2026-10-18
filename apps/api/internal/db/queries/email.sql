@@ -54,6 +54,7 @@ SELECT b.id, b.account_id, b.status, b.source, b.check_in, b.check_out, b.paymen
        g.name AS guest_name, g.email AS guest_email,
        p.name AS property_name, p.slug AS property_slug, p.location AS property_location,
        p.lat AS property_lat, p.lng AS property_lng, p.check_in_time AS property_check_in,
+       p.time_zone AS property_time_zone,
        a.status AS account_status,
        coalesce((SELECT u.email FROM memberships m JOIN users u ON u.id = m.user_id
                  WHERE m.account_id = b.account_id AND m.role = 'owner' AND m.status = 'active'
@@ -74,7 +75,7 @@ UPDATE bookings SET guest_token_hash = @token_hash, guest_token_sealed = @token_
 WHERE id = @id AND account_id = @account_id AND guest_token_sealed IS NULL;
 
 -- Stays whose timed emails may be due soon. The caller works out the exact time in the
--- property's time zone; these bounds only keep the candidates few. Imported stays, stays with
+-- property's time zone and passes bounds that only keep the candidates few. Imported stays, stays with
 -- no guest email, and closed accounts are left out.
 -- name: TimedEmailCandidates :many
 SELECT b.id, b.account_id, b.status, b.check_in, b.check_out, b.payment_due_at,
@@ -127,3 +128,6 @@ JOIN users u ON u.id = m.user_id
 WHERE m.account_id = @account_id AND m.role = 'owner' AND m.status = 'active'
   AND u.email IS NOT NULL AND u.email_confirmed_at IS NOT NULL AND u.deleted_at IS NULL
 ORDER BY m.created_at, m.id LIMIT 1;
+
+-- name: SkipAccountEmails :exec
+UPDATE emails SET status = 'skipped' WHERE account_id = @account_id AND status = 'pending';
