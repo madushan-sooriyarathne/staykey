@@ -2,7 +2,7 @@
 
 As of 5 Oct 2026. Live, editable copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d
 
-Status: phases 1 Foundations, 2 Properties and setup, 3 Bookings core, 4 Team, activity and messages and 5 Calendar sync and booking page are done, and phase 6 Billing and hardening is built with its gate waiting for sandbox accounts (see `docs/HANDOVER.md`).
+Status: phases 1 Foundations, 2 Properties and setup, 3 Bookings core, 4 Team, activity and messages and 5 Calendar sync and booking page are done, and phases 6 Billing and hardening, 7 Gaps noted in the handover and 8 Email through AWS SES are built, with their gates waiting for sandbox accounts, the AWS account and the live domain (see `docs/HANDOVER.md`).
 
 ## Goal and scope
 

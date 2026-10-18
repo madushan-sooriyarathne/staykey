@@ -1,6 +1,6 @@
 # StayKey roadmap to launch
 
-As of 17 Oct 2026. Phases 1 to 5 are done; phases 6 Billing and hardening and 7 Gaps noted in the handover are built, with their gates waiting for sandbox accounts and the live domain. Sign-in codes reach Sri Lankan numbers through oZone Sender. Phases 8 to 12 are next, in order: email through AWS SES, guest card payments through Payments.lk, the marketing site, error tracking, then end-to-end and load tests. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
+As of 18 Oct 2026. Phases 1 to 5 are done; phases 6 Billing and hardening, 7 Gaps noted in the handover and 8 Email through AWS SES are built, with their gates waiting for sandbox accounts, the AWS account and the live domain. Sign-in codes reach Sri Lankan numbers through oZone Sender. Phases 9 to 12 are next, in order: guest card payments through Payments.lk, the marketing site, error tracking, then end-to-end and load tests. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
 
 The shortest route to a first paying owner is now the accounts in section 2: Payments.lk, RevenueCat and the stores, then hosting.
 
@@ -62,14 +62,16 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [ ] Invite links as universal links and Android app links: the association files, `app.json` and the link rewrite are in; checking on a device waits for `staykey.direct` and a development build (needs `STAYKEY_APPLE_TEAM_ID` and `STAYKEY_ANDROID_CERT_SHA256`)
 - [x] **Gate:** an owner renames the account, changes their photo and sees it from another session, and deletes a test account with nothing of it left in the database or the files after the 30 days (checked locally with the clock moved on)
 
-### Phase 8 Email through AWS SES (next, see `docs/phase-8-plan.md`)
+### Phase 8 Email through AWS SES (built, see `docs/phase-8-plan.md`)
 
-- [ ] SES sender in `internal/notify`, with the sending domain verified (SPF, DKIM, DMARC) and out of the SES sandbox
-- [ ] Bounces and complaints from SES (through SNS) stop sending to that address
-- [ ] Account emails: welcome with email confirmation, email changed, new sign-in, deletion scheduled, restored and completed, web plan receipts (sign-in is by phone code, so there are no password emails)
-- [ ] Guest emails: booking confirmed, payment reminder before the deadline, request answered, built from the account's message templates
-- [ ] Email as an alert channel for the team, beside push and WhatsApp
-- [ ] **Gate:** a guest who books on the page gets the confirmation email, and a bounced address is not emailed again
+- [x] SES v2 sender in `internal/email`, with a log sender until SES is set up (`STAYKEY_EMAIL_PROVIDER`)
+- [ ] AWS account: the sending domain verified (SPF, DKIM, DMARC), SES out of the sandbox, and the SNS topic subscribed to `/webhooks/ses`
+- [x] Bounces and complaints from SES (through SNS) stop sending to that address
+- [x] Account emails: welcome with email confirmation, email changed, new sign-in, deletion scheduled, restored and completed, web plan receipts (sign-in is by phone code, so there are no password emails)
+- [x] Email confirmation: links from Profile and onboarding, confirmed on the marketing site; nothing else goes to an unconfirmed address
+- [x] Guest emails: booking received, confirmed and declined, payment reminder before the deadline, pre-arrival and thank-you, built from the account's message templates, with a per-template email switch
+- [x] Email as an alert channel for the team, beside push and WhatsApp, morning summary included
+- [ ] **Gate:** a guest who books on the page gets the confirmation email, and a bounced address is not emailed again (done with the log sender and a test SNS certificate; waits for SES sandbox credentials)
 
 ### Phase 9 Guest card payments through Payments.lk
 
