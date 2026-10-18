@@ -36,6 +36,8 @@ export type Draft = {
   whatsappAlerts: boolean;
   firstName: string;
   lastName: string;
+  /** Optional. Saved with the name; StayKey sends it a confirmation link. */
+  email: string;
 
   // Your property
   propertyName: string;
@@ -79,6 +81,7 @@ export const initialDraft: Draft = {
   whatsappAlerts: true,
   firstName: "",
   lastName: "",
+  email: "",
 
   propertyName: "",
   bookingType: "entire",

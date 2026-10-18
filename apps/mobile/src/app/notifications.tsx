@@ -1,13 +1,19 @@
 import { colors, radius } from "@staykey/tokens";
 import { StyleSheet, Text, View } from "react-native";
+import { useMe } from "@/api/me";
 import { useNotificationPrefs, useSetNotificationPref } from "@/api/messages";
 import { Appear, BrandSwitch, Hint, Page, ui } from "@/components/kit";
 import { font } from "@/components/ui";
 import { NOTIFICATION_EVENTS } from "@/data/defaults";
 
-/** Which events reach the signed-in person by push and which by WhatsApp, in this account. */
+/**
+ * Which events reach the signed-in person by push, WhatsApp and email, in this account. Email
+ * waits until the person's address is confirmed.
+ */
 export default function NotificationSettings() {
   const prefs = useNotificationPrefs();
+  const user = useMe().data?.user;
+  const canEmail = Boolean(user?.email && user.emailConfirmed);
   const { mutate: save } = useSetNotificationPref();
   const pref = (event: string) => prefs.find((p) => p.event === event);
 
@@ -18,6 +24,7 @@ export default function NotificationSettings() {
           <View style={{ flex: 1 }} />
           <Text style={s.col}>Push</Text>
           <Text style={s.col}>WhatsApp</Text>
+          <Text style={s.col}>Email</Text>
         </View>
         {NOTIFICATION_EVENTS.map((e) => {
           const current = pref(e.id);
@@ -42,10 +49,25 @@ export default function NotificationSettings() {
                   onChange={(v) => save({ ...current, whatsapp: v })}
                 />
               </View>
+              <View style={s.cell}>
+                <BrandSwitch
+                  label={`${e.label} by email`}
+                  value={canEmail && current.email}
+                  disabled={!canEmail}
+                  onChange={(v) => save({ ...current, email: v })}
+                />
+              </View>
             </View>
           );
         })}
       </Appear>
+      {canEmail ? null : (
+        <Hint>
+          {user?.email
+            ? "Confirm your email in Profile first to get these by email."
+            : "Add and confirm your email in Profile first to get these by email."}
+        </Hint>
+      )}
       <Hint>Guest emails and messages are set in message templates.</Hint>
     </Page>
   );
@@ -61,7 +83,7 @@ const s = StyleSheet.create({
     paddingVertical: 6,
   },
   head: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
-  col: { width: 72, textAlign: "center", fontFamily: font.medium, fontSize: 12, color: colors.fog },
+  col: { width: 64, textAlign: "center", fontFamily: font.medium, fontSize: 12, color: colors.fog },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -69,5 +91,5 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.cloud,
   },
-  cell: { width: 72, alignItems: "center" },
+  cell: { width: 64, alignItems: "center" },
 });
