@@ -55,13 +55,14 @@ UPDATE activity SET notified_at = NULL WHERE id = ANY (@ids::uuid[]);
 -- Active members who want this event on some channel and can see the property, except the
 -- person who acted.
 -- name: ActivityRecipients :many
-SELECT m.user_id, m.role, u.phone, p.push, p.whatsapp
+SELECT m.user_id, m.role, u.phone, p.push, p.whatsapp,
+       p.email AND u.email_confirmed_at IS NOT NULL AS email, coalesce(u.email, '')::text AS email_address
 FROM memberships m
 JOIN accounts a ON a.id = m.account_id AND a.status <> 'closed'
 JOIN users u ON u.id = m.user_id AND u.deleted_at IS NULL
 JOIN notification_prefs p ON p.account_id = m.account_id AND p.user_id = m.user_id AND p.event = @event
 WHERE m.account_id = @account_id AND m.status = 'active'
-  AND (p.push OR p.whatsapp)
+  AND (p.push OR p.whatsapp OR (p.email AND u.email_confirmed_at IS NOT NULL))
   AND m.user_id IS DISTINCT FROM sqlc.narg('actor_user_id')::uuid
   AND (sqlc.narg('property_id')::uuid IS NULL
        OR NOT EXISTS (SELECT 1 FROM membership_properties mp WHERE mp.membership_id = m.id)

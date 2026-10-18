@@ -67,6 +67,26 @@ type Booking struct {
 	UpdatedAt        time.Time
 	GuestTokenHash   []byte
 	PaymentMethod    *string
+	GuestTokenSealed []byte
+}
+
+type Email struct {
+	ID                uuid.UUID
+	AccountID         *uuid.UUID
+	BookingID         *uuid.UUID
+	UserID            *uuid.UUID
+	Kind              string
+	ToAddress         string
+	Payload           []byte
+	DedupeKey         *string
+	Status            string
+	Attempts          int16
+	ScheduledFor      time.Time
+	ClaimedAt         *time.Time
+	SentAt            *time.Time
+	ProviderMessageID *string
+	LastError         *string
+	CreatedAt         time.Time
 }
 
 type Invite struct {
@@ -151,15 +171,16 @@ type Subscription struct {
 }
 
 type User struct {
-	ID        uuid.UUID
-	Phone     string
-	Name      string
-	Email     *string
-	Language  string
-	PhotoKey  *string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt *time.Time
+	ID               uuid.UUID
+	Phone            string
+	Name             string
+	Email            *string
+	Language         string
+	PhotoKey         *string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	DeletedAt        *time.Time
+	EmailConfirmedAt *time.Time
 }
 
 type WebCheckout struct {

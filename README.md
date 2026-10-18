@@ -78,6 +78,12 @@ Owners invite managers and caretakers from Team. `POST /v1/team/invites` returns
 
 Every change to a stay writes a line of activity on the server. A job sends each new line as an Expo push notification to the team members who asked for that event and can see the property, never to the person who made the change, and sends each person's morning summary at 7:00 in the property's time zone. Push needs an EAS project id in `apps/mobile/app.json` (`bunx eas-cli init`) and a development build. WhatsApp alerts go to the API log until a WhatsApp Business number is set up (`STAYKEY_WHATSAPP_*` in `apps/api/.env.example`).
 
+### Email
+
+Email goes through Amazon SES. Guests get their booking emails (received, confirmed, declined, payment reminder, pre-arrival and thank-you) from the account's message templates, people get account emails (welcome, email changes, new sign-ins, deletion and restore, web plan receipts) once their address is confirmed, and team members can turn on Email in Notifications for alerts and the morning summary. A bounce or complaint reported through SNS to `/webhooks/ses` stops all email to that address.
+
+In development the default `log` provider sends nothing: the API log records each email with the address masked and its link, never the subject or body. Add an email in Profile, wait for the next minute's send, and open the logged `http://localhost:3000/verify-email/<token>` link with the marketing site running to confirm it. To try SES, set `STAYKEY_EMAIL_PROVIDER=ses`, `STAYKEY_SES_REGION`, `STAYKEY_SES_ACCESS_KEY_ID`, `STAYKEY_SES_SECRET_ACCESS_KEY` and `STAYKEY_EMAIL_FROM` (see `apps/api/.env.example`); in the SES sandbox the recipients must be verified addresses. Addresses on example domains, like the seed's sample guests, are never emailed.
+
 ### Booking page and calendar sync
 
 Open `http://kingfisher.localhost:3001` after seeding. Guests pick dates on a live calendar, the dates are held while they fill in the checkout, and they book with bank transfer or paying at the property. Their stay page (its link carries a private token) shows the deadline and bank details and takes a photo of the bank slip. The booking app talks to the API only from its server, through `STAYKEY_API_URL`.
@@ -146,14 +152,16 @@ Built:
 - Bookings on the server: a night ledger that makes double booking impossible (one winner out of 50 parallel bookings for a room and its whole house), quotes priced in Go and held to the app's pricing by shared fixtures, bookings with a status per role and an audit trail, payments, bank slips and refunds, blocks, rate overrides, idempotency keys for money writes and stale-write checks, and river jobs for request expiry, unpaid cancellation and sweeps. `cmd/seed` adds 43 sample stays
 - Billing: the server decides each account's plan from RevenueCat (App Store and Google Play) and Payments.lk (prepaid months or years in LKR on the marketing site's `/billing` page). Free until the first direct booking, at most 60 days, then 7 days' grace; a lapsed account's booking page asks guests to message the owner on WhatsApp
 - Account controls: deleting yourself (30 days, undone by signing in again), a data export, renaming the account, removing a guest's details, profile photos on the server, and the refund method on cancellation
+- Email through AWS SES: guest emails from templates, account emails with email confirmation, team alerts by email, and bounces and complaints suppressed through SNS
 - Hardening: Postgres row-level security behind the tenant scoping, rate limits on public and owner routes, and `bun run db:backup-check` to prove a backup restores
-- Marketing site landing page, the invite page and the web billing page
+- Marketing site landing page, the invite page, the web billing page and the email confirmation page
 
 How the app gets its data today: sign-in, accounts, properties, every property setting, bookings, payments, blocks and rate overrides go through the API, with tokens in the secure store and server data through TanStack Query, cached on the device for offline reads (`apps/mobile/src/api`). So do the team, activity, templates, alert preferences and the profile; there is no on-device data store any more. The app keeps its own copy of the pricing rules for instant previews; the server's total is the one stored. In development builds More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
 
 Next (the full checklist to launch is `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`):
-- Phase 8: email through AWS SES
-- Then guest card payments through Payments.lk, the marketing site, error tracking, and end-to-end and load tests
+- Phase 9: guest card payments through Payments.lk
+- Then the marketing site, error tracking, and end-to-end and load tests
+- The phase 8 gate: SES sandbox credentials, then production access and the sending domain's DNS records
 - The phase 6 gate: a sandbox purchase in the stores and a Payments.lk sandbox payment, once those accounts exist
 - An international SMS gateway, hosting and the store submissions
 

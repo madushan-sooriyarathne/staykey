@@ -18,6 +18,7 @@ import { isValidPhone, NameStep, PhoneStep, VerifyStep } from "./steps/you";
 import type { Draft } from "./store";
 import { propertyFromDraft } from "./to-property";
 import type { StageId, StepId, StepProps } from "./types";
+import { isOptionalEmail } from "./validate";
 
 export const STAGES: { id: StageId; label: string }[] = [
   { id: "you", label: "You" },
@@ -62,7 +63,7 @@ const ALL_STEPS: StepDef[] = [
     title: () => "What should guests call you?",
     subtitle: () => "Your name appears on booking emails as the host.",
     cta: () => "Continue",
-    canContinue: (d) => d.firstName.trim().length > 0,
+    canContinue: (d) => d.firstName.trim().length > 0 && isOptionalEmail(d.email),
     Component: NameStep,
   },
   {
@@ -194,8 +195,14 @@ export async function publish(d: Draft): Promise<PublishResult> {
       void identify(account.id);
     }
 
+    // The profile can be fixed later, so a failure here doesn't stop the property going live.
     const name = `${d.firstName} ${d.lastName}`.trim();
-    if (name) await updateMe({ name }).catch(() => undefined);
+    const email = d.email.trim().toLowerCase();
+    if (name || email) {
+      await updateMe({ ...(name ? { name } : {}), ...(email ? { email } : {}) }).catch(
+        () => undefined,
+      );
+    }
 
     const photos: PropertyConfig["photos"] = [];
     for (const photo of d.photos) {

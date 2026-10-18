@@ -22,7 +22,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, phone, name, email, language, photo_key, created_at, updated_at, deleted_at FROM users WHERE id = $1
+SELECT id, phone, name, email, language, photo_key, created_at, updated_at, deleted_at, email_confirmed_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -38,12 +38,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.EmailConfirmedAt,
 	)
 	return i, err
 }
 
 const getUserByPhone = `-- name: GetUserByPhone :one
-SELECT id, phone, name, email, language, photo_key, created_at, updated_at, deleted_at FROM users WHERE phone = $1
+SELECT id, phone, name, email, language, photo_key, created_at, updated_at, deleted_at, email_confirmed_at FROM users WHERE phone = $1
 `
 
 func (q *Queries) GetUserByPhone(ctx context.Context, phone string) (User, error) {
@@ -59,6 +60,7 @@ func (q *Queries) GetUserByPhone(ctx context.Context, phone string) (User, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.EmailConfirmedAt,
 	)
 	return i, err
 }
@@ -119,13 +121,18 @@ func (q *Queries) SetUserPhoto(ctx context.Context, arg SetUserPhotoParams) erro
 }
 
 const updateUser = `-- name: UpdateUser :one
-UPDATE users SET
-    name     = coalesce($1::text, name),
-    email    = CASE WHEN $2::text IS NULL THEN email
+WITH prev AS (SELECT p.id, p.email, p.email_confirmed_at FROM users p WHERE p.id = $4 FOR UPDATE)
+UPDATE users u SET
+    name     = coalesce($1::text, u.name),
+    email    = CASE WHEN $2::text IS NULL THEN u.email
                     ELSE nullif($2::text, '') END,
-    language = coalesce($3::text, language)
-WHERE id = $4
-RETURNING id, phone, name, email, language, photo_key, created_at, updated_at, deleted_at
+    language = coalesce($3::text, u.language),
+    email_confirmed_at = CASE WHEN $2::text IS NULL
+                                   OR nullif($2::text, '') IS NOT DISTINCT FROM prev.email
+                              THEN u.email_confirmed_at END
+FROM prev
+WHERE u.id = prev.id
+RETURNING u.id, u.phone, u.name, u.email, u.language, u.photo_key, u.created_at, u.updated_at, u.deleted_at, u.email_confirmed_at, prev.email AS previous_email, prev.email_confirmed_at AS previous_confirmed_at
 `
 
 type UpdateUserParams struct {
@@ -135,15 +142,31 @@ type UpdateUserParams struct {
 	ID       uuid.UUID
 }
 
-// Null leaves a field as it is; an empty email clears it.
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+type UpdateUserRow struct {
+	ID                  uuid.UUID
+	Phone               string
+	Name                string
+	Email               *string
+	Language            string
+	PhotoKey            *string
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	DeletedAt           *time.Time
+	EmailConfirmedAt    *time.Time
+	PreviousEmail       *string
+	PreviousConfirmedAt *time.Time
+}
+
+// Null leaves a field as it is; an empty email clears it. A changed email is no longer
+// confirmed. The previous email and whether it was confirmed come back too.
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error) {
 	row := q.db.QueryRow(ctx, updateUser,
 		arg.Name,
 		arg.Email,
 		arg.Language,
 		arg.ID,
 	)
-	var i User
+	var i UpdateUserRow
 	err := row.Scan(
 		&i.ID,
 		&i.Phone,
@@ -154,6 +177,9 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.EmailConfirmedAt,
+		&i.PreviousEmail,
+		&i.PreviousConfirmedAt,
 	)
 	return i, err
 }

@@ -27,6 +27,7 @@ type Postgres struct {
 	pool    *pgxpool.Pool
 	q       *queries.Queries
 	secrets *secret.Box
+	links   Links
 }
 
 // Option configures a Postgres store.

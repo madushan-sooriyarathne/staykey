@@ -235,6 +235,28 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
 
+  /v1/me/email-confirmation:
+    post:
+      tags: [auth]
+      operationId: resendEmailConfirmation
+      summary: Send the confirmation link for the signed-in person's email again
+      description: |
+        Until the email is confirmed it gets no alerts, summaries or account emails. Limited to
+        3 an hour. 409 email_confirmed when it already is; 400 no_email when there is none.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Sent
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /v1/account:
     patch:
       tags: [accounts]
@@ -1216,7 +1238,7 @@ paths:
     patch:
       tags: [messages]
       operationId: updateTemplate
-      summary: Change a template's text
+      summary: Change a template's text or channels
       description: Owners and managers only.
       security:
         - bearerAuth: []
@@ -1453,6 +1475,57 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+
+  /webhooks/ses:
+    post:
+      tags: [messages]
+      operationId: sesWebhook
+      summary: Bounces and complaints from AWS SES, through SNS
+      description: |
+        The SNS signature is checked against a certificate from sns.<region>.amazonaws.com. A
+        subscription is confirmed once; permanent bounces and complaints suppress the address.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Received
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/public/email-confirmation:
+    post:
+      tags: [public]
+      operationId: confirmEmail
+      summary: Confirm an email address with the token from its link
+      description: |
+        The token travels in the body so it stays out of access logs. A link works once and
+        lasts 7 days; 404 for an unknown, used or expired one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailConfirmationToken"
+      responses:
+        "200":
+          description: Confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfirmedEmail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /v1/public/plans:
     get:
@@ -2030,7 +2103,7 @@ components:
 
     User:
       type: object
-      required: [id, phone, name, language, createdAt]
+      required: [id, phone, name, emailConfirmed, language, createdAt]
       properties:
         id:
           type: string
@@ -2041,6 +2114,11 @@ components:
           type: string
         email:
           type: string
+        emailConfirmed:
+          type: boolean
+          description: |
+            Whether the email was confirmed from its link. An unconfirmed email gets nothing
+            but the confirmation itself.
         language:
           $ref: "#/components/schemas/Language"
         photoUrl:
@@ -2060,7 +2138,9 @@ components:
         email:
           type: string
           maxLength: 254
-          description: An empty string clears the email.
+          description: |
+            An empty string clears the email. A new or changed email is sent a confirmation link
+            and isn't used until it is confirmed.
         language:
           $ref: "#/components/schemas/Language"
         photoKey:
@@ -3756,7 +3836,7 @@ components:
       properties:
         code:
           type: string
-          enum: [dates_taken, stale, bad_status, already_subscribed, store_plan_renews]
+          enum: [dates_taken, stale, bad_status, already_subscribed, store_plan_renews, email_confirmed]
         message:
           type: string
         clash:
@@ -3990,6 +4070,22 @@ components:
           minLength: 1
           maxLength: 200
 
+    EmailConfirmationToken:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 200
+
+    ConfirmedEmail:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+
     InvitePreview:
       type: object
       required: [accountName, invitedByName, role, propertyNames, expiresAt]
@@ -4088,12 +4184,19 @@ components:
 
     TemplatePatch:
       type: object
-      required: [body]
       properties:
         body:
           type: string
           minLength: 1
           maxLength: 1000
+        channels:
+          type: array
+          description: |
+            How the template goes out. With email in it, StayKey emails the template to guests
+            with an email address at its time.
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/TemplateChannel"
 
     NotificationEvent:
       type: string
@@ -4101,7 +4204,7 @@ components:
 
     NotificationPref:
       type: object
-      required: [event, push, whatsapp]
+      required: [event, push, whatsapp, email]
       properties:
         event:
           $ref: "#/components/schemas/NotificationEvent"
@@ -4109,6 +4212,9 @@ components:
           type: boolean
         whatsapp:
           type: boolean
+        email:
+          type: boolean
+          description: Sent only once the person's email is confirmed.
 
     NotificationPrefs:
       type: object

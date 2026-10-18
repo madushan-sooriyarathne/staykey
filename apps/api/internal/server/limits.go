@@ -24,6 +24,7 @@ var (
 	limitUploads  = limit{"uploads", 10, time.Hour}
 	limitPublic   = limit{"public", 120, time.Minute}
 	limitOwner    = limit{"owner", 300, time.Minute}
+	limitResend   = limit{"email-confirmation", 3, time.Hour}
 )
 
 // limited counts each request against its route's limit and answers 429 past it. It runs after
@@ -58,6 +59,10 @@ func (s *Server) limitFor(r *http.Request) (limit, string, bool) {
 		return limitBookings, ip, true
 	case "POST /v1/public/bookings/{bookingId}/uploads", "POST /v1/public/bookings/{bookingId}/slips":
 		return limitUploads, "booking:" + r.PathValue("bookingId"), true
+	case "POST /v1/me/email-confirmation":
+		if p, ok := auth.PrincipalFrom(r.Context()); ok {
+			return limitResend, "user:" + p.UserID.String(), true
+		}
 	}
 	switch {
 	case strings.HasPrefix(path, "/v1/public/"), strings.HasPrefix(path, "/ical/"):
