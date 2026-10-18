@@ -59,16 +59,18 @@ type NotificationPref struct {
 	Event    NotificationEvent
 	Push     bool
 	WhatsApp bool
+	// Email goes only to a confirmed address.
+	Email bool
 }
 
 // DefaultNotificationPrefs are a new member's preferences.
 func DefaultNotificationPrefs() []NotificationPref {
 	return []NotificationPref{
-		{EventBooking, true, true},
-		{EventRequest, true, true},
-		{EventPayment, true, false},
-		{EventCancellation, true, false},
-		{EventSync, true, false},
-		{EventSummary, false, true},
+		{EventBooking, true, true, false},
+		{EventRequest, true, true, false},
+		{EventPayment, true, false, false},
+		{EventCancellation, true, false, false},
+		{EventSync, true, false, false},
+		{EventSummary, false, true, false},
 	}
 }
