@@ -16,6 +16,7 @@ import (
 	"staykey.direct/api/internal/auth"
 	"staykey.direct/api/internal/billing"
 	"staykey.direct/api/internal/config"
+	"staykey.direct/api/internal/email"
 	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/ical"
 	"staykey.direct/api/internal/jobs"
@@ -47,7 +48,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	db, err := store.NewPostgres(ctx, cfg.DatabaseURL, store.WithSecrets(box))
+	links := store.Links{
+		BookingPage: func(slug string) string { return cfg.BookingScheme + "://" + slug + "." + cfg.BookingDomain },
+		VerifyEmail: cfg.VerifyEmailURL,
+	}
+	db, err := store.NewPostgres(ctx, cfg.DatabaseURL, store.WithSecrets(box), store.WithLinks(links))
 	if err != nil {
 		return err
 	}
@@ -63,7 +68,19 @@ func run() error {
 		w := cfg.WhatsApp
 		whatsApp = notify.CloudWhatsApp{Token: w.Token, PhoneNumberID: w.PhoneNumberID, Template: w.Template}
 	}
-	alerts := jobs.Alerts{Push: notify.Expo{AccessToken: cfg.ExpoAccessToken}, WhatsApp: whatsApp, Logger: log}
+	// Development logs each email's link, so confirmation and stay links open locally.
+	var mailer email.Sender = email.LogSender{Logger: log, ShowLinks: !cfg.IsProduction()}
+	if cfg.EmailProvider == "ses" {
+		e := cfg.SES
+		mailer, err = email.NewSES(email.SESConfig{
+			Region: e.Region, AccessKeyID: e.AccessKeyID, SecretAccessKey: e.SecretAccessKey,
+			From: e.From, ConfigurationSet: e.ConfigurationSet,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	alerts := jobs.Alerts{Push: notify.Expo{AccessToken: cfg.ExpoAccessToken}, WhatsApp: whatsApp, Email: mailer, Logger: log}
 	jobClient, err := jobs.Start(ctx, db.Pool(), db, fileStore, alerts, ical.NewFetcher(cfg.ICalAllowPrivate), log)
 	if err != nil {
 		return err
@@ -98,6 +115,9 @@ func run() error {
 	if rc := cfg.RevenueCat; rc.SecretKey != "" {
 		client := billing.RevenueCat{SecretKey: rc.SecretKey, ExternalKey: rc.ExternalKey}
 		opts.Subscribers, opts.ExternalPurchases, opts.RevenueCatWebhookAuth = client, client, rc.WebhookAuth
+	}
+	if cfg.SES.Region != "" {
+		opts.SNS = &email.SNS{Region: cfg.SES.Region}
 	}
 	if lk := cfg.PaymentsLK; lk.SecretKey != "" {
 		opts.WebPayments = billing.PaymentsLK{SecretKey: lk.SecretKey, WebhookSecret: lk.WebhookSecret, BaseURL: lk.APIURL}

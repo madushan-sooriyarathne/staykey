@@ -58,6 +58,13 @@ type Config struct {
 	// servers, pass on the visitor's address for rate limits.
 	ForwardSecret string
 
+	// EmailProvider sends email: "log" records that an email was skipped (the default, also in
+	// production until SES is set up), "ses" sends it through Amazon SES.
+	EmailProvider string
+	SES           SES
+	// VerifyEmailURL is the marketing site's email confirmation page, followed by the token.
+	VerifyEmailURL string
+
 	// DataKey encrypts sensitive columns such as bank account numbers. 32 bytes.
 	DataKey []byte
 
@@ -79,6 +86,16 @@ type PaymentsLK struct {
 	SecretKey     string
 	WebhookSecret string
 	APIURL        string
+}
+
+// SES holds the Amazon SES v2 settings. From is an address on the verified domain;
+// ConfigurationSet routes bounces and complaints to the SNS topic.
+type SES struct {
+	Region           string
+	AccessKeyID      string
+	SecretAccessKey  string
+	ConfigurationSet string
+	From             string
 }
 
 // WhatsApp holds the WhatsApp Cloud API settings for team alerts.
@@ -129,6 +146,14 @@ func Load() (Config, error) {
 			Token:         os.Getenv("STAYKEY_WHATSAPP_TOKEN"),
 			PhoneNumberID: os.Getenv("STAYKEY_WHATSAPP_PHONE_NUMBER_ID"),
 			Template:      os.Getenv("STAYKEY_WHATSAPP_TEMPLATE"),
+		},
+		EmailProvider: getenv("STAYKEY_EMAIL_PROVIDER", "log"),
+		SES: SES{
+			Region:           os.Getenv("STAYKEY_SES_REGION"),
+			AccessKeyID:      os.Getenv("STAYKEY_SES_ACCESS_KEY_ID"),
+			SecretAccessKey:  os.Getenv("STAYKEY_SES_SECRET_ACCESS_KEY"),
+			ConfigurationSet: os.Getenv("STAYKEY_SES_CONFIGURATION_SET"),
+			From:             os.Getenv("STAYKEY_EMAIL_FROM"),
 		},
 		MediaDir: getenv("STAYKEY_MEDIA_DIR", ".media"),
 		Ozone: Ozone{
@@ -186,6 +211,7 @@ func Load() (Config, error) {
 		cfg.BookingDomain = getenv("STAYKEY_BOOKING_DOMAIN", "staykey.direct")
 		cfg.BookingScheme = getenv("STAYKEY_BOOKING_SCHEME", "https")
 		cfg.BillingURL = getenv("STAYKEY_BILLING_URL", "https://staykey.direct/billing")
+		cfg.VerifyEmailURL = getenv("STAYKEY_VERIFY_EMAIL_URL", "https://staykey.direct/verify-email")
 		return cfg, cfg.validate()
 	}
 
@@ -196,6 +222,7 @@ func Load() (Config, error) {
 	cfg.BookingDomain = getenv("STAYKEY_BOOKING_DOMAIN", "localhost:3001")
 	cfg.BookingScheme = getenv("STAYKEY_BOOKING_SCHEME", "http")
 	cfg.BillingURL = getenv("STAYKEY_BILLING_URL", "http://localhost:3000/billing")
+	cfg.VerifyEmailURL = getenv("STAYKEY_VERIFY_EMAIL_URL", "http://localhost:3000/verify-email")
 	return cfg, cfg.validate()
 }
 
@@ -219,6 +246,16 @@ func (c Config) validate() error {
 		}
 	default:
 		return fmt.Errorf("unknown STAYKEY_WHATSAPP_PROVIDER %q (supported: log, cloud)", c.WhatsAppProvider)
+	}
+	switch c.EmailProvider {
+	case "log":
+	case "ses":
+		e := c.SES
+		if e.Region == "" || e.AccessKeyID == "" || e.SecretAccessKey == "" || e.From == "" {
+			return errors.New("ses email needs STAYKEY_SES_REGION, STAYKEY_SES_ACCESS_KEY_ID, STAYKEY_SES_SECRET_ACCESS_KEY and STAYKEY_EMAIL_FROM")
+		}
+	default:
+		return fmt.Errorf("unknown STAYKEY_EMAIL_PROVIDER %q (supported: log, ses)", c.EmailProvider)
 	}
 	if p := c.PaymentsLK; p.SecretKey != "" {
 		if p.WebhookSecret == "" {
