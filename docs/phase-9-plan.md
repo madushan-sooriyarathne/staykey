@@ -50,7 +50,7 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 - **Money becomes payable once the stay starts:** a payment's entries become available the day after check-in, and a cancellation before then refunds out of money StayKey still holds. A refund after the payout leaves a negative balance that the next payouts make up. Any cancellation refund that would take the balance below zero beyond what future stays cover is still sent, since the guest's refund comes first.
 - **Payouts run every other Monday**, anchored on Monday 2 Nov 2026, covering everything available up to the Sunday before. A job prepares a payout per owner whose available balance is at least Rs 1,000; smaller balances roll over. Payments.lk has no transfer API, so StayKey's team pays the batch by bank transfer and then marks it paid.
 - **Payouts are operated from a command, not a web admin:** `go run ./cmd/payouts` with `list`, `export <batch>` (a CSV for the bank's bulk upload: name, bank, branch, account, amount, reference), `paid <batch> --ref <bank ref>`, `failed <payout> --reason` (returns the money to the balance and tells the owner) and `adjust <account> <amount> --reason`. It runs against the production database with the operator's own role.
-- **Owners see** their balance, upcoming payout and past payouts with a statement (each stay, fee, refund and adjustment) in the app, and get a `payout_sent` email when a payout is marked paid.
+- **Owners see** their balance, upcoming payout and past payouts with a statement (each stay, its 3% processing charge, refunds and adjustments) in the app, and get a `payout_sent` email when a payout is marked paid.
 
 ## Context
 
