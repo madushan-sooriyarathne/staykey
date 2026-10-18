@@ -75,7 +75,7 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 
 ### Phase 9 Guest card payments through Payments.lk (next, see `docs/phase-9-plan.md`)
 
-- [x] Decide how owners are paid: both, chosen per account. Their own Payments.lk account, or StayKey collects and pays out every two weeks
+- [x] Decide how owners are paid: both, chosen per account. Their own Payments.lk account (no StayKey charge), or StayKey collects and pays out every two weeks less a 3% processing charge
 - [ ] Card payments per property (`cards_status`), on only once the account's card mode is ready (a connected key, or a payout profile) and non-LKR properties have a rupee rate
 - [ ] Booking page checkout by card for the deposit, the full amount or a later balance, through a Payments.lk hosted checkout
 - [ ] Payments.lk events, polled each minute, record the payment on the booking and confirm it, once per event
