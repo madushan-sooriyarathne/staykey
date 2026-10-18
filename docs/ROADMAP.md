@@ -66,6 +66,7 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 
 - [ ] SES sender in `internal/notify`, with the sending domain verified (SPF, DKIM, DMARC) and out of the SES sandbox
 - [ ] Bounces and complaints from SES (through SNS) stop sending to that address
+- [ ] Account emails: welcome with email confirmation, email changed, new sign-in, deletion scheduled, restored and completed, web plan receipts (sign-in is by phone code, so there are no password emails)
 - [ ] Guest emails: booking confirmed, payment reminder before the deadline, request answered, built from the account's message templates
 - [ ] Email as an alert channel for the team, beside push and WhatsApp
 - [ ] **Gate:** a guest who books on the page gets the confirmation email, and a bounced address is not emailed again
