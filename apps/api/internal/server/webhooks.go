@@ -13,12 +13,14 @@ import (
 
 	"staykey.direct/api/internal/billing"
 	"staykey.direct/api/internal/domain"
+	"staykey.direct/api/internal/email"
 	"staykey.direct/api/internal/oapi"
 	"staykey.direct/api/internal/store"
 )
 
-// Webhooks from the billing providers. They have no signed-in user: each is checked against its
-// provider's secret, and the account comes from the event. Bodies are never logged.
+// Webhooks from the billing and email providers. They have no signed-in user: each is checked
+// against its provider's secret or signature, and the account comes from the event. Bodies are
+// never logged.
 
 // maxWebhookBody is far above any event either provider sends.
 const maxWebhookBody = 1 << 20
@@ -169,4 +171,48 @@ func (s *Server) recordIgnored(ctx context.Context, ev store.BillingEvent) error
 		return err
 	}
 	return nil
+}
+
+// SNSChecker verifies SNS messages and confirms subscriptions. email.SNS implements it.
+type SNSChecker interface {
+	Verify(ctx context.Context, body []byte) (email.SNSMessage, error)
+	ConfirmSubscription(ctx context.Context, m email.SNSMessage) error
+}
+
+// SesWebhook records the permanent bounces and complaints SES reports through SNS, so those
+// addresses are never emailed again. A subscription request is confirmed once.
+func (s *Server) SesWebhook(ctx context.Context, req oapi.SesWebhookRequestObject) (oapi.SesWebhookResponseObject, error) {
+	if s.opts.SNS == nil {
+		return oapi.SesWebhook503JSONResponse{ServiceUnavailableJSONResponse: oapi.ServiceUnavailableJSONResponse(
+			errBody("email_not_configured", "Email isn't set up on this server yet."))}, nil
+	}
+	body, err := io.ReadAll(io.LimitReader(req.Body, maxWebhookBody))
+	if err != nil {
+		return nil, fmt.Errorf("read ses webhook: %w", err)
+	}
+	m, err := s.opts.SNS.Verify(ctx, body)
+	if err != nil {
+		s.log.Warn("ses webhook refused", "error", err)
+		return oapi.SesWebhook400JSONResponse{BadRequestJSONResponse: oapi.BadRequestJSONResponse(errBody("bad_signature", "The notification didn't verify."))}, nil
+	}
+	switch m.Type {
+	case email.SNSSubscriptionConfirm:
+		if err := s.opts.SNS.ConfirmSubscription(ctx, m); err != nil {
+			return nil, err
+		}
+		s.log.Info("ses notifications subscribed", "topic", m.TopicArn)
+	case email.SNSNotification:
+		found, err := email.Suppressions(m.Message)
+		if err != nil {
+			s.log.Warn("ses notification unreadable", "message_id", m.MessageID)
+			return oapi.SesWebhook200Response{}, nil
+		}
+		for _, sup := range found {
+			if err := s.store.RecordSuppression(ctx, sup.Address, sup.Reason); err != nil {
+				return nil, err
+			}
+			s.log.Info("email address suppressed", "to", email.MaskAddress(sup.Address), "reason", sup.Reason)
+		}
+	}
+	return oapi.SesWebhook200Response{}, nil
 }

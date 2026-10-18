@@ -27,7 +27,7 @@ func (s *Server) ListTemplates(ctx context.Context, _ oapi.ListTemplatesRequestO
 	return oapi.ListTemplates200JSONResponse(out), nil
 }
 
-// UpdateTemplate changes a template's text.
+// UpdateTemplate changes a template's text, how it goes out, or both.
 func (s *Server) UpdateTemplate(ctx context.Context, req oapi.UpdateTemplateRequestObject) (oapi.UpdateTemplateResponseObject, error) {
 	t, err := currentTenant(ctx)
 	if err != nil {
@@ -47,11 +47,27 @@ func (s *Server) UpdateTemplate(ctx context.Context, req oapi.UpdateTemplateRequ
 	if !slices.ContainsFunc(list, func(tpl domain.Template) bool { return tpl.ID == req.TemplateId }) {
 		return nil, apiErr(domain.ErrNotFound, "template")
 	}
-	body, err := domain.NormalizeTemplateBody(req.Body.Body)
-	if err != nil {
-		return nil, apiErr(err, "")
+	var body *string
+	if req.Body.Body != nil {
+		b, err := domain.NormalizeTemplateBody(*req.Body.Body)
+		if err != nil {
+			return nil, apiErr(err, "")
+		}
+		body = &b
 	}
-	tpl, err := s.store.UpdateTemplate(ctx, t, req.TemplateId, body)
+	var channels []string
+	if req.Body.Channels != nil {
+		channels = []string{}
+		for _, c := range *req.Body.Channels {
+			if c != oapi.TemplateChannelEmail && c != oapi.TemplateChannelWhatsapp {
+				return nil, &apiError{status: http.StatusBadRequest, code: "invalid_channels", field: "channels", message: "Channels are email or whatsapp."}
+			}
+			if !slices.Contains(channels, string(c)) {
+				channels = append(channels, string(c))
+			}
+		}
+	}
+	tpl, err := s.store.UpdateTemplate(ctx, t, req.TemplateId, body, channels)
 	if err != nil {
 		return nil, apiErr(err, "template")
 	}
@@ -88,7 +104,7 @@ func (s *Server) SetNotificationPrefs(ctx context.Context, req oapi.SetNotificat
 			return nil, &apiError{status: http.StatusBadRequest, code: "invalid_event", field: "items", message: "Send each event once."}
 		}
 		seen[e] = true
-		in = append(in, domain.NotificationPref{Event: e, Push: p.Push, WhatsApp: p.Whatsapp})
+		in = append(in, domain.NotificationPref{Event: e, Push: p.Push, WhatsApp: p.Whatsapp, Email: p.Email})
 	}
 	prefs, err := s.store.SetNotificationPrefs(ctx, t, in)
 	if err != nil {
@@ -143,7 +159,7 @@ func templateToAPI(t domain.Template) oapi.Template {
 func prefsToAPI(prefs []domain.NotificationPref) oapi.NotificationPrefs {
 	out := oapi.NotificationPrefs{Items: make([]oapi.NotificationPref, len(prefs))}
 	for i, p := range prefs {
-		out.Items[i] = oapi.NotificationPref{Event: oapi.NotificationEvent(p.Event), Push: p.Push, Whatsapp: p.WhatsApp}
+		out.Items[i] = oapi.NotificationPref{Event: oapi.NotificationEvent(p.Event), Push: p.Push, Whatsapp: p.WhatsApp, Email: p.Email}
 	}
 	return out
 }

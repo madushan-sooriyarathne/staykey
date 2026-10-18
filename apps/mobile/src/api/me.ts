@@ -40,3 +40,10 @@ export function useDeleteMe() {
     mutationFn: () => unwrap(api.POST("/v1/me/deletion", { body: { confirm: "DELETE" } })),
   });
 }
+
+/** Sends the confirmation link for the signed-in person's email again. */
+export function useResendEmailConfirmation() {
+  return useMutation({
+    mutationFn: () => unwrap(api.POST("/v1/me/email-confirmation")),
+  });
+}

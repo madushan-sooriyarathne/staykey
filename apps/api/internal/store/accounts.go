@@ -21,18 +21,45 @@ func (s *Postgres) GetUser(ctx context.Context, id uuid.UUID) (domain.User, erro
 	return user(u), nil
 }
 
-// UpdateUser applies a profile patch.
-func (s *Postgres) UpdateUser(ctx context.Context, id uuid.UUID, p domain.UserPatch) (domain.User, error) {
-	u, err := s.db(ctx).UpdateUser(ctx, queries.UpdateUserParams{
-		ID:       id,
-		Name:     p.Name,
-		Email:    p.Email,
-		Language: p.Language,
+// UpdateUser applies a profile patch. A new or changed email is sent a confirmation link: the
+// first address a person adds gets the welcome email, a later one a plain confirmation, and
+// the confirmed address it replaces is told about the change.
+func (s *Postgres) UpdateUser(ctx context.Context, id uuid.UUID, p domain.UserPatch, now time.Time) (domain.User, error) {
+	var out domain.User
+	err := s.InTx(ctx, func(ctx context.Context) error {
+		q := s.db(ctx)
+		u, err := q.UpdateUser(ctx, queries.UpdateUserParams{ID: id, Name: p.Name, Email: p.Email, Language: p.Language})
+		if err != nil {
+			return notFound(err)
+		}
+		out = user(queries.User{
+			ID: u.ID, Phone: u.Phone, Name: u.Name, Email: u.Email, Language: u.Language, PhotoKey: u.PhotoKey,
+			CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt, DeletedAt: u.DeletedAt, EmailConfirmedAt: u.EmailConfirmedAt,
+		})
+		previous := deref(u.PreviousEmail)
+		if out.Email == previous {
+			return nil
+		}
+		if previous != "" && u.PreviousConfirmedAt != nil {
+			if err := s.queueEmail(ctx, queuedEmail{
+				userID: &id, kind: domain.EmailChanged, to: previous, payload: emailPayload{Name: u.Name, At: &now}, at: now,
+			}); err != nil {
+				return err
+			}
+		}
+		if out.Email == "" {
+			return nil
+		}
+		hadOne, err := q.HadEmailConfirmation(ctx, id)
+		if err != nil {
+			return fmt.Errorf("check earlier confirmations: %w", err)
+		}
+		if hadOne {
+			return s.sendConfirmation(ctx, id, u.Name, out.Email, domain.EmailConfirm, "", now)
+		}
+		return s.sendConfirmation(ctx, id, u.Name, out.Email, domain.EmailWelcome, id.String()+":welcome", now)
 	})
-	if err != nil {
-		return domain.User{}, notFound(err)
-	}
-	return user(u), nil
+	return out, err
 }
 
 // UpsertUserByPhone returns the user with this number, creating them on first sign-in.
@@ -208,6 +235,7 @@ func user(u queries.User) domain.User {
 	}
 	if u.Email != nil {
 		out.Email = *u.Email
+		out.EmailConfirmed = u.EmailConfirmedAt != nil
 	}
 	if u.PhotoKey != nil {
 		out.PhotoKey = *u.PhotoKey
@@ -277,6 +305,10 @@ func (s *Postgres) DeleteUser(ctx context.Context, userID uuid.UUID, now time.Ti
 		if err := q.DeleteTeamMemberships(ctx, userID); err != nil {
 			return fmt.Errorf("leave teams: %w", err)
 		}
+		finalOn := now.AddDate(0, 0, domain.DeletionDays)
+		if err := s.queueAccountEmail(ctx, userID, domain.EmailDeletionScheduled, emailPayload{At: &now, FinalOn: &finalOn}, now); err != nil {
+			return err
+		}
 		if err := q.MarkUserDeleted(ctx, queries.MarkUserDeletedParams{ID: userID, Now: now}); err != nil {
 			return fmt.Errorf("mark user deleted: %w", err)
 		}
@@ -306,6 +338,9 @@ func (s *Postgres) RestoreUser(ctx context.Context, userID uuid.UUID, now time.T
 			return nil
 		}
 		restored = true
+		if err := s.queueAccountEmail(ctx, userID, domain.EmailAccountRestored, emailPayload{}, now); err != nil {
+			return err
+		}
 		ids, err := q.ReopenOwnedAccounts(ctx, userID)
 		if err != nil {
 			return fmt.Errorf("reopen accounts: %w", err)
@@ -330,6 +365,10 @@ func (s *Postgres) PurgeDeletedUsers(ctx context.Context, now time.Time) (int, e
 	}
 	for i, id := range ids {
 		err := s.InTx(ctx, func(ctx context.Context) error {
+			// The address is captured now; the email outlives the person it is about.
+			if err := s.queueAccountEmail(ctx, id, domain.EmailDeletionCompleted, emailPayload{}, now); err != nil {
+				return err
+			}
 			if err := s.db(ctx).DeleteClosedOwnedAccounts(ctx, id); err != nil {
 				return fmt.Errorf("delete accounts: %w", err)
 			}

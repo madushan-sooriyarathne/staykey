@@ -25,9 +25,9 @@ func (s *Postgres) ListTemplates(ctx context.Context, t tenant.Tenant) ([]domain
 	return out, nil
 }
 
-// UpdateTemplate replaces a template's text.
-func (s *Postgres) UpdateTemplate(ctx context.Context, t tenant.Tenant, id uuid.UUID, body string) (domain.Template, error) {
-	r, err := s.db(ctx).UpdateTemplateBody(ctx, queries.UpdateTemplateBodyParams{Body: body, ID: id, AccountID: t.AccountID})
+// UpdateTemplate changes a template's text, its channels, or both. Nil leaves one as it is.
+func (s *Postgres) UpdateTemplate(ctx context.Context, t tenant.Tenant, id uuid.UUID, body *string, channels []string) (domain.Template, error) {
+	r, err := s.db(ctx).UpdateTemplate(ctx, queries.UpdateTemplateParams{Body: body, Channels: channels, ID: id, AccountID: t.AccountID})
 	if err != nil {
 		return domain.Template{}, notFound(err)
 	}
@@ -42,7 +42,7 @@ func (s *Postgres) NotificationPrefs(ctx context.Context, t tenant.Tenant) ([]do
 	}
 	out := make([]domain.NotificationPref, len(rows))
 	for i, r := range rows {
-		out[i] = domain.NotificationPref{Event: domain.NotificationEvent(r.Event), Push: r.Push, WhatsApp: r.Whatsapp}
+		out[i] = domain.NotificationPref{Event: domain.NotificationEvent(r.Event), Push: r.Push, WhatsApp: r.Whatsapp, Email: r.Email}
 	}
 	return out, nil
 }
@@ -53,7 +53,7 @@ func (s *Postgres) SetNotificationPrefs(ctx context.Context, t tenant.Tenant, pr
 		for _, p := range prefs {
 			if err := s.db(ctx).SetNotificationPref(ctx, queries.SetNotificationPrefParams{
 				ID: domain.NewID(), AccountID: t.AccountID, UserID: t.UserID,
-				Event: string(p.Event), Push: p.Push, Whatsapp: p.WhatsApp,
+				Event: string(p.Event), Push: p.Push, Whatsapp: p.WhatsApp, Email: p.Email,
 			}); err != nil {
 				return fmt.Errorf("set notification preference: %w", err)
 			}
@@ -86,9 +86,11 @@ type Summary struct {
 	Day         time.Time
 	PushTokens  []string
 	WhatsApp    bool
-	Arrivals    int
-	Departures  int
-	Requests    int
+	// Email is the confirmed address when the person takes the summary by email, or empty.
+	Email      string
+	Arrivals   int
+	Departures int
+	Requests   int
 }
 
 // DueSummaries returns the morning summaries due at now, with the counts for each person's
@@ -112,6 +114,9 @@ func (s *Postgres) DueSummaries(ctx context.Context, now time.Time) ([]Summary, 
 		sum := Summary{
 			AccountID: r.AccountID, AccountName: r.AccountName, UserID: r.UserID, Phone: r.Phone, Day: r.LocalDay, WhatsApp: r.Whatsapp,
 			Arrivals: int(counts.Arrivals), Departures: int(counts.Departures), Requests: int(counts.Requests),
+		}
+		if deref(r.Email) {
+			sum.Email = r.EmailAddress
 		}
 		if r.Push {
 			tokens, err := q.LivePushTokens(ctx, queries.LivePushTokensParams{UserIds: []uuid.UUID{r.UserID}, Now: now})

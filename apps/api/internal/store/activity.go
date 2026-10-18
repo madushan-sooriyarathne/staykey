@@ -142,12 +142,14 @@ type Alert struct {
 	Recipients []Recipient
 }
 
-// Recipient is a person an alert goes to and the channels they chose.
+// Recipient is a person an alert goes to and the channels they chose. Email is their
+// confirmed address when they chose email, or empty.
 type Recipient struct {
 	UserID     uuid.UUID
 	Phone      string
 	PushTokens []string
 	WhatsApp   bool
+	Email      string
 }
 
 // SendAlerts claims up to limit activity items nobody has been alerted about yet and passes them
@@ -208,7 +210,11 @@ func (s *Postgres) alertFor(ctx context.Context, r queries.Activity, now time.Ti
 			continue
 		}
 		byUser[p.UserID] = len(alert.Recipients)
-		alert.Recipients = append(alert.Recipients, Recipient{UserID: p.UserID, Phone: p.Phone, WhatsApp: p.Whatsapp})
+		r := Recipient{UserID: p.UserID, Phone: p.Phone, WhatsApp: p.Whatsapp}
+		if deref(p.Email) {
+			r.Email = p.EmailAddress
+		}
+		alert.Recipients = append(alert.Recipients, r)
 		if p.Push {
 			pushUsers = append(pushUsers, p.UserID)
 		}

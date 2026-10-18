@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -73,11 +74,52 @@ func (s *Server) UpdateMe(ctx context.Context, req oapi.UpdateMeRequestObject) (
 			return nil, err
 		}
 	}
-	u, err := s.store.UpdateUser(ctx, p.UserID, patch)
+	u, err := s.store.UpdateUser(ctx, p.UserID, patch, time.Now())
 	if err != nil {
 		return nil, err
 	}
 	return oapi.UpdateMe200JSONResponse(s.userToAPI(ctx, u)), nil
+}
+
+// ResendEmailConfirmation sends the signed-in person a new confirmation link for their email.
+func (s *Server) ResendEmailConfirmation(ctx context.Context, _ oapi.ResendEmailConfirmationRequestObject) (oapi.ResendEmailConfirmationResponseObject, error) {
+	p, err := principal(ctx)
+	if err != nil {
+		return nil, err
+	}
+	err = s.store.ResendConfirmation(ctx, p.UserID, time.Now())
+	switch {
+	case errors.Is(err, domain.ErrNoEmail):
+		return oapi.ResendEmailConfirmation400JSONResponse{BadRequestJSONResponse: oapi.BadRequestJSONResponse(
+			errBody("no_email", "Add an email in Profile first."))}, nil
+	case errors.Is(err, domain.ErrEmailConfirmed):
+		return oapi.ResendEmailConfirmation409JSONResponse{ConflictJSONResponse: oapi.ConflictJSONResponse{
+			Code: oapi.EmailConfirmed, Message: "Your email is already confirmed.",
+		}}, nil
+	case errors.Is(err, domain.ErrNotFound):
+		return nil, errUnauthorized
+	case err != nil:
+		return nil, err
+	}
+	return oapi.ResendEmailConfirmation204Response{}, nil
+}
+
+// ConfirmEmail confirms an email address with the token from its link. The marketing site's
+// confirmation page calls it.
+func (s *Server) ConfirmEmail(ctx context.Context, req oapi.ConfirmEmailRequestObject) (oapi.ConfirmEmailResponseObject, error) {
+	if req.Body == nil || req.Body.Token == "" || len(req.Body.Token) > 200 {
+		return oapi.ConfirmEmail400JSONResponse{BadRequestJSONResponse: oapi.BadRequestJSONResponse(
+			fieldErr("invalid_token", "token", "Send the token from the link."))}, nil
+	}
+	address, err := s.store.ConfirmEmail(ctx, req.Body.Token, time.Now())
+	if errors.Is(err, domain.ErrNotFound) {
+		return oapi.ConfirmEmail404JSONResponse{NotFoundJSONResponse: oapi.NotFoundJSONResponse(
+			errBody("confirmation_not_found", "This link has expired or was already used."))}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return oapi.ConfirmEmail200JSONResponse{Email: address}, nil
 }
 
 // ListAccounts returns the accounts the signed-in user belongs to.
@@ -120,12 +162,13 @@ func (s *Server) CreateAccount(ctx context.Context, req oapi.CreateAccountReques
 
 func (s *Server) userToAPI(ctx context.Context, u domain.User) oapi.User {
 	out := oapi.User{
-		Id:        u.ID,
-		Phone:     u.Phone,
-		Name:      u.Name,
-		Email:     optional(u.Email),
-		Language:  oapi.Language(u.Language),
-		CreatedAt: u.CreatedAt,
+		Id:             u.ID,
+		Phone:          u.Phone,
+		Name:           u.Name,
+		Email:          optional(u.Email),
+		EmailConfirmed: u.EmailConfirmed,
+		Language:       oapi.Language(u.Language),
+		CreatedAt:      u.CreatedAt,
 	}
 	if u.PhotoKey != "" {
 		url := s.files.URL(ctx, u.PhotoKey)
