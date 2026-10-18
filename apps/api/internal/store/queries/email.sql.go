@@ -164,6 +164,7 @@ SELECT b.id, b.account_id, b.status, b.source, b.check_in, b.check_out, b.paymen
        g.name AS guest_name, g.email AS guest_email,
        p.name AS property_name, p.slug AS property_slug, p.location AS property_location,
        p.lat AS property_lat, p.lng AS property_lng, p.check_in_time AS property_check_in,
+       p.time_zone AS property_time_zone,
        a.status AS account_status,
        coalesce((SELECT u.email FROM memberships m JOIN users u ON u.id = m.user_id
                  WHERE m.account_id = b.account_id AND m.role = 'owner' AND m.status = 'active'
@@ -206,6 +207,7 @@ type GuestEmailDataRow struct {
 	PropertyLat      *float64
 	PropertyLng      *float64
 	PropertyCheckIn  string
+	PropertyTimeZone string
 	AccountStatus    string
 	OwnerEmail       string
 	TemplateBody     string
@@ -238,6 +240,7 @@ func (q *Queries) GuestEmailData(ctx context.Context, arg GuestEmailDataParams) 
 		&i.PropertyLat,
 		&i.PropertyLng,
 		&i.PropertyCheckIn,
+		&i.PropertyTimeZone,
 		&i.AccountStatus,
 		&i.OwnerEmail,
 		&i.TemplateBody,
@@ -414,6 +417,15 @@ func (q *Queries) SetGuestToken(ctx context.Context, arg SetGuestTokenParams) (i
 	return result.RowsAffected(), nil
 }
 
+const skipAccountEmails = `-- name: SkipAccountEmails :exec
+UPDATE emails SET status = 'skipped' WHERE account_id = $1 AND status = 'pending'
+`
+
+func (q *Queries) SkipAccountEmails(ctx context.Context, accountID *uuid.UUID) error {
+	_, err := q.db.Exec(ctx, skipAccountEmails, accountID)
+	return err
+}
+
 const suppress = `-- name: Suppress :exec
 WITH added AS (
     INSERT INTO email_suppressions (address, reason) VALUES (lower($1::text), $2)
@@ -470,7 +482,7 @@ type TimedEmailCandidatesRow struct {
 }
 
 // Stays whose timed emails may be due soon. The caller works out the exact time in the
-// property's time zone; these bounds only keep the candidates few. Imported stays, stays with
+// property's time zone and passes bounds that only keep the candidates few. Imported stays, stays with
 // no guest email, and closed accounts are left out.
 func (q *Queries) TimedEmailCandidates(ctx context.Context, arg TimedEmailCandidatesParams) ([]TimedEmailCandidatesRow, error) {
 	rows, err := q.db.Query(ctx, timedEmailCandidates,

@@ -69,7 +69,7 @@ func (s *Postgres) CreateHold(ctx context.Context, accountID, propertyID uuid.UU
 
 // CreateGuestBooking adds a stay a guest booked on the booking page. It matches the guest to
 // the account's guests by phone or email without changing what the owner has stored, uses a go
-// of the promo code, and tells the team.
+// of the promo code, tells the team, and queues the guest's email.
 func (s *Postgres) CreateGuestBooking(ctx context.Context, accountID uuid.UUID, in domain.NewBooking, now time.Time) (uuid.UUID, error) {
 	var id uuid.UUID
 	err := s.InTx(ctx, func(ctx context.Context) error {
@@ -82,6 +82,14 @@ func (s *Postgres) CreateGuestBooking(ctx context.Context, accountID uuid.UUID, 
 			return err
 		}
 		id = added.ID
+		if in.GuestToken != "" {
+			if err := s.setGuestToken(ctx, accountID, id, in.GuestToken, in.GuestTokenHash); err != nil {
+				return err
+			}
+		}
+		if err := s.queueStayEmail(ctx, accountID, added, domain.EmailReceived, "", now); err != nil {
+			return err
+		}
 		if in.Price.PromoID != nil {
 			_, err := s.db(ctx).UsePromo(ctx, queries.UsePromoParams{ID: *in.Price.PromoID, AccountID: accountID})
 			if errors.Is(err, pgx.ErrNoRows) {

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -67,6 +68,29 @@ func (k EmailKind) CarriesConfirmation() bool { return k == EmailWelcome || k ==
 // IsTimed reports whether the scheduling job queues the kind, rather than an event.
 func (k EmailKind) IsTimed() bool {
 	return k == EmailReminder || k == EmailPrearrival || k == EmailThanks
+}
+
+var (
+	// ErrEmailConfirmed means the person's email is already confirmed.
+	ErrEmailConfirmed = errors.New("email already confirmed")
+	// ErrNoEmail means the person has no email to confirm.
+	ErrNoEmail = errors.New("no email")
+)
+
+// NewGuestToken returns a token that opens a stay's guest page, and the hash stored for it.
+func NewGuestToken() (string, []byte, error) {
+	b := make([]byte, 24)
+	if _, err := rand.Read(b); err != nil {
+		return "", nil, fmt.Errorf("guest token: %w", err)
+	}
+	token := base64.RawURLEncoding.EncodeToString(b)
+	return token, GuestTokenHash(token), nil
+}
+
+// GuestTokenHash is the stored form of a guest token.
+func GuestTokenHash(token string) []byte {
+	h := sha256.Sum256([]byte(token))
+	return h[:]
 }
 
 // ConfirmationTTL is how long an email confirmation link works.
@@ -318,10 +342,14 @@ func TimedEmail(kind EmailKind, s EmailStay, loc *time.Location, now time.Time) 
 }
 
 // StillWanted reports whether a queued guest email should still go, given the stay as it is at
-// send time and what the email was keyed on when queued.
+// send time and what the email was keyed on when queued: a date or deadline for timed kinds,
+// and for a booking email sent again on approval, the status it describes.
 func StillWanted(kind EmailKind, s EmailStay, on string, now time.Time) bool {
 	switch kind {
 	case EmailReceived:
+		if on != "" {
+			return string(s.Status) == on
+		}
 		return s.Status != StatusCancelled && s.Status != StatusDeclined
 	case EmailConfirmed:
 		return s.Status == StatusConfirmed || s.Status == StatusCheckedIn

@@ -9,8 +9,11 @@ ON CONFLICT (account_id, key) DO NOTHING;
 SELECT * FROM message_templates WHERE account_id = @account_id
 ORDER BY array_position(ARRAY['confirmed', 'reminder', 'prearrival', 'thanks'], key);
 
+-- Null leaves a field as it is.
 -- name: UpdateTemplate :one
-UPDATE message_templates SET body = @body, channels = @channels WHERE id = @id AND account_id = @account_id
+UPDATE message_templates SET body = coalesce(sqlc.narg('body')::text, body),
+                             channels = coalesce(sqlc.narg('channels')::text[], channels)
+WHERE id = @id AND account_id = @account_id
 RETURNING *;
 
 -- name: ListNotificationPrefs :many

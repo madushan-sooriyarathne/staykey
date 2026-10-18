@@ -75,9 +75,13 @@ func (s *Postgres) closeBySystem(ctx context.Context, accountID, bookingID uuid.
 	if err != nil {
 		return fmt.Errorf("get booking: %w", err)
 	}
-	a := domain.StayUnpaid(booking(r))
+	b := booking(r)
+	a := domain.StayUnpaid(b)
 	if to == domain.StatusDeclined {
-		a = domain.RequestExpired(booking(r))
+		a = domain.RequestExpired(b)
+		if err := s.queueStayEmail(ctx, accountID, b, domain.EmailDeclined, "", now); err != nil {
+			return err
+		}
 	}
 	return s.addActivity(ctx, accountID, a, nil, now)
 }

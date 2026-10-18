@@ -124,6 +124,9 @@ type Store interface {
 	// RestoreUser undoes a deletion that hasn't become final, so signing in again brings the
 	// person and their accounts back.
 	RestoreUser(ctx context.Context, userID uuid.UUID, now time.Time) (bool, error)
+	// NoteSignIn emails the person about a sign-in on a device they haven't used before. It
+	// runs before the new session is stored.
+	NoteSignIn(ctx context.Context, userID uuid.UUID, deviceName string, now time.Time) error
 
 	CreateSession(ctx context.Context, s Session, now time.Time) error
 	SessionForUpdate(ctx context.Context, id uuid.UUID) (Session, error)

@@ -321,7 +321,7 @@ func (im importer) cancel(ctx context.Context, id uuid.UUID) error {
 	}
 	now := im.now
 	b.CancelReason, b.CancelledAt = cancelledFromFeed, &now
-	if err := im.s.moveTo(ctx, im.feed.AccountID, &b, domain.StatusCancelled, nil, cancelledFromFeed); err != nil {
+	if err := im.s.moveTo(ctx, im.feed.AccountID, &b, domain.StatusCancelled, nil, cancelledFromFeed, im.now); err != nil {
 		return err
 	}
 	if err := im.s.saveBooking(ctx, im.feed.AccountID, b); err != nil {

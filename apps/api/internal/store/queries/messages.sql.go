@@ -295,17 +295,20 @@ func (q *Queries) SummaryCounts(ctx context.Context, arg SummaryCountsParams) (S
 }
 
 const updateTemplate = `-- name: UpdateTemplate :one
-UPDATE message_templates SET body = $1, channels = $2 WHERE id = $3 AND account_id = $4
+UPDATE message_templates SET body = coalesce($1::text, body),
+                             channels = coalesce($2::text[], channels)
+WHERE id = $3 AND account_id = $4
 RETURNING id, account_id, key, name, channels, timing, body, created_at, updated_at
 `
 
 type UpdateTemplateParams struct {
-	Body      string
+	Body      *string
 	Channels  []string
 	ID        uuid.UUID
 	AccountID uuid.UUID
 }
 
+// Null leaves a field as it is.
 func (q *Queries) UpdateTemplate(ctx context.Context, arg UpdateTemplateParams) (MessageTemplate, error) {
 	row := q.db.QueryRow(ctx, updateTemplate,
 		arg.Body,

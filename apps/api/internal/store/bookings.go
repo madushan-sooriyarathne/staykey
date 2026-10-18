@@ -86,6 +86,11 @@ func (s *Postgres) CreateBooking(ctx context.Context, t tenant.Tenant, in domain
 		if err := s.addActivity(ctx, t.AccountID, domain.BookingAdded(added, actor), &t.UserID, now); err != nil {
 			return err
 		}
+		if added.Status == domain.StatusConfirmed {
+			if err := s.queueStayEmail(ctx, t.AccountID, added, domain.EmailConfirmed, "", now); err != nil {
+				return err
+			}
+		}
 		if p := in.FirstPayment; p != nil {
 			p.Kind, p.ReceivedAt = "payment", now
 			return s.addPayment(ctx, t, id, in.Currency, *p)
@@ -214,7 +219,7 @@ func (s *Postgres) TransitionBooking(ctx context.Context, t tenant.Tenant, id uu
 			}
 		}
 		from := b.Status
-		if err := s.moveTo(ctx, t.AccountID, b, to, &t.UserID, reason); err != nil {
+		if err := s.moveTo(ctx, t.AccountID, b, to, &t.UserID, reason, now); err != nil {
 			return err
 		}
 		if from != domain.StatusRequested {
@@ -249,7 +254,7 @@ func (s *Postgres) CancelBooking(ctx context.Context, t tenant.Tenant, id uuid.U
 			}
 		}
 		b.CancelReason, b.CancelledAt = reason, &now
-		if err := s.moveTo(ctx, t.AccountID, b, domain.StatusCancelled, &t.UserID, reason); err != nil {
+		if err := s.moveTo(ctx, t.AccountID, b, domain.StatusCancelled, &t.UserID, reason, now); err != nil {
 			return err
 		}
 		actor, err := s.userName(ctx, t.UserID)
@@ -287,7 +292,7 @@ func (s *Postgres) RecordPayment(ctx context.Context, t tenant.Tenant, id uuid.U
 			return nil
 		}
 		b.PaymentDueAt = nil
-		return s.moveTo(ctx, t.AccountID, b, domain.StatusConfirmed, &t.UserID, "paid")
+		return s.moveTo(ctx, t.AccountID, b, domain.StatusConfirmed, &t.UserID, "paid", p.ReceivedAt)
 	})
 }
 
@@ -349,9 +354,10 @@ func (s *Postgres) changeBooking(ctx context.Context, t tenant.Tenant, id uuid.U
 	return s.GetBooking(ctx, t, id)
 }
 
-// moveTo sets a stay's status, records the event and frees its nights when it stops holding
-// them. The caller saves the booking row.
-func (s *Postgres) moveTo(ctx context.Context, accountID uuid.UUID, b *domain.Booking, to domain.BookingStatus, actor *uuid.UUID, reason string) error {
+// moveTo sets a stay's status, records the event, frees its nights when it stops holding them,
+// and queues the guest's email for a confirmation, an approved or declined request. The caller
+// saves the booking row.
+func (s *Postgres) moveTo(ctx context.Context, accountID uuid.UUID, b *domain.Booking, to domain.BookingStatus, actor *uuid.UUID, reason string, now time.Time) error {
 	from := b.Status
 	b.Status = to
 	if to != domain.StatusRequested {
@@ -362,7 +368,19 @@ func (s *Postgres) moveTo(ctx context.Context, accountID uuid.UUID, b *domain.Bo
 			return fmt.Errorf("release nights: %w", err)
 		}
 	}
-	return s.addEvent(ctx, accountID, b.ID, from, to, actor, reason)
+	if err := s.addEvent(ctx, accountID, b.ID, from, to, actor, reason); err != nil {
+		return err
+	}
+	switch {
+	case to == domain.StatusConfirmed && from != domain.StatusConfirmed:
+		return s.queueStayEmail(ctx, accountID, *b, domain.EmailConfirmed, "", now)
+	case to == domain.StatusDeclined && from == domain.StatusRequested:
+		return s.queueStayEmail(ctx, accountID, *b, domain.EmailDeclined, "", now)
+	case to == domain.StatusAwaitingPayment && from == domain.StatusRequested:
+		// An approved request waiting for payment gets the booking email again, now with how to pay.
+		return s.queueStayEmail(ctx, accountID, *b, domain.EmailReceived, string(to), now)
+	}
+	return nil
 }
 
 func (s *Postgres) saveBooking(ctx context.Context, accountID uuid.UUID, b domain.Booking) error {
