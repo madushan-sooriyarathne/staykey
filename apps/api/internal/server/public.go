@@ -3,9 +3,6 @@ package server
 import (
 	"cmp"
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -251,11 +248,11 @@ func (s *Server) CreateGuestBooking(ctx context.Context, req oapi.CreateGuestBoo
 	}
 
 	out, err := idempotent(ctx, s, systemTenant(p.AccountID), p.ID, req.Params.IdempotencyKey, http.StatusCreated, b, func(ctx context.Context) (oapi.GuestBookingCreated, error) {
-		token, hash, err := newBookingToken()
+		token, hash, err := domain.NewGuestToken()
 		if err != nil {
 			return oapi.GuestBookingCreated{}, err
 		}
-		nb.GuestTokenHash = hash
+		nb.GuestToken, nb.GuestTokenHash = token, hash
 		id, err := s.store.CreateGuestBooking(ctx, p.AccountID, nb, now)
 		if err != nil {
 			return oapi.GuestBookingCreated{}, err
@@ -318,7 +315,7 @@ func (s *Server) AddGuestSlip(ctx context.Context, req oapi.AddGuestSlipRequestO
 	if b.Amount < 1 {
 		return nil, apiErr(&domain.ValidationError{Field: "amount", Message: "must be more than zero"}, "")
 	}
-	hash := bookingTokenHash(req.Params.XBookingToken)
+	hash := domain.GuestTokenHash(req.Params.XBookingToken)
 	if err := s.store.AddGuestSlip(ctx, req.BookingId, hash, b.Key, b.Amount, time.Now()); err != nil {
 		return nil, guestErr(err)
 	}
@@ -399,7 +396,7 @@ func (s *Server) publicProperty(ctx context.Context, slug string) (domain.Proper
 
 // guestBooking loads the guest's booking by its token, with its property.
 func (s *Server) guestBooking(ctx context.Context, id uuid.UUID, token string) (domain.GuestBooking, domain.PropertyDetail, error) {
-	gb, err := s.store.GuestBooking(ctx, id, bookingTokenHash(token))
+	gb, err := s.store.GuestBooking(ctx, id, domain.GuestTokenHash(token))
 	if errors.Is(err, domain.ErrNotFound) {
 		return domain.GuestBooking{}, domain.PropertyDetail{}, errNoStay
 	}
@@ -470,21 +467,6 @@ func (s *Server) pausedReason(ctx context.Context, p domain.PropertyDetail) (oap
 
 func takesSlips(s domain.BookingStatus) bool {
 	return s.Holds() && s != domain.StatusCheckedOut
-}
-
-// newBookingToken returns a guest's booking token and the hash stored for it.
-func newBookingToken() (string, []byte, error) {
-	b := make([]byte, 24)
-	if _, err := rand.Read(b); err != nil {
-		return "", nil, fmt.Errorf("booking token: %w", err)
-	}
-	token := base64.RawURLEncoding.EncodeToString(b)
-	return token, bookingTokenHash(token), nil
-}
-
-func bookingTokenHash(token string) []byte {
-	h := sha256.Sum256([]byte(token))
-	return h[:]
 }
 
 func nonNil[T any](s []T) []T {

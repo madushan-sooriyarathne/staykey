@@ -14,6 +14,7 @@ import (
 
 	"staykey.direct/api/internal/auth"
 	"staykey.direct/api/internal/domain"
+	"staykey.direct/api/internal/email"
 	"staykey.direct/api/internal/notify"
 	"staykey.direct/api/internal/store"
 	"staykey.direct/api/internal/store/storetest"
@@ -156,5 +157,67 @@ func TestSummaryText(t *testing.T) {
 		if got := SummaryText(tt.sum); got != tt.want {
 			t.Errorf("SummaryText(%+v) = %q, want %q", tt.sum, got, tt.want)
 		}
+	}
+}
+
+// mailbox is an email sender that keeps what it is given.
+type mailbox struct {
+	mu   sync.Mutex
+	sent []email.Message
+}
+
+func (m *mailbox) Send(_ context.Context, msg email.Message) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sent = append(m.sent, msg)
+	return "msg-1", nil
+}
+
+// caretakerWantsEmail turns email on for the caretaker's booking alerts and gives them an
+// email, confirmed or not.
+func (tm team) caretakerWantsEmail(t *testing.T, confirmed bool) {
+	t.Helper()
+	ctx := context.Background()
+	address := "kamal@example.com"
+	if _, err := tm.st.UpdateUser(ctx, tm.caretaker.UserID, domain.UserPatch{Email: &address}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if confirmed {
+		if _, err := tm.st.Pool().Exec(ctx, "UPDATE users SET email_confirmed_at = now() WHERE id = $1", tm.caretaker.UserID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := tm.st.SetNotificationPrefs(ctx, tm.caretaker, []domain.NotificationPref{{Event: domain.EventBooking, Push: true, Email: true}}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAConfirmedTeamMemberGetsTheAlertByEmail(t *testing.T) {
+	tm := newTeam(t)
+	expo, box := &expoStub{}, &mailbox{}
+	a := alertsFor(expo.server(t))
+	a.Email = box
+	tm.caretakerWantsEmail(t, true)
+	tm.book(t, time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC))
+	if err := SendAlerts(context.Background(), tm.st, a, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if len(box.sent) != 1 || box.sent[0].To != "kamal@example.com" {
+		t.Errorf("emails = %+v, want one to the caretaker", box.sent)
+	}
+}
+
+func TestAnUnconfirmedTeamMemberGetsNoAlertEmail(t *testing.T) {
+	tm := newTeam(t)
+	expo, box := &expoStub{}, &mailbox{}
+	a := alertsFor(expo.server(t))
+	a.Email = box
+	tm.caretakerWantsEmail(t, false)
+	tm.book(t, time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC))
+	if err := SendAlerts(context.Background(), tm.st, a, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if len(box.sent) != 0 {
+		t.Errorf("emails = %+v, want none", box.sent)
 	}
 }
