@@ -9,12 +9,12 @@ ON CONFLICT (account_id, key) DO NOTHING;
 SELECT * FROM message_templates WHERE account_id = @account_id
 ORDER BY array_position(ARRAY['confirmed', 'reminder', 'prearrival', 'thanks'], key);
 
--- name: UpdateTemplateBody :one
-UPDATE message_templates SET body = @body WHERE id = @id AND account_id = @account_id
+-- name: UpdateTemplate :one
+UPDATE message_templates SET body = @body, channels = @channels WHERE id = @id AND account_id = @account_id
 RETURNING *;
 
 -- name: ListNotificationPrefs :many
-SELECT event, push, whatsapp FROM notification_prefs
+SELECT event, push, whatsapp, email FROM notification_prefs
 WHERE account_id = @account_id AND user_id = @user_id
 ORDER BY array_position(ARRAY['booking', 'request', 'payment', 'cancellation', 'sync', 'summary'], event);
 
@@ -24,9 +24,10 @@ VALUES (@id, @account_id, @user_id, @event, @push, @whatsapp)
 ON CONFLICT (user_id, account_id, event) DO NOTHING;
 
 -- name: SetNotificationPref :exec
-INSERT INTO notification_prefs (id, account_id, user_id, event, push, whatsapp)
-VALUES (@id, @account_id, @user_id, @event, @push, @whatsapp)
-ON CONFLICT (user_id, account_id, event) DO UPDATE SET push = excluded.push, whatsapp = excluded.whatsapp;
+INSERT INTO notification_prefs (id, account_id, user_id, event, push, whatsapp, email)
+VALUES (@id, @account_id, @user_id, @event, @push, @whatsapp, @email)
+ON CONFLICT (user_id, account_id, event) DO UPDATE SET push = excluded.push, whatsapp = excluded.whatsapp,
+                                                       email = excluded.email;
 
 -- A token moves to whoever signs in on that device last.
 -- name: UpsertPushToken :exec
@@ -39,6 +40,7 @@ ON CONFLICT (token) DO UPDATE SET user_id = excluded.user_id, session_id = exclu
 -- first property's), and not yet sent today there.
 -- name: DueSummaries :many
 SELECT p.account_id, a.name AS account_name, p.user_id, m.id AS membership_id, m.role, u.phone, p.push, p.whatsapp,
+       p.email AND u.email_confirmed_at IS NOT NULL AS email, coalesce(u.email, '')::text AS email_address,
        l.local_now::date AS local_day,
        coalesce((SELECT array_agg(mp.property_id ORDER BY mp.property_id) FROM membership_properties mp
                  WHERE mp.membership_id = m.id), '{}')::uuid[] AS property_ids
@@ -51,7 +53,7 @@ CROSS JOIN LATERAL (
                               ORDER BY pr.created_at, pr.id LIMIT 1), 'Asia/Colombo'),
                     sqlc.arg('now')::timestamptz) AS local_now
 ) l
-WHERE p.event = 'summary' AND (p.push OR p.whatsapp)
+WHERE p.event = 'summary' AND (p.push OR p.whatsapp OR (p.email AND u.email_confirmed_at IS NOT NULL))
   AND l.local_now::time >= '07:00' AND l.local_now::time < '11:00'
   AND (p.last_sent_on IS NULL OR p.last_sent_on < l.local_now::date)
 ORDER BY p.account_id, p.user_id;
