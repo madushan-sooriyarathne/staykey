@@ -161,6 +161,9 @@ func TestStillWanted(t *testing.T) {
 		{"pre-arrival after the stay moved", EmailPrearrival, unpaid, "2026-10-21", false},
 		{"thank-you for a cancelled stay", EmailThanks, EmailStay{Status: StatusCancelled, CheckOut: date(2026, 10, 25)}, "2026-10-25", false},
 		{"confirmed for a cancelled stay", EmailConfirmed, EmailStay{Status: StatusCancelled}, "", false},
+		{"confirmed for an unpaid stay", EmailConfirmed, unpaid, "", false},
+		{"confirmed for a stay that ended", EmailConfirmed, EmailStay{Status: StatusConfirmed, CheckOut: date(2026, 10, 19)}, "", false},
+		{"confirmed for a stay ahead", EmailConfirmed, EmailStay{Status: StatusConfirmed, CheckOut: date(2026, 10, 25)}, "", true},
 		{"declined for a declined request", EmailDeclined, EmailStay{Status: StatusDeclined}, "", true},
 	}
 	for _, tt := range tests {

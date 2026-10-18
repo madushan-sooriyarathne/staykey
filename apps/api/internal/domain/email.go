@@ -372,7 +372,9 @@ func StillWanted(kind EmailKind, s EmailStay, on string, now time.Time) bool {
 		}
 		return s.Status != StatusCancelled && s.Status != StatusDeclined
 	case EmailConfirmed:
-		return s.Status == StatusConfirmed || s.Status == StatusCheckedIn
+		// An owner entering a stay that already ended, say when moving their bookings over,
+		// doesn't email its guest.
+		return (s.Status == StatusConfirmed || s.Status == StatusCheckedIn) && s.CheckOut.After(now)
 	case EmailDeclined:
 		return s.Status == StatusDeclined
 	case EmailReminder:
