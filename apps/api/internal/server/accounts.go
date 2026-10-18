@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"staykey.direct/api/internal/domain"
+	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/oapi"
 )
 
@@ -27,7 +28,7 @@ func (s *Server) GetMe(ctx context.Context, _ oapi.GetMeRequestObject) (oapi.Get
 	if err != nil {
 		return nil, err
 	}
-	return oapi.GetMe200JSONResponse{User: userToAPI(u), Accounts: accountsToAPI(accounts)}, nil
+	return oapi.GetMe200JSONResponse{User: s.userToAPI(ctx, u), Accounts: accountsToAPI(accounts)}, nil
 }
 
 // UpdateMe changes the signed-in user's name, email or language.
@@ -53,11 +54,30 @@ func (s *Server) UpdateMe(ctx context.Context, req oapi.UpdateMeRequestObject) (
 		}
 		return nil, err
 	}
+	if key := req.Body.PhotoKey; key != nil {
+		if *key != "" && !files.ValidAvatarKey(*key, p.UserID) {
+			return oapi.UpdateMe400JSONResponse{BadRequestJSONResponse: oapi.BadRequestJSONResponse(
+				fieldErr("invalid_photoKey", "photoKey", "Upload the photo through POST /v1/me/photo first."))}, nil
+		}
+		if *key != "" {
+			ok, err := s.files.Exists(ctx, *key)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return oapi.UpdateMe400JSONResponse{BadRequestJSONResponse: oapi.BadRequestJSONResponse(
+					fieldErr("photo_not_uploaded", "photoKey", "The photo hasn't finished uploading. Try again."))}, nil
+			}
+		}
+		if err := s.store.SetUserPhoto(ctx, p.UserID, *key); err != nil {
+			return nil, err
+		}
+	}
 	u, err := s.store.UpdateUser(ctx, p.UserID, patch)
 	if err != nil {
 		return nil, err
 	}
-	return oapi.UpdateMe200JSONResponse(userToAPI(u)), nil
+	return oapi.UpdateMe200JSONResponse(s.userToAPI(ctx, u)), nil
 }
 
 // ListAccounts returns the accounts the signed-in user belongs to.
@@ -98,8 +118,8 @@ func (s *Server) CreateAccount(ctx context.Context, req oapi.CreateAccountReques
 	return oapi.CreateAccount201JSONResponse(accountToAPI(a)), nil
 }
 
-func userToAPI(u domain.User) oapi.User {
-	return oapi.User{
+func (s *Server) userToAPI(ctx context.Context, u domain.User) oapi.User {
+	out := oapi.User{
 		Id:        u.ID,
 		Phone:     u.Phone,
 		Name:      u.Name,
@@ -107,6 +127,11 @@ func userToAPI(u domain.User) oapi.User {
 		Language:  oapi.Language(u.Language),
 		CreatedAt: u.CreatedAt,
 	}
+	if u.PhotoKey != "" {
+		url := s.files.URL(ctx, u.PhotoKey)
+		out.PhotoUrl = &url
+	}
+	return out
 }
 
 func accountToAPI(a domain.AccountMembership) oapi.Account {

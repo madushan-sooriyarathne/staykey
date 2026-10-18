@@ -161,6 +161,9 @@ func (s *Service) VerifyCode(ctx context.Context, phone, code, deviceName string
 		if err != nil {
 			return err
 		}
+		if _, err := s.store.RestoreUser(ctx, user.ID, now); err != nil {
+			return err
+		}
 		tokens, err := s.openSession(ctx, user.ID, deviceName, now)
 		if err != nil {
 			return err

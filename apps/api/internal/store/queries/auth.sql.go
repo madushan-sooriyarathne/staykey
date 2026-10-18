@@ -273,6 +273,22 @@ func (q *Queries) RevokeSession(ctx context.Context, arg RevokeSessionParams) er
 	return err
 }
 
+const revokeUserSessions = `-- name: RevokeUserSessions :exec
+UPDATE sessions SET revoked_at = $1::timestamptz, revoked_reason = $2::text
+WHERE user_id = $3 AND revoked_at IS NULL
+`
+
+type RevokeUserSessionsParams struct {
+	Now    time.Time
+	Reason string
+	UserID uuid.UUID
+}
+
+func (q *Queries) RevokeUserSessions(ctx context.Context, arg RevokeUserSessionsParams) error {
+	_, err := q.db.Exec(ctx, revokeUserSessions, arg.Now, arg.Reason, arg.UserID)
+	return err
+}
+
 const rotateSession = `-- name: RotateSession :exec
 UPDATE sessions
 SET previous_refresh_hash = refresh_hash,

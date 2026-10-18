@@ -31,8 +31,6 @@ type SessionState = {
   propertyName: string;
   slug: string;
   bookingPageUrl: string;
-  /** The profile photo, kept on this phone only. */
-  photoUri: string;
   setup: Setup;
   /** Set when the persisted state has loaded, so the router doesn't flash the wrong stack. */
   hydrated: boolean;
@@ -53,7 +51,6 @@ type SessionState = {
   signedOut: () => void;
   /** Prototype only: preview the app as another role. */
   setRole: (role: Role) => void;
-  setPhoto: (uri: string) => void;
   reset: () => void;
 };
 
@@ -66,7 +63,6 @@ const initial = {
   propertyName: "",
   slug: "",
   bookingPageUrl: "",
-  photoUri: "",
   setup: { units: 1, currency: "USD", nightlyRate: 0, photoCount: 0, otas: [] } as Setup,
 };
 
@@ -81,18 +77,19 @@ export const useSession = create<SessionState>()(
       setAccount: (accountId, role) => set({ accountId, role }),
       signedOut: () => set({ onboarded: false }),
       setRole: (role) => set({ role }),
-      setPhoto: (photoUri) => set({ photoUri }),
       reset: () => set({ ...initial }),
     }),
     {
       name: "staykey.session",
       storage: persistentStorage,
-      // Version 2 dropped the plan kept on the phone; the server holds it now.
-      version: 2,
+      // Version 2 dropped the plan kept on the phone and version 3 the photo; the server holds
+      // both now.
+      version: 3,
       migrate: (persisted) => {
         const {
           subscription: _s,
           startedAt: _t,
+          photoUri: _p,
           ...rest
         } = (persisted ?? {}) as Record<string, unknown>;
         return rest;

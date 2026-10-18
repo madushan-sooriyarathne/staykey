@@ -17,3 +17,18 @@ UPDATE users SET
     language = coalesce(sqlc.narg('language')::text, language)
 WHERE id = @id
 RETURNING *;
+
+-- name: MarkUserDeleted :exec
+UPDATE users SET deleted_at = @now::timestamptz WHERE id = @id;
+
+-- name: RestoreUser :execrows
+UPDATE users SET deleted_at = NULL WHERE id = @id AND deleted_at IS NOT NULL;
+
+-- name: UsersDeletedBefore :many
+SELECT id FROM users WHERE deleted_at < @before::timestamptz ORDER BY id;
+
+-- name: DeleteUser :exec
+DELETE FROM users WHERE id = @id;
+
+-- name: SetUserPhoto :exec
+UPDATE users SET photo_key = sqlc.narg('photo_key') WHERE id = @id;

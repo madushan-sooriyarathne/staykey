@@ -57,7 +57,8 @@ UPDATE activity SET notified_at = NULL WHERE id = ANY (@ids::uuid[]);
 -- name: ActivityRecipients :many
 SELECT m.user_id, m.role, u.phone, p.push, p.whatsapp
 FROM memberships m
-JOIN users u ON u.id = m.user_id
+JOIN accounts a ON a.id = m.account_id AND a.status <> 'closed'
+JOIN users u ON u.id = m.user_id AND u.deleted_at IS NULL
 JOIN notification_prefs p ON p.account_id = m.account_id AND p.user_id = m.user_id AND p.event = @event
 WHERE m.account_id = @account_id AND m.status = 'active'
   AND (p.push OR p.whatsapp)
