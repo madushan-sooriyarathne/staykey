@@ -19,6 +19,7 @@ import { requestCode, useDevCode, verifyCode } from "@/lib/auth";
 import { haptics } from "@/lib/haptics";
 import { COUNTRIES, type Country, useOnboarding } from "../store";
 import type { StepProps } from "../types";
+import { isOptionalEmail } from "../validate";
 
 /** Groups digits for display: Sri Lankan mobiles as 77 456 7890, others in threes. */
 export function formatPhone(country: Country, digits: string): string {
@@ -283,6 +284,7 @@ function formatSeconds(total: number): string {
 export function NameStep() {
   const { draft, update } = useOnboarding();
   const last = useRef<TextInput>(null);
+  const mail = useRef<TextInput>(null);
   return (
     <View style={{ gap: 14 }}>
       <Field
@@ -303,9 +305,26 @@ export function NameStep() {
         autoCapitalize="words"
         textContentType="familyName"
         autoComplete="family-name"
+        returnKeyType="next"
         value={draft.lastName}
         onChangeText={(lastName) => update({ lastName })}
+        onSubmitEditing={() => mail.current?.focus()}
       />
+      <Field
+        ref={mail}
+        testID="owner-email"
+        label="Email for booking updates"
+        placeholder="Optional"
+        keyboardType="email-address"
+        textContentType="emailAddress"
+        autoComplete="email"
+        autoCapitalize="none"
+        autoCorrect={false}
+        value={draft.email}
+        onChangeText={(email) => update({ email })}
+        error={isOptionalEmail(draft.email) ? null : "Check the email address."}
+      />
+      <Text style={c.muted}>We'll send a link to confirm it. You can add it later in Profile.</Text>
     </View>
   );
 }

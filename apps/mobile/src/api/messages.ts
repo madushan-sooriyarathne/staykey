@@ -1,4 +1,4 @@
-import type { NotificationPref, Template } from "@staykey/api-client";
+import type { NotificationPref, Template, TemplatePatch } from "@staykey/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/session";
 import { api } from "./client";
@@ -32,11 +32,11 @@ export function useUpdateTemplate() {
   const client = useQueryClient();
   const accountId = useSession((s) => s.accountId);
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: string }) =>
+    mutationFn: ({ id, ...patch }: { id: string } & TemplatePatch) =>
       unwrap(
         api.PATCH("/v1/templates/{templateId}", {
           params: { path: { templateId: id } },
-          body: { body },
+          body: patch,
         }),
       ),
     onSuccess: (saved) =>

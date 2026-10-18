@@ -380,15 +380,18 @@ export function BrandSwitch({
   value,
   onChange,
   label,
+  disabled,
 }: {
   value: boolean;
   onChange: (v: boolean) => void;
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <Switch
       accessibilityLabel={label}
       value={value}
+      disabled={disabled}
       onValueChange={(v) => {
         haptics.select();
         onChange(v);

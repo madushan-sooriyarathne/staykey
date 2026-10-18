@@ -6,7 +6,7 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
 import { useRenameAccount } from "@/api/accounts";
 import { messageFor } from "@/api/errors";
-import { useDeleteMe, useMe, useUpdateMe } from "@/api/me";
+import { useDeleteMe, useMe, useResendEmailConfirmation, useUpdateMe } from "@/api/me";
 import { uploadAvatar } from "@/api/uploads";
 import { Tag } from "@/components/brand";
 import { Button, Field, InfoNote, TextLink } from "@/components/controls";
@@ -21,7 +21,8 @@ import { useSession } from "@/lib/session";
 
 /**
  * Name, photo, phone, email and language from the API; for owners, the account's name and a copy
- * of its data; sign out and in-app deletion.
+ * of its data; sign out and in-app deletion. A new email gets a confirmation link, and nothing
+ * else is sent to it until it is confirmed.
  */
 export default function Profile() {
   const me = useMe().data;
@@ -29,6 +30,9 @@ export default function Profile() {
   const update = useUpdateMe();
   const rename = useRenameAccount();
   const deleteMe = useDeleteMe();
+  const resend = useResendEmailConfirmation();
+  // The address a confirmation link was just sent to, after saving a new email or resending.
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const resetSession = useSession((s) => s.reset);
   const ownerName = useSession((s) => s.ownerName);
   const accountId = useSession((s) => s.accountId);
@@ -70,14 +74,32 @@ export default function Profile() {
       if (owner && accountName.trim() !== saved.accountName) {
         await rename.mutateAsync(accountName.trim());
       }
-      await update.mutateAsync({ name: name.trim(), email: mail.trim(), language, photoKey });
+      const email = mail.trim();
+      await update.mutateAsync({ name: name.trim(), email, language, photoKey });
       haptics.success();
+      if (email && email !== saved.email) {
+        // Stay, so the person sees where the confirmation link went.
+        setEdits({});
+        setPicked(null);
+        setSentTo(email);
+        return;
+      }
       router.back();
     } catch (e) {
       haptics.error();
       setError(messageFor(e));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function sendAgain() {
+    setError(null);
+    try {
+      await resend.mutateAsync();
+      setSentTo(saved.email);
+    } catch (e) {
+      setError(messageFor(e));
     }
   }
 
@@ -165,7 +187,27 @@ export default function Profile() {
         placeholder="you@example.com"
         keyboardType="email-address"
         autoCapitalize="none"
+        suffix={
+          saved.email && mail === saved.email ? (
+            user?.emailConfirmed ? (
+              <Tag tone="soft" label="Confirmed" />
+            ) : (
+              <Tag tone="ember" label="Not confirmed" />
+            )
+          ) : null
+        }
+        testID="profile-email"
       />
+      {sentTo && sentTo === saved.email && !user?.emailConfirmed ? (
+        <InfoNote icon={I.mail} testID="profile-email-sent">
+          We sent a confirmation link to {sentTo}. Open it to start getting StayKey emails there.
+        </InfoNote>
+      ) : saved.email && mail === saved.email && user && !user.emailConfirmed ? (
+        <View style={s.unconfirmed}>
+          <Text style={[ui.muted, { flex: 1 }]}>Not confirmed yet. Check your inbox.</Text>
+          <TextLink title="Send again" onPress={sendAgain} testID="profile-email-resend" />
+        </View>
+      ) : null}
       {owner ? (
         <Field
           label="Account name"
@@ -252,5 +294,6 @@ export default function Profile() {
 const s = StyleSheet.create({
   head: { alignItems: "center", gap: 8, paddingVertical: 8 },
   photo: { width: 80, height: 80, borderRadius: 40 },
+  unconfirmed: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: -4 },
   label: { fontFamily: font.regular, fontSize: 13, color: colors.steel },
 });
