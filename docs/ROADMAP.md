@@ -62,7 +62,7 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [ ] Invite links as universal links and Android app links: the association files, `app.json` and the link rewrite are in; checking on a device waits for `staykey.direct` and a development build (needs `STAYKEY_APPLE_TEAM_ID` and `STAYKEY_ANDROID_CERT_SHA256`)
 - [x] **Gate:** an owner renames the account, changes their photo and sees it from another session, and deletes a test account with nothing of it left in the database or the files after the 30 days (checked locally with the clock moved on)
 
-### Phase 8 Email through AWS SES (next)
+### Phase 8 Email through AWS SES (next, see `docs/phase-8-plan.md`)
 
 - [ ] SES sender in `internal/notify`, with the sending domain verified (SPF, DKIM, DMARC) and out of the SES sandbox
 - [ ] Bounces and complaints from SES (through SNS) stop sending to that address
