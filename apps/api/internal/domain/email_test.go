@@ -45,7 +45,7 @@ func TestComposedEmailsHaveNoEmDash(t *testing.T) {
 	for _, kind := range EmailKinds {
 		t.Run(string(kind), func(t *testing.T) {
 			subject, text := ComposeEmail(kind, sampleValues())
-			if strings.ContainsRune(subject+text, '—') {
+			if strings.ContainsRune(subject+text, '\u2014') {
 				t.Errorf("ComposeEmail(%s) contains an em dash", kind)
 			}
 		})
