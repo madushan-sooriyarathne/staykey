@@ -16,7 +16,7 @@ import (
 
 var mailDay = time.Date(2026, 10, 10, 6, 0, 0, 0, time.UTC)
 
-const guestAddress = "emma@example.com"
+const guestAddress = "emma@staykey.direct"
 
 var emma = domain.Guest{Name: "Emma Clarke", Email: guestAddress}
 
@@ -265,7 +265,7 @@ func TestATemplateWithEmailOffIsSkipped(t *testing.T) {
 func TestASuppressedAddressIsNotSent(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
-	if err := h.s.RecordSuppression(context.Background(), "Emma@Example.com", "bounce"); err != nil {
+	if err := h.s.RecordSuppression(context.Background(), "Emma@StayKey.direct", "bounce"); err != nil {
 		t.Fatal(err)
 	}
 	h.pageStay(t, emma, "2026-10-20", "2026-10-22", mailDay.Add(48*time.Hour))
@@ -279,8 +279,8 @@ func TestASuppressedAddressLosesItsConfirmation(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
 	ctx := context.Background()
-	h.confirmedOwner(t, "owner@example.com")
-	if err := h.s.RecordSuppression(ctx, "owner@example.com", "complaint"); err != nil {
+	h.confirmedOwner(t, "owner@staykey.direct")
+	if err := h.s.RecordSuppression(ctx, "owner@staykey.direct", "complaint"); err != nil {
 		t.Fatal(err)
 	}
 	if u, err := h.s.GetUser(ctx, h.t.UserID); err != nil || u.EmailConfirmed {
@@ -318,8 +318,8 @@ func TestAFailedSendIsTriedThreeTimes(t *testing.T) {
 func TestTheFirstEmailGetsTheWelcome(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
-	h.setEmail(t, h.t.UserID, "owner@example.com")
-	if got := kinds(h.mail(t)); got != "welcome to owner@example.com" {
+	h.setEmail(t, h.t.UserID, "owner@staykey.direct")
+	if got := kinds(h.mail(t)); got != "welcome to owner@staykey.direct" {
 		t.Errorf("emails = %s, want the welcome", got)
 	}
 }
@@ -327,9 +327,9 @@ func TestTheFirstEmailGetsTheWelcome(t *testing.T) {
 func TestAChangedEmailIsConfirmedAndTheOldOneTold(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
-	h.confirmedOwner(t, "old@example.com")
-	h.setEmail(t, h.t.UserID, "new@example.com")
-	want := "welcome to old@example.com, email_changed to old@example.com, confirm_email to new@example.com"
+	h.confirmedOwner(t, "old@staykey.direct")
+	h.setEmail(t, h.t.UserID, "new@staykey.direct")
+	want := "welcome to old@staykey.direct, email_changed to old@staykey.direct, confirm_email to new@staykey.direct"
 	if got := kinds(h.mail(t)); got != want {
 		t.Errorf("emails = %s, want %s", got, want)
 	}
@@ -338,8 +338,8 @@ func TestAChangedEmailIsConfirmedAndTheOldOneTold(t *testing.T) {
 func TestAChangedEmailIsNoLongerConfirmed(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
-	h.confirmedOwner(t, "old@example.com")
-	h.setEmail(t, h.t.UserID, "new@example.com")
+	h.confirmedOwner(t, "old@staykey.direct")
+	h.setEmail(t, h.t.UserID, "new@staykey.direct")
 	if u, err := h.s.GetUser(context.Background(), h.t.UserID); err != nil || u.EmailConfirmed {
 		t.Errorf("confirmed = %v (err %v), want false", u.EmailConfirmed, err)
 	}
@@ -361,7 +361,7 @@ func TestTheConfirmationLinkConfirmsTheEmail(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
 	ctx := context.Background()
-	h.setEmail(t, h.t.UserID, "owner@example.com")
+	h.setEmail(t, h.t.UserID, "owner@staykey.direct")
 	if _, err := h.s.ConfirmEmail(ctx, h.confirmationToken(t), mailDay); err != nil {
 		t.Fatal(err)
 	}
@@ -374,7 +374,7 @@ func TestAUsedConfirmationTokenIsRefused(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
 	ctx := context.Background()
-	h.setEmail(t, h.t.UserID, "owner@example.com")
+	h.setEmail(t, h.t.UserID, "owner@staykey.direct")
 	token := h.confirmationToken(t)
 	if _, err := h.s.ConfirmEmail(ctx, token, mailDay); err != nil {
 		t.Fatal(err)
@@ -387,7 +387,7 @@ func TestAUsedConfirmationTokenIsRefused(t *testing.T) {
 func TestAnExpiredConfirmationTokenIsRefused(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
-	h.setEmail(t, h.t.UserID, "owner@example.com")
+	h.setEmail(t, h.t.UserID, "owner@staykey.direct")
 	token := h.confirmationToken(t)
 	if _, err := h.s.ConfirmEmail(context.Background(), token, mailDay.Add(8*24*time.Hour)); !errors.Is(err, domain.ErrNotFound) {
 		t.Errorf("use after 8 days = %v, want not found", err)
@@ -397,7 +397,7 @@ func TestAnExpiredConfirmationTokenIsRefused(t *testing.T) {
 func TestResendingAConfirmedEmailIsRefused(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
-	h.confirmedOwner(t, "owner@example.com")
+	h.confirmedOwner(t, "owner@staykey.direct")
 	if err := h.s.ResendConfirmation(context.Background(), h.t.UserID, mailDay); !errors.Is(err, domain.ErrEmailConfirmed) {
 		t.Errorf("resend = %v, want ErrEmailConfirmed", err)
 	}
@@ -420,7 +420,7 @@ func (h house) signInOn(t *testing.T, device string) {
 func TestTheFirstSignInSendsNoNotice(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
-	h.confirmedOwner(t, "owner@example.com")
+	h.confirmedOwner(t, "owner@staykey.direct")
 	h.signInOn(t, "Nimal's iPhone")
 	if got := h.mailOf(t, domain.EmailNewSignIn); len(got) != 0 {
 		t.Errorf("new sign-in emails = %d, want 0", len(got))
@@ -430,7 +430,7 @@ func TestTheFirstSignInSendsNoNotice(t *testing.T) {
 func TestASecondDeviceSendsANotice(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
-	h.confirmedOwner(t, "owner@example.com")
+	h.confirmedOwner(t, "owner@staykey.direct")
 	h.signInOn(t, "Nimal's iPhone")
 	h.signInOn(t, "Pixel 9")
 	if got := h.mailOf(t, domain.EmailNewSignIn); len(got) != 1 {
@@ -441,7 +441,7 @@ func TestASecondDeviceSendsANotice(t *testing.T) {
 func TestTheSameDeviceSendsNoNotice(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
-	h.confirmedOwner(t, "owner@example.com")
+	h.confirmedOwner(t, "owner@staykey.direct")
 	h.signInOn(t, "Nimal's iPhone")
 	h.signInOn(t, "Nimal's iPhone")
 	if got := h.mailOf(t, domain.EmailNewSignIn); len(got) != 0 {
@@ -452,7 +452,7 @@ func TestTheSameDeviceSendsNoNotice(t *testing.T) {
 func TestDeletingQueuesTheScheduledNotice(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
-	h.confirmedOwner(t, "owner@example.com")
+	h.confirmedOwner(t, "owner@staykey.direct")
 	if _, err := h.s.DeleteUser(context.Background(), h.t.UserID, mailDay); err != nil {
 		t.Fatal(err)
 	}
@@ -465,7 +465,7 @@ func TestRestoringQueuesTheRestoredNotice(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
 	ctx := context.Background()
-	h.confirmedOwner(t, "owner@example.com")
+	h.confirmedOwner(t, "owner@staykey.direct")
 	if _, err := h.s.DeleteUser(ctx, h.t.UserID, mailDay); err != nil {
 		t.Fatal(err)
 	}
@@ -481,14 +481,14 @@ func TestThePurgeEmailOutlivesThePerson(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
 	ctx := context.Background()
-	h.confirmedOwner(t, "owner@example.com")
+	h.confirmedOwner(t, "owner@staykey.direct")
 	if _, err := h.s.DeleteUser(ctx, h.t.UserID, mailDay); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := h.s.PurgeDeletedUsers(ctx, mailDay.AddDate(0, 0, 31)); err != nil {
 		t.Fatal(err)
 	}
-	if got := h.mailOf(t, domain.EmailDeletionCompleted); len(got) != 1 || got[0].to != "owner@example.com" || got[0].userID != nil {
+	if got := h.mailOf(t, domain.EmailDeletionCompleted); len(got) != 1 || got[0].to != "owner@staykey.direct" || got[0].userID != nil {
 		t.Errorf("completed emails = %+v, want one to the captured address", got)
 	}
 }
@@ -496,7 +496,7 @@ func TestThePurgeEmailOutlivesThePerson(t *testing.T) {
 func TestAPaidWebPeriodQueuesOneReceipt(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
-	h.confirmedOwner(t, "owner@example.com")
+	h.confirmedOwner(t, "owner@staykey.direct")
 	h.payWeb(context.Background(), t, "evt-1", mailDay)
 	if got := h.mailOf(t, domain.EmailPlanReceipt); len(got) != 1 {
 		t.Errorf("receipts = %d, want 1", len(got))
@@ -506,9 +506,18 @@ func TestAPaidWebPeriodQueuesOneReceipt(t *testing.T) {
 func TestAnUnconfirmedOwnerGetsNoReceipt(t *testing.T) {
 	t.Parallel()
 	h := newHouse(t)
-	h.setEmail(t, h.t.UserID, "owner@example.com")
+	h.setEmail(t, h.t.UserID, "owner@staykey.direct")
 	h.payWeb(context.Background(), t, "evt-1", mailDay)
 	if got := h.mailOf(t, domain.EmailPlanReceipt); len(got) != 0 {
 		t.Errorf("receipts = %d, want 0", len(got))
+	}
+}
+
+func TestAnExampleAddressIsNeverSent(t *testing.T) {
+	t.Parallel()
+	h := newHouse(t)
+	h.pageStay(t, domain.Guest{Name: "Sofia Rossi", Email: "sofia.rossi@example.com"}, "2026-10-20", "2026-10-22", mailDay.Add(48*time.Hour))
+	if sent := h.send(t, mailDay); len(sent) != 0 {
+		t.Errorf("sent %d emails to an example address, want none", len(sent))
 	}
 }

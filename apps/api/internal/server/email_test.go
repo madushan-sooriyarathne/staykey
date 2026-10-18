@@ -85,7 +85,7 @@ func TestAForgedSNSMessageIsRefused(t *testing.T) {
 	set, sg := withSNS(t)
 	e := newEnvWithOptions(t, set)
 	other, _ := rsa.GenerateKey(rand.Reader, 2048)
-	rec := e.do(call{method: http.MethodPost, path: "/webhooks/ses", raw: sg.bounce(t, "guest@example.com", other)})
+	rec := e.do(call{method: http.MethodPost, path: "/webhooks/ses", raw: sg.bounce(t, "guest@staykey.direct", other)})
 	e.expect(rec, http.StatusBadRequest)
 }
 
@@ -94,8 +94,8 @@ func TestAForgedSNSMessageSuppressesNothing(t *testing.T) {
 	set, sg := withSNS(t)
 	e := newEnvWithOptions(t, set)
 	other, _ := rsa.GenerateKey(rand.Reader, 2048)
-	e.do(call{method: http.MethodPost, path: "/webhooks/ses", raw: sg.bounce(t, "guest@example.com", other)})
-	if e.suppressed("guest@example.com") {
+	e.do(call{method: http.MethodPost, path: "/webhooks/ses", raw: sg.bounce(t, "guest@staykey.direct", other)})
+	if e.suppressed("guest@staykey.direct") {
 		t.Error("a forged bounce suppressed the address")
 	}
 }
@@ -104,9 +104,9 @@ func TestASignedBounceSuppressesTheAddress(t *testing.T) {
 	t.Parallel()
 	set, sg := withSNS(t)
 	e := newEnvWithOptions(t, set)
-	rec := e.do(call{method: http.MethodPost, path: "/webhooks/ses", raw: sg.bounce(t, "guest@example.com", sg.key)})
+	rec := e.do(call{method: http.MethodPost, path: "/webhooks/ses", raw: sg.bounce(t, "guest@staykey.direct", sg.key)})
 	e.expect(rec, http.StatusOK)
-	if !e.suppressed("guest@example.com") {
+	if !e.suppressed("guest@staykey.direct") {
 		t.Error("the bounced address isn't suppressed")
 	}
 }
@@ -141,7 +141,7 @@ func TestConfirmingThroughThePublicRouteConfirmsTheEmail(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	s, _ := e.signIn("+94776000001")
-	token := e.addEmail(s, "nimal@example.com")
+	token := e.addEmail(s, "nimal@staykey.direct")
 	e.expect(e.do(call{method: http.MethodPost, path: "/v1/public/email-confirmation", body: map[string]string{"token": token}}), http.StatusOK)
 	rec := e.do(call{method: http.MethodGet, path: "/v1/me", as: s})
 	e.expect(rec, http.StatusOK)
@@ -161,7 +161,7 @@ func TestResendingAConfirmedEmailIsAConflict(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	s, _ := e.signIn("+94776000002")
-	token := e.addEmail(s, "nimal@example.com")
+	token := e.addEmail(s, "nimal@staykey.direct")
 	e.do(call{method: http.MethodPost, path: "/v1/public/email-confirmation", body: map[string]string{"token": token}})
 	rec := e.do(call{method: http.MethodPost, path: "/v1/me/email-confirmation", as: s})
 	e.expect(rec, http.StatusConflict)
@@ -178,7 +178,7 @@ func TestResendingIsLimitedToThreeAnHour(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	s, _ := e.signIn("+94776000004")
-	e.addEmail(s, "nimal@example.com")
+	e.addEmail(s, "nimal@staykey.direct")
 	for range 3 {
 		e.expect(e.do(call{method: http.MethodPost, path: "/v1/me/email-confirmation", as: s}), http.StatusNoContent)
 	}

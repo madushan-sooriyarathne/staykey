@@ -19,6 +19,7 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
+	"staykey.direct/api/internal/domain"
 	"staykey.direct/api/internal/email"
 	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/ical"
@@ -192,7 +193,7 @@ func SendAlerts(ctx context.Context, st *store.Postgres, a Alerts, now time.Time
 // sendTeamEmail sends an alert or a summary to a team member. Like WhatsApp, a failure is not
 // retried, since the push already went out.
 func sendTeamEmail(ctx context.Context, a Alerts, to, title, detail string) error {
-	if a.Email == nil {
+	if a.Email == nil || domain.IsReservedAddress(to) {
 		return nil
 	}
 	text, html := email.Body(title+"\n\n"+detail+"\n\nOpen StayKey to see the details.",
