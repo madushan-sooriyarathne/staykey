@@ -157,6 +157,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/email-confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the confirmation link for the signed-in person's email again
+         * @description Until the email is confirmed it gets no alerts, summaries or account emails. Limited to
+         *     3 an hour. 409 email_confirmed when it already is; 400 no_email when there is none.
+         */
+        post: operations["resendEmailConfirmation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/account": {
         parameters: {
             query?: never;
@@ -771,7 +792,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change a template's text
+         * Change a template's text or channels
          * @description Owners and managers only.
          */
         patch: operations["updateTemplate"];
@@ -915,6 +936,48 @@ export interface paths {
          * @description Verified with the Payments-Signature header against the raw body.
          */
         post: operations["paymentsLkWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/ses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bounces and complaints from AWS SES, through SNS
+         * @description The SNS signature is checked against a certificate from sns.<region>.amazonaws.com. A
+         *     subscription is confirmed once; permanent bounces and complaints suppress the address.
+         */
+        post: operations["sesWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/email-confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm an email address with the token from its link
+         * @description The token travels in the body so it stays out of access logs. A link works once and
+         *     lasts 7 days; 404 for an unknown, used or expired one.
+         */
+        post: operations["confirmEmail"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1226,6 +1289,11 @@ export interface components {
             phone: components["schemas"]["Phone"];
             name: string;
             email?: string;
+            /**
+             * @description Whether the email was confirmed from its link. An unconfirmed email gets nothing
+             *     but the confirmation itself.
+             */
+            emailConfirmed: boolean;
             language: components["schemas"]["Language"];
             /** @description The profile photo, when there is one. */
             photoUrl?: string | null;
@@ -1234,7 +1302,10 @@ export interface components {
         };
         UserPatch: {
             name?: string;
-            /** @description An empty string clears the email. */
+            /**
+             * @description An empty string clears the email. A new or changed email is sent a confirmation link
+             *     and isn't used until it is confirmed.
+             */
             email?: string;
             language?: components["schemas"]["Language"];
             /** @description A key from POST /v1/me/photo. An empty string removes the photo. */
@@ -2077,7 +2148,7 @@ export interface components {
         };
         ConflictError: {
             /** @enum {string} */
-            code: "dates_taken" | "stale" | "bad_status" | "already_subscribed" | "store_plan_renews";
+            code: "dates_taken" | "stale" | "bad_status" | "already_subscribed" | "store_plan_renews" | "email_confirmed";
             message: string;
             clash?: components["schemas"]["Clash"];
         };
@@ -2186,6 +2257,12 @@ export interface components {
         InviteToken: {
             token: string;
         };
+        EmailConfirmationToken: {
+            token: string;
+        };
+        ConfirmedEmail: {
+            email: string;
+        };
         InvitePreview: {
             accountName: string;
             invitedByName: string;
@@ -2233,7 +2310,12 @@ export interface components {
             items: components["schemas"]["Template"][];
         };
         TemplatePatch: {
-            body: string;
+            body?: string;
+            /**
+             * @description How the template goes out. With email in it, StayKey emails the template to guests
+             *     with an email address at its time.
+             */
+            channels?: components["schemas"]["TemplateChannel"][];
         };
         /** @enum {string} */
         NotificationEvent: "booking" | "request" | "payment" | "cancellation" | "sync" | "summary";
@@ -2241,6 +2323,8 @@ export interface components {
             event: components["schemas"]["NotificationEvent"];
             push: boolean;
             whatsapp: boolean;
+            /** @description Sent only once the person's email is confirmed. */
+            email: boolean;
         };
         NotificationPrefs: {
             items: components["schemas"]["NotificationPref"][];
@@ -2670,6 +2754,28 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    resendEmailConfirmation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sent */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     renameAccount: {
@@ -3800,6 +3906,57 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    sesWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Received */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    confirmEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailConfirmationToken"];
+            };
+        };
+        responses: {
+            /** @description Confirmed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmedEmail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     listPlans: {
