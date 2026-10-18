@@ -82,3 +82,11 @@ export async function checkout(
   });
   return result(data, error, response);
 }
+
+/** Confirms an email address with the token from its link. 404 means expired or used. */
+export async function confirmEmail(token: string): Promise<Result<{ email: string }>> {
+  const { data, error, response } = await api.POST("/v1/public/email-confirmation", {
+    body: { token },
+  });
+  return result(data, error, response);
+}
