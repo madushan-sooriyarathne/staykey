@@ -89,13 +89,15 @@ type PaymentsLK struct {
 }
 
 // SES holds the Amazon SES v2 settings. From is an address on the verified domain;
-// ConfigurationSet routes bounces and complaints to the SNS topic.
+// ConfigurationSet routes bounces and complaints to the SNS topic SNSTopicARN, the only topic
+// /webhooks/ses accepts.
 type SES struct {
 	Region           string
 	AccessKeyID      string
 	SecretAccessKey  string
 	ConfigurationSet string
 	From             string
+	SNSTopicARN      string
 }
 
 // WhatsApp holds the WhatsApp Cloud API settings for team alerts.
@@ -154,6 +156,7 @@ func Load() (Config, error) {
 			SecretAccessKey:  os.Getenv("STAYKEY_SES_SECRET_ACCESS_KEY"),
 			ConfigurationSet: os.Getenv("STAYKEY_SES_CONFIGURATION_SET"),
 			From:             os.Getenv("STAYKEY_EMAIL_FROM"),
+			SNSTopicARN:      os.Getenv("STAYKEY_SES_SNS_TOPIC_ARN"),
 		},
 		MediaDir: getenv("STAYKEY_MEDIA_DIR", ".media"),
 		Ozone: Ozone{
@@ -256,6 +259,9 @@ func (c Config) validate() error {
 		}
 	default:
 		return fmt.Errorf("unknown STAYKEY_EMAIL_PROVIDER %q (supported: log, ses)", c.EmailProvider)
+	}
+	if c.SES.SNSTopicARN != "" && c.SES.Region == "" {
+		return errors.New("STAYKEY_SES_SNS_TOPIC_ARN needs STAYKEY_SES_REGION")
 	}
 	if p := c.PaymentsLK; p.SecretKey != "" {
 		if p.WebhookSecret == "" {

@@ -169,6 +169,15 @@ func TestSNSRefusesACertificateOnAnotherHost(t *testing.T) {
 	}
 }
 
+func TestSNSRefusesAnotherTopic(t *testing.T) {
+	f := newSNSFixture(t)
+	m := f.bounce()
+	m.TopicArn = "arn:aws:sns:ap-south-1:999:someone-elses"
+	if _, err := f.sns.Verify(context.Background(), f.sign(t, m)); !errors.Is(err, ErrSNSSignature) {
+		t.Errorf("Verify error = %v, want ErrSNSSignature", err)
+	}
+}
+
 func TestSNSPinsTheRegionHost(t *testing.T) {
 	s := &SNS{Region: "ap-south-1"}
 	if err := s.checkURL("https://sns.ap-south-1.amazonaws.com.evil.example/cert.pem"); err == nil {
@@ -247,7 +256,7 @@ func newSNSFixture(t *testing.T) *snsFixture {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(certPEM) }))
 	t.Cleanup(srv.Close)
 	u, _ := url.Parse(srv.URL)
-	return &snsFixture{key: key, certURL: srv.URL + "/SimpleNotificationService-1.pem", sns: &SNS{Region: "ap-south-1", Host: u.Host, Client: srv.Client()}}
+	return &snsFixture{key: key, certURL: srv.URL + "/SimpleNotificationService-1.pem", sns: &SNS{Region: "ap-south-1", TopicARN: "arn:aws:sns:ap-south-1:123:ses", Host: u.Host, Client: srv.Client()}}
 }
 
 func (f *snsFixture) bounce() SNSMessage {
