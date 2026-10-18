@@ -93,6 +93,26 @@ func GuestTokenHash(token string) []byte {
 	return h[:]
 }
 
+// IsReservedAddress reports whether an address is on a domain reserved for examples and tests
+// (RFC 2606 and RFC 6761), such as the seed's sample guests at example.com. Mail to them can
+// only bounce, which counts against the sender, so it is never sent.
+func IsReservedAddress(address string) bool {
+	_, host, ok := strings.Cut(strings.ToLower(strings.TrimSpace(address)), "@")
+	if !ok {
+		return true
+	}
+	switch host {
+	case "example.com", "example.net", "example.org", "localhost":
+		return true
+	}
+	for _, tld := range []string{".example", ".test", ".invalid", ".localhost"} {
+		if strings.HasSuffix(host, tld) {
+			return true
+		}
+	}
+	return strings.HasSuffix(host, ".example.com") || strings.HasSuffix(host, ".example.net") || strings.HasSuffix(host, ".example.org")
+}
+
 // ConfirmationTTL is how long an email confirmation link works.
 const ConfirmationTTL = 7 * 24 * time.Hour
 

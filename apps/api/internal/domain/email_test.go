@@ -214,3 +214,24 @@ func sampleValues() EmailValues {
 		Receipt: &PaidPeriod{Plan: PlanVilla, Period: PeriodMonthly, Amount: 2_900_00, Currency: "LKR", PaymentID: "PLK-123", Start: due, End: due.AddDate(0, 1, 0)},
 	}
 }
+
+func TestIsReservedAddress(t *testing.T) {
+	tests := []struct {
+		address string
+		want    bool
+	}{
+		{"sofia.rossi@example.com", true},
+		{"guest@mail.example.org", true},
+		{"guest@villa.test", true},
+		{"nimal@gmail.com", false},
+		{"owner@staykey.direct", false},
+		{"no-at-sign", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.address, func(t *testing.T) {
+			if got := IsReservedAddress(tt.address); got != tt.want {
+				t.Errorf("IsReservedAddress(%q) = %v, want %v", tt.address, got, tt.want)
+			}
+		})
+	}
+}

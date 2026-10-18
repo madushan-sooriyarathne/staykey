@@ -122,7 +122,7 @@ func (s *Postgres) queueAccountEmail(ctx context.Context, userID uuid.UUID, kind
 // SendEmails claims up to limit due emails, renders them and passes each to send, which returns
 // the provider's message id. The claim and rendering are a short transaction; send runs after it
 // commits, so no transaction stays open across a provider call. Emails a stay no longer wants,
-// or that a template has switched off, become skipped; suppressed addresses become suppressed;
+// that a template has switched off, or to a reserved example domain become skipped; suppressed addresses become suppressed;
 // a send with no message id (the log sender) counts as skipped. A failed send is tried again
 // later, up to emailAttempts times. It returns how many were sent.
 func (s *Postgres) SendEmails(ctx context.Context, limit int, now time.Time, send func(ctx context.Context, e Email) (string, error)) (int, error) {
@@ -222,6 +222,9 @@ func (s *Postgres) renderEmail(ctx context.Context, r queries.Email, now time.Ti
 	}
 	if err != nil || status != "" {
 		return Email{}, status, err
+	}
+	if domain.IsReservedAddress(e.To) {
+		return Email{}, "skipped", nil
 	}
 	suppressed, err := s.db(ctx).IsSuppressed(ctx, e.To)
 	if err != nil {

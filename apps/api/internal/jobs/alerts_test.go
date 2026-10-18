@@ -178,7 +178,7 @@ func (m *mailbox) Send(_ context.Context, msg email.Message) (string, error) {
 func (tm team) caretakerWantsEmail(t *testing.T, confirmed bool) {
 	t.Helper()
 	ctx := context.Background()
-	address := "kamal@example.com"
+	address := "kamal@staykey.direct"
 	if _, err := tm.st.UpdateUser(ctx, tm.caretaker.UserID, domain.UserPatch{Email: &address}, time.Now()); err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestAConfirmedTeamMemberGetsTheAlertByEmail(t *testing.T) {
 	if err := SendAlerts(context.Background(), tm.st, a, time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	if len(box.sent) != 1 || box.sent[0].To != "kamal@example.com" {
+	if len(box.sent) != 1 || box.sent[0].To != "kamal@staykey.direct" {
 		t.Errorf("emails = %+v, want one to the caretaker", box.sent)
 	}
 }
