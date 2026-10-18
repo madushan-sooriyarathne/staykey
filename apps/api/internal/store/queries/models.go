@@ -20,6 +20,7 @@ type Account struct {
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 	BookingSeq           int32
+	ClosedAt             *time.Time
 }
 
 type Activity struct {
@@ -158,6 +159,7 @@ type User struct {
 	PhotoKey  *string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	DeletedAt *time.Time
 }
 
 type WebCheckout struct {

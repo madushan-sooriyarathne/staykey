@@ -11,10 +11,13 @@ import { font } from "@/components/ui";
 import { formatRange } from "@/data/dates";
 import { uid } from "@/data/defaults";
 import { useBooking, useProperty } from "@/data/hooks";
-import { plural } from "@/data/labels";
+import { METHOD_LABEL, plural } from "@/data/labels";
 import { POLICY_TEXT, paidOf, suggestedRefund } from "@/data/pricing";
 import { placeLabel } from "@/features/bookings/rows";
 import { haptics } from "@/lib/haptics";
+
+const REFUND_METHODS = ["bank", "cash", "card"] as const;
+type RefundMethod = (typeof REFUND_METHODS)[number];
 
 const REASONS = [
   "Guest changed plans",
@@ -31,6 +34,7 @@ export default function CancelBooking() {
   const cancel = useCancelBooking();
   const [key] = useState(() => uid("cancel"));
   const [error, setError] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<RefundMethod | null>(null);
   const suggestion =
     booking && property
       ? suggestedRefund(property.policy, booking)
@@ -45,9 +49,9 @@ export default function CancelBooking() {
   const first = booking.guest.name.split(" ")[0];
   const symbol = property.currency === "USD" ? "$" : "LKR";
   const set = (n: number) => setRefund((n / 100).toFixed(2).replace(/\.00$/, ""));
-  // Refunds go back the way the guest last paid.
+  // Refunds go back the way the guest last paid unless the owner picks another way.
   const paidBy = booking.payments.findLast((p) => p.method !== "refund")?.method;
-  const method = paidBy && paidBy !== "refund" ? paidBy : "bank";
+  const method = chosen ?? (paidBy && paidBy !== "refund" ? paidBy : "bank");
 
   async function confirm() {
     if (!booking) return;
@@ -139,6 +143,22 @@ export default function CancelBooking() {
             ) : null}
             <Pill label="No refund" selected={minor === 0} onPress={() => set(0)} />
           </View>
+          {minor > 0 ? (
+            <View style={{ gap: 8 }}>
+              <Text style={ui.faint}>Refund by</Text>
+              <View style={s.pills}>
+                {REFUND_METHODS.map((m) => (
+                  <Pill
+                    key={m}
+                    label={METHOD_LABEL[m]}
+                    selected={method === m}
+                    onPress={() => setChosen(m)}
+                    testID={`cancel-method-${m}`}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
         </View>
       </Card>
 

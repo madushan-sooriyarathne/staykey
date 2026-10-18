@@ -30,3 +30,13 @@ export function useUpdateMe() {
     onSuccess: () => client.invalidateQueries({ queryKey: meKeys.all }),
   });
 }
+
+/**
+ * Starts deleting the signed-in person and the accounts they own. Signing in again within 30
+ * days restores them.
+ */
+export function useDeleteMe() {
+  return useMutation({
+    mutationFn: () => unwrap(api.POST("/v1/me/deletion", { body: { confirm: "DELETE" } })),
+  });
+}
