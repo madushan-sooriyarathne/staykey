@@ -472,8 +472,16 @@ func (s *Postgres) ResendConfirmation(ctx context.Context, userID uuid.UUID, now
 	})
 }
 
-// sendConfirmation stores a confirmation link for address and queues the email carrying it.
+// sendConfirmation stores a confirmation link for address and queues the email carrying it. Past
+// domain.ConfirmationsPerDay in a day it sends nothing; the person can send it again later.
 func (s *Postgres) sendConfirmation(ctx context.Context, userID uuid.UUID, name, address string, kind domain.EmailKind, dedupeKey string, now time.Time) error {
+	sent, err := s.db(ctx).CountConfirmationsSince(ctx, queries.CountConfirmationsSinceParams{UserID: userID, Since: now.Add(-24 * time.Hour)})
+	if err != nil {
+		return fmt.Errorf("count confirmations: %w", err)
+	}
+	if sent >= domain.ConfirmationsPerDay {
+		return nil
+	}
 	token, hash, err := domain.NewEmailConfirmationToken()
 	if err != nil {
 		return err

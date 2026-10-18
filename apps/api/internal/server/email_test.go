@@ -47,7 +47,9 @@ func withSNS(t *testing.T) (func(*Options), *snsSigner) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(certPEM) }))
 	t.Cleanup(srv.Close)
 	u, _ := url.Parse(srv.URL)
-	set := func(o *Options) { o.SNS = &email.SNS{Region: "ap-south-1", Host: u.Host, Client: srv.Client()} }
+	set := func(o *Options) {
+		o.SNS = &email.SNS{Region: "ap-south-1", TopicARN: "arn:aws:sns:ap-south-1:1:ses", Host: u.Host, Client: srv.Client()}
+	}
 	return set, &snsSigner{key: key, certURL: srv.URL + "/cert.pem"}
 }
 

@@ -113,6 +113,10 @@ func IsReservedAddress(address string) bool {
 	return strings.HasSuffix(host, ".example.com") || strings.HasSuffix(host, ".example.net") || strings.HasSuffix(host, ".example.org")
 }
 
+// ConfirmationsPerDay caps the confirmation emails one person can cause in a day, so typing
+// other people's addresses into Profile can't be used to flood their inboxes.
+const ConfirmationsPerDay = 5
+
 // ConfirmationTTL is how long an email confirmation link works.
 const ConfirmationTTL = 7 * 24 * time.Hour
 

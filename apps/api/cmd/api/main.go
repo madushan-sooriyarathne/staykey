@@ -116,8 +116,8 @@ func run() error {
 		client := billing.RevenueCat{SecretKey: rc.SecretKey, ExternalKey: rc.ExternalKey}
 		opts.Subscribers, opts.ExternalPurchases, opts.RevenueCatWebhookAuth = client, client, rc.WebhookAuth
 	}
-	if cfg.SES.Region != "" {
-		opts.SNS = &email.SNS{Region: cfg.SES.Region}
+	if cfg.SES.SNSTopicARN != "" {
+		opts.SNS = &email.SNS{Region: cfg.SES.Region, TopicARN: cfg.SES.SNSTopicARN}
 	}
 	if lk := cfg.PaymentsLK; lk.SecretKey != "" {
 		opts.WebPayments = billing.PaymentsLK{SecretKey: lk.SecretKey, WebhookSecret: lk.WebhookSecret, BaseURL: lk.APIURL}

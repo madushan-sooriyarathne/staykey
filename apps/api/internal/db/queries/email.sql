@@ -131,3 +131,6 @@ ORDER BY m.created_at, m.id LIMIT 1;
 
 -- name: SkipAccountEmails :exec
 UPDATE emails SET status = 'skipped' WHERE account_id = @account_id AND status = 'pending';
+
+-- name: CountConfirmationsSince :one
+SELECT count(*) FROM email_confirmations WHERE user_id = @user_id AND created_at > @since::timestamptz;

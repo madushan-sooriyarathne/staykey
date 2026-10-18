@@ -3,6 +3,7 @@ package store_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -519,5 +520,16 @@ func TestAnExampleAddressIsNeverSent(t *testing.T) {
 	h.pageStay(t, domain.Guest{Name: "Sofia Rossi", Email: "sofia.rossi@example.com"}, "2026-10-20", "2026-10-22", mailDay.Add(48*time.Hour))
 	if sent := h.send(t, mailDay); len(sent) != 0 {
 		t.Errorf("sent %d emails to an example address, want none", len(sent))
+	}
+}
+
+func TestConfirmationsAreCappedPerDay(t *testing.T) {
+	t.Parallel()
+	h := newHouse(t)
+	for i := range domain.ConfirmationsPerDay + 2 {
+		h.setEmail(t, h.t.UserID, fmt.Sprintf("owner%d@staykey.direct", i))
+	}
+	if got := len(h.mail(t)); got != domain.ConfirmationsPerDay {
+		t.Errorf("confirmation emails = %d, want %d", got, domain.ConfirmationsPerDay)
 	}
 }

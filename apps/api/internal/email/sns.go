@@ -46,9 +46,12 @@ const (
 var ErrSNSSignature = errors.New("sns signature check failed")
 
 // SNS checks messages from Amazon SNS in one region. Signing certificates are only fetched from
-// https://sns.<region>.amazonaws.com and are cached by URL.
+// https://sns.<region>.amazonaws.com and are cached by URL. A valid signature only proves AWS sent
+// the message, and anyone can point their own topic at the endpoint, so messages from any topic
+// but TopicARN are refused, subscription requests included.
 type SNS struct {
-	Region string
+	Region   string
+	TopicARN string
 	// Host overrides the pinned certificate host, for tests.
 	Host   string
 	Client *http.Client // default: 10 second timeout
@@ -71,6 +74,9 @@ func (s *SNS) Verify(ctx context.Context, body []byte) (SNSMessage, error) {
 		hash = crypto.SHA256
 	default:
 		return SNSMessage{}, fmt.Errorf("%w: signature version %q", ErrSNSSignature, m.SignatureVersion)
+	}
+	if m.TopicArn != s.TopicARN {
+		return SNSMessage{}, fmt.Errorf("%w: message from another topic", ErrSNSSignature)
 	}
 	if err := s.checkURL(m.SigningCertURL); err != nil {
 		return SNSMessage{}, err

@@ -119,6 +119,22 @@ func (q *Queries) ConfirmedEmail(ctx context.Context, id uuid.UUID) (ConfirmedEm
 	return i, err
 }
 
+const countConfirmationsSince = `-- name: CountConfirmationsSince :one
+SELECT count(*) FROM email_confirmations WHERE user_id = $1 AND created_at > $2::timestamptz
+`
+
+type CountConfirmationsSinceParams struct {
+	UserID uuid.UUID
+	Since  time.Time
+}
+
+func (q *Queries) CountConfirmationsSince(ctx context.Context, arg CountConfirmationsSinceParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countConfirmationsSince, arg.UserID, arg.Since)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countSessions = `-- name: CountSessions :one
 SELECT count(*) FROM sessions WHERE user_id = $1
 `
