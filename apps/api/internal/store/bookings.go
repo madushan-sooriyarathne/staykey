@@ -622,3 +622,34 @@ func (s *Postgres) AddSlip(ctx context.Context, t tenant.Tenant, bookingID uuid.
 	}
 	return id, nil
 }
+
+// EraseGuest removes the details of the guest behind a stay: their name becomes
+// domain.GuestRemovedName, their phone, email, country and notes go, and activity no longer
+// names them. Their stays, prices and payments stay. Owners only.
+func (s *Postgres) EraseGuest(ctx context.Context, t tenant.Tenant, bookingID uuid.UUID) error {
+	if t.Role != domain.RoleOwner {
+		return fmt.Errorf("erase guest: role %s is not the owner", t.Role)
+	}
+	if _, err := s.GetBooking(ctx, t, bookingID); err != nil {
+		return err
+	}
+	return s.InTx(ctx, func(ctx context.Context) error {
+		q := s.db(ctx)
+		g, err := q.GuestOfBooking(ctx, queries.GuestOfBookingParams{BookingID: bookingID, AccountID: t.AccountID})
+		if err != nil {
+			return notFound(err)
+		}
+		if err := q.EraseGuestFromActivity(ctx, queries.EraseGuestFromActivityParams{
+			OldName: g.Name, NewName: "A guest", GuestID: g.ID, AccountID: t.AccountID,
+		}); err != nil {
+			return fmt.Errorf("erase guest from activity: %w", err)
+		}
+		if err := q.ClearGuestNotes(ctx, queries.ClearGuestNotesParams{GuestID: g.ID, AccountID: t.AccountID}); err != nil {
+			return fmt.Errorf("clear guest notes: %w", err)
+		}
+		if err := q.EraseGuest(ctx, queries.EraseGuestParams{ID: g.ID, AccountID: t.AccountID, Name: domain.GuestRemovedName}); err != nil {
+			return fmt.Errorf("erase guest: %w", err)
+		}
+		return nil
+	})
+}

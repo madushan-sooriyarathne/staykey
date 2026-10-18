@@ -79,6 +79,11 @@ type Store interface {
 	SetNotificationPrefs(ctx context.Context, t tenant.Tenant, prefs []domain.NotificationPref) ([]domain.NotificationPref, error)
 	SavePushToken(ctx context.Context, userID, sessionID uuid.UUID, token, platform string) error
 
+	SetUserPhoto(ctx context.Context, userID uuid.UUID, key string) error
+	DeleteUser(ctx context.Context, userID uuid.UUID, now time.Time) (time.Time, error)
+	RenameAccount(ctx context.Context, t tenant.Tenant, name string) (domain.AccountMembership, error)
+	EraseGuest(ctx context.Context, t tenant.Tenant, bookingID uuid.UUID) error
+
 	AccountBilling(ctx context.Context, accountID uuid.UUID, now time.Time) (domain.AccountBilling, error)
 	Subscription(ctx context.Context, t tenant.Tenant, now time.Time) (domain.AccountBilling, error)
 	ApplyStoreSubscriptions(ctx context.Context, ev store.BillingEvent, accountID uuid.UUID, subs []domain.Subscription, eventAt, now time.Time) error

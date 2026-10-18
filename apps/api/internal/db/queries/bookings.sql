@@ -30,6 +30,26 @@ WHERE id = @id AND account_id = @account_id;
 
 -- Bookings ---------------------------------------------------------------------------------
 
+-- The guest behind a booking, for erasing their details.
+-- name: GuestOfBooking :one
+SELECT g.id, g.name FROM bookings b JOIN guests g ON g.id = b.guest_id AND g.account_id = b.account_id
+WHERE b.id = @booking_id AND b.account_id = @account_id;
+
+-- name: EraseGuest :exec
+UPDATE guests SET name = @name, phone = NULL, email = NULL, country = NULL
+WHERE id = @id AND account_id = @account_id;
+
+-- name: ClearGuestNotes :exec
+UPDATE bookings SET guest_note = '' WHERE guest_id = @guest_id AND account_id = @account_id;
+
+-- Activity lines name the guest of the stay they are about; this takes the name out of them.
+-- name: EraseGuestFromActivity :exec
+UPDATE activity a SET title = replace(a.title, @old_name::text, @new_name::text),
+                      subtitle = replace(a.subtitle, @old_name::text, @new_name::text)
+FROM bookings b
+WHERE b.id = a.booking_id AND b.account_id = a.account_id
+  AND b.guest_id = @guest_id AND a.account_id = @account_id;
+
 -- name: NextBookingNumber :one
 UPDATE accounts SET booking_seq = booking_seq + 1 WHERE id = @account_id RETURNING booking_seq;
 

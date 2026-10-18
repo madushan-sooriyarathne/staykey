@@ -28,9 +28,23 @@ func (q *Queries) AddMembershipProperty(ctx context.Context, arg AddMembershipPr
 	return err
 }
 
+const closeAccount = `-- name: CloseAccount :exec
+UPDATE accounts SET status = 'closed', closed_at = $1::timestamptz WHERE id = $2
+`
+
+type CloseAccountParams struct {
+	Now time.Time
+	ID  uuid.UUID
+}
+
+func (q *Queries) CloseAccount(ctx context.Context, arg CloseAccountParams) error {
+	_, err := q.db.Exec(ctx, closeAccount, arg.Now, arg.ID)
+	return err
+}
+
 const createAccount = `-- name: CreateAccount :one
 INSERT INTO accounts (id, name) VALUES ($1, $2)
-RETURNING id, name, status, trial_started_at, first_direct_booking_at, created_at, updated_at, booking_seq
+RETURNING id, name, status, trial_started_at, first_direct_booking_at, created_at, updated_at, booking_seq, closed_at
 `
 
 type CreateAccountParams struct {
@@ -50,6 +64,7 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (A
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.BookingSeq,
+		&i.ClosedAt,
 	)
 	return i, err
 }
@@ -124,6 +139,26 @@ DELETE FROM accounts WHERE id = $1
 
 func (q *Queries) DeleteAccount(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteAccount, id)
+	return err
+}
+
+const deleteClosedOwnedAccounts = `-- name: DeleteClosedOwnedAccounts :exec
+DELETE FROM accounts
+WHERE status = 'closed'
+  AND id IN (SELECT m.account_id FROM memberships m WHERE m.user_id = $1 AND m.role = 'owner')
+`
+
+func (q *Queries) DeleteClosedOwnedAccounts(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteClosedOwnedAccounts, userID)
+	return err
+}
+
+const deleteTeamMemberships = `-- name: DeleteTeamMemberships :exec
+DELETE FROM memberships WHERE user_id = $1 AND role <> 'owner'
+`
+
+func (q *Queries) DeleteTeamMemberships(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteTeamMemberships, userID)
 	return err
 }
 
@@ -212,6 +247,85 @@ func (q *Queries) ListAccountsForUser(ctx context.Context, userID uuid.UUID) ([]
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const ownedAccountIDs = `-- name: OwnedAccountIDs :many
+SELECT m.account_id FROM memberships m WHERE m.user_id = $1 AND m.role = 'owner' ORDER BY m.account_id
+`
+
+// Accounts are owned by the person who created them; invites only add managers and caretakers.
+func (q *Queries) OwnedAccountIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, ownedAccountIDs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var account_id uuid.UUID
+		if err := rows.Scan(&account_id); err != nil {
+			return nil, err
+		}
+		items = append(items, account_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const renameAccount = `-- name: RenameAccount :one
+UPDATE accounts SET name = $1 WHERE id = $2 RETURNING id, name, status, trial_started_at, first_direct_booking_at, created_at, updated_at, booking_seq, closed_at
+`
+
+type RenameAccountParams struct {
+	Name string
+	ID   uuid.UUID
+}
+
+func (q *Queries) RenameAccount(ctx context.Context, arg RenameAccountParams) (Account, error) {
+	row := q.db.QueryRow(ctx, renameAccount, arg.Name, arg.ID)
+	var i Account
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Status,
+		&i.TrialStartedAt,
+		&i.FirstDirectBookingAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BookingSeq,
+		&i.ClosedAt,
+	)
+	return i, err
+}
+
+const reopenOwnedAccounts = `-- name: ReopenOwnedAccounts :many
+UPDATE accounts SET status = 'trial', closed_at = NULL
+WHERE status = 'closed' AND closed_at IS NOT NULL
+  AND id IN (SELECT m.account_id FROM memberships m WHERE m.user_id = $1 AND m.role = 'owner')
+RETURNING id
+`
+
+// Reopened accounts start from trial; the caller works out their real status straight after.
+func (q *Queries) ReopenOwnedAccounts(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, reopenOwnedAccounts, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

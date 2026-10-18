@@ -68,3 +68,7 @@ WHERE id = @id AND revoked_at IS NULL;
 
 -- name: GetActiveSessionUser :one
 SELECT user_id FROM sessions WHERE id = @id AND revoked_at IS NULL AND expires_at > @now;
+
+-- name: RevokeUserSessions :exec
+UPDATE sessions SET revoked_at = @now::timestamptz, revoked_reason = @reason::text
+WHERE user_id = @user_id AND revoked_at IS NULL;

@@ -22,21 +22,42 @@ function contentType(blobType: string, uri: string): ContentType {
   return "image/jpeg";
 }
 
+type Ticket = {
+  key: string;
+  uploadUrl: string;
+  method: "PUT";
+  headers: Record<string, string>;
+  url: string;
+};
+
 /**
  * Uploads a picked image straight to storage: ask the API for a link that accepts exactly this
  * file, send it there, and return the key to save on the property.
  */
-export async function uploadImage(uri: string, kind: Kind): Promise<{ key: string; url: string }> {
+export function uploadImage(uri: string, kind: Kind): Promise<{ key: string; url: string }> {
+  return upload(uri, (contentType, size) =>
+    unwrap(api.POST("/v1/uploads", { body: { kind, contentType, size } })),
+  );
+}
+
+/** Uploads the person's profile photo; save the key with PATCH /v1/me. */
+export function uploadAvatar(uri: string): Promise<{ key: string; url: string }> {
+  return upload(uri, (contentType, size) =>
+    unwrap(api.POST("/v1/me/photo", { body: { contentType, size } })),
+  );
+}
+
+async function upload(
+  uri: string,
+  presign: (contentType: ContentType, size: number) => Promise<Ticket>,
+): Promise<{ key: string; url: string }> {
   let blob: Blob;
   try {
     blob = await (await fetch(uri)).blob();
   } catch {
     throw new ApiError(0, { code: "file_unreadable", message: "We couldn't read that photo." });
   }
-  const type = contentType(blob.type, uri);
-  const ticket = await unwrap(
-    api.POST("/v1/uploads", { body: { kind, contentType: type, size: blob.size } }),
-  );
+  const ticket = await presign(contentType(blob.type, uri), blob.size);
   let res: Response;
   try {
     res = await fetch(ticket.uploadUrl, {
