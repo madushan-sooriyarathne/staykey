@@ -7,7 +7,7 @@ Drafted 18 Oct 2026 on `main` after phase 8 (PR #8). Written for the agent that 
 A guest on the booking page or widget can pay the deposit, the full amount or a later balance by card through a Payments.lk hosted checkout. Each owner chooses where the money goes:
 
 - **Own account (bring your own gateway):** the owner connects their own Payments.lk merchant account; guest money goes straight to them, and StayKey never holds it.
-- **StayKey payouts:** for owners without a registered business, StayKey takes the payment on its own Payments.lk account and pays the owner by bank transfer every two weeks, less the card fee.
+- **StayKey payouts:** for owners without a registered business, StayKey takes the payment on its own Payments.lk account and pays the owner by bank transfer every two weeks, less a 3% processing charge.
 
 Either way, the payment confirms the stay once, and cancelling refunds the card from the owner app.
 
@@ -35,7 +35,7 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 
 - **One connection per account,** used by all its properties. The owner pastes a secret key from their Payments.lk dashboard. It is sealed with `internal/secret`, bound to the account id, and only its last four characters and mode are ever returned. If Payments.lk offers restricted keys, the app asks for one limited to checkouts, payments, refunds and events.
 - **The key is checked when saved** by reading the account and listing one payment.
-- **Card fees** (2.29% to 2.49%, plus 1% for foreign cards) are charged by Payments.lk on the owner's account.
+- **No StayKey charge.** Card fees (2.29% to 2.49%, plus 1% for foreign cards) are charged by Payments.lk on the owner's own account.
 
 ### StayKey payouts
 
@@ -43,9 +43,8 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 - **Payout details:** the owner's legal name, NIC number and a bank account in their own name (bank, branch, account number), plus acceptance of the payout terms (time and version stored). The NIC and account number are sealed. Changing the bank account holds the next payout for 72 hours, and the owner is notified by email and in Activity.
 - **A ledger in rupee cents** (`payout_entries`), one row per money movement, each with the date it becomes available:
   - a guest payment, credited in full;
-  - the Payments.lk fee, debited (the payment's `feeCents`, read from `GET /v1/payments/{id}`);
-  - a StayKey commission, if one is set (`STAYKEY_PAYOUT_COMMISSION_BPS`, default 0);
-  - refunds, debited when sent;
+  - a processing charge of 3% of the payment, debited (`STAYKEY_PAYOUT_FEE_BPS`, default 300, rounded up to the cent). It covers StayKey's gateway costs, so it replaces passing on Payments.lk's own fee; the actual fee (`feeCents` from `GET /v1/payments/{id}`) is kept on the payment for StayKey's reconciliation only;
+  - refunds, debited when sent. The processing charge on a refunded payment is not returned, since Payments.lk keeps its fee too;
   - adjustments (chargebacks, corrections), entered from the payouts command;
   - payouts, debited when paid.
 - **Money becomes payable once the stay starts:** a payment's entries become available the day after check-in, and a cancellation before then refunds out of money StayKey still holds. A refund after the payout leaves a negative balance that the next payouts make up. Any cancellation refund that would take the balance below zero beyond what future stays cover is still sent, since the guest's refund comes first.
@@ -82,7 +81,7 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 - `payment_settings`: `card_charge` (`deposit`, `full`; default `deposit`) and `card_rate` (rupee cents per unit of the property's currency, nullable; not needed for LKR).
 - `card_checkouts`: `id`, `account_id`, `booking_id` (composite FK), `collected_by` (`owner`, `staykey`), `purpose` (`deposit`, `full`, `balance`), `amount` and `currency` (booking), `charged_cents` (LKR), `rate`, `provider_checkout_id`, `provider_payment_id`, `status` (`open`, `paid`, `expired`), `expires_at`, `created_at`, `paid_at`. RLS.
 - `card_events`: `source` (`owner:<account>` or `staykey`), `event_id`, `type`, `received_at`; unique `(source, event_id)`.
-- `payments`: `status` (`pending`, `succeeded`, `failed`; default `succeeded`), `charged_cents`, `charged_currency`, `rate`, `card_checkout_id`, `collected_by`; index on `provider_ref`.
+- `payments`: `status` (`pending`, `succeeded`, `failed`; default `succeeded`), `charged_cents`, `charged_currency`, `rate`, `card_checkout_id`, `collected_by`, `provider_fee_cents`; index on `provider_ref`.
 - `bookings.payment_method` check gains `card`.
 
 ### A2. sqlc queries (`internal/db/queries/cards.sql`, plus edits)
@@ -156,7 +155,7 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 ### B1. `00015_create_payouts.sql`
 - `payout_profiles`: `account_id` (PK, FK cascade), `legal_name`, `nic_sealed`, `bank_name`, `branch`, `account_name`, `account_number_sealed`, `account_last4`, `terms_version`, `accepted_at`, `bank_changed_at`, `created_at`, `updated_at`. RLS.
 - `payouts`: `id`, `account_id`, `batch_id`, `period_end`, `amount` (rupee cents), `status` (`prepared`, `paid`, `failed`), `bank_ref`, `reason`, `prepared_at`, `paid_at`. RLS.
-- `payout_entries`: `id`, `account_id`, `booking_id` (nullable), `payment_id` (nullable), `kind` (`payment`, `fee`, `commission`, `refund`, `adjustment`, `payout`, `payout_returned`), `amount` (signed rupee cents), `available_on` (date), `payout_id` (nullable), `note`, `created_at`. RLS. Unique on (`payment_id`, `kind`) where set, so one payment is entered once.
+- `payout_entries`: `id`, `account_id`, `booking_id` (nullable), `payment_id` (nullable), `kind` (`payment`, `processing`, `refund`, `adjustment`, `payout`, `payout_returned`), `amount` (signed rupee cents), `available_on` (date), `payout_id` (nullable), `note`, `created_at`. RLS. Unique on (`payment_id`, `kind`) where set, so one payment is entered once.
 - `emails.kind` check gains `payout_sent` and `payout_bank_changed`.
 
 ### B2. Queries, domain and spec
@@ -164,10 +163,10 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 - `internal/domain/payouts.go`:
   - `PayoutCycle(anchor, now)` gives the next run date and the period end;
   - `AvailableOn(checkIn)` is the day after check-in;
-  - `Commission(amount, bps)` rounds down;
+  - `ProcessingCharge(amount, bps)` rounds up;
   - `PayoutMinimum` is Rs 1,000;
   - profile validation: an NIC in the old or new format, account numbers, names.
-- Tests: cycles across months and years, availability, commission rounding, NIC formats.
+- Tests: cycles across months and years, availability, processing charge rounding, NIC formats.
 - Spec:
   - `GET` and `PUT /v1/card-payments/payout-profile` (sealed fields come back as last four only);
   - `GET /v1/payouts` (balance, available, pending, next payout date, past payouts);
@@ -175,15 +174,16 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
   - The `payouts` mode is refused with 409 `payouts_unavailable` unless `STAYKEY_PAYOUTS_ENABLED` is true and the profile is complete. Add `{payoutId}` to `aliceIDs`.
 
 ### B3. Store, jobs, command and config
-- `ApplyCardEvent` on a StayKey-collected payment reads `GET /v1/payments/{id}` (after commit, through the event job) and writes the payment, fee and commission entries, available the day after check-in. A sent refund on a StayKey-collected payment writes a refund entry available at once.
+- `ApplyCardEvent` on a StayKey-collected payment writes the payment and processing charge entries, available the day after check-in, and the event job then reads `GET /v1/payments/{id}` (after commit) to store the provider's actual fee on the payment. A sent refund on a StayKey-collected payment writes a refund entry available at once.
 - `prepare_payouts` job daily: on a payout Monday, it prepares one batch with a payout per account whose available balance is at least the minimum. Accounts whose bank changed in the last 72 hours, or whose account is closed, are skipped.
 - `cmd/payouts`: `list`, `export <batch>` (CSV for the bank's bulk upload), `paid <batch> --ref`, `failed <payout> --reason` and `adjust <account> <amount> --reason`. `paid` queues `payout_sent` emails; `failed` writes `payout_returned` and alerts the owner.
 - New settings, each in `.env.example` and turbo `passThroughEnv`:
   - `STAYKEY_PAYOUTS_ENABLED` (default false);
   - `STAYKEY_COLLECT_PAYMENTSLK_SECRET_KEY`, required when payouts are enabled; production refuses a test key;
-  - `STAYKEY_PAYOUT_COMMISSION_BPS` (default 0).
+  - `STAYKEY_PAYOUT_FEE_BPS` (default 300, the 3% processing charge).
 - Tests:
-  - a StayKey-collected payment writes payment and fee entries once;
+  - a StayKey-collected payment writes its payment and 3% processing entries once, and the charge rounds up;
+  - a refund keeps the processing charge;
   - a cancellation before check-in nets to zero;
   - a refund after a payout leaves a negative balance that the next payout absorbs;
   - a batch is prepared once per Monday and never includes an entry twice;
@@ -222,9 +222,9 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
   - cancel the first stay with a partial card refund: the refund shows pending, then refunded after the event.
 - Part B, with payouts enabled in development:
   - fill the payout profile, switch to payouts, and book and pay two stays by card;
-  - move one check-in into the past and run the job on a payout Monday: one payout covers that stay less its fee;
+  - move one check-in into the past and run the job on a payout Monday: one payout covers that stay less 3%;
   - `cmd/payouts export` writes the CSV, `paid` marks it and logs `payout_sent`;
-  - cancel the other stay before check-in: its refund nets its entries to zero.
+  - cancel the other stay before check-in: its refund leaves only the 3% charge on the balance.
 - With real Payments.lk sandbox keys: the Part A flow with a test card, and the refund visible in the dashboard.
 
 ## Risks
@@ -236,6 +236,7 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 - **Negative balances** after refunds or chargebacks. They roll into later payouts; an owner who stops taking bookings leaves StayKey out of pocket, so payouts start only after check-in.
 - **Paying the wrong bank account.** Changes are held for 72 hours with an email to the owner, and the CSV is checked by a person before upload.
 - **Exchange rate drift.** The owner sets and owns the rate, and the guest sees the rupee amount before paying.
+- **The 3% may not cover every card.** A foreign premium card costs StayKey up to 3.99% (2.49% plus 1% cross-border plus 0.5% premium), and StayKey absorbs the difference. Compare the stored `provider_fee_cents` with the charge each month.
 
 ## Went-sideways flags
 
@@ -250,7 +251,6 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 
 | Question | Default if unanswered |
 | --- | --- |
-| Commission on StayKey payouts | None; the owner bears only the Payments.lk fee (`STAYKEY_PAYOUT_COMMISSION_BPS=0`) |
 | When collected money becomes payable | The day after check-in |
 | Payout day and minimum | Every other Monday from 2 Nov 2026, Rs 1,000 minimum |
 | Exchange rate for non-LKR properties | Owner-set rate per property; an automatic daily rate later |
