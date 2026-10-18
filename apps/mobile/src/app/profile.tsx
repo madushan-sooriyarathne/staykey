@@ -4,8 +4,10 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
+import { useRenameAccount } from "@/api/accounts";
 import { messageFor } from "@/api/errors";
-import { useMe, useUpdateMe } from "@/api/me";
+import { useDeleteMe, useMe, useUpdateMe } from "@/api/me";
+import { uploadAvatar } from "@/api/uploads";
 import { Tag } from "@/components/brand";
 import { Button, Field, InfoNote, TextLink } from "@/components/controls";
 import { I } from "@/components/icons";
@@ -13,39 +15,95 @@ import { Avatar, Card, Page, Segmented, Two, ui } from "@/components/kit";
 import { font } from "@/components/ui";
 import { useOnboarding } from "@/features/onboarding/store";
 import { signOut as endSession } from "@/lib/auth";
+import { shareAccountExport } from "@/lib/export";
 import { haptics } from "@/lib/haptics";
 import { useSession } from "@/lib/session";
 
 /**
- * Name, phone, email and language from the API, plus sign out and in-app account deletion. The
- * photo stays on this phone.
+ * Name, photo, phone, email and language from the API; for owners, the account's name and a copy
+ * of its data; sign out and in-app deletion.
  */
 export default function Profile() {
-  const user = useMe().data?.user;
+  const me = useMe().data;
+  const user = me?.user;
   const update = useUpdateMe();
+  const rename = useRenameAccount();
+  const deleteMe = useDeleteMe();
   const resetSession = useSession((s) => s.reset);
   const ownerName = useSession((s) => s.ownerName);
-  const savedPhoto = useSession((s) => s.photoUri);
-  const setSavedPhoto = useSession((s) => s.setPhoto);
+  const accountId = useSession((s) => s.accountId);
   const clearDraft = useOnboarding((s) => s.clear);
+  const account = me?.accounts.find((a) => a.id === accountId);
+  const owner = account?.role === "owner";
   const saved = {
     name: user?.name || ownerName,
     email: user?.email ?? "",
     language: user?.language ?? "en",
+    accountName: account?.name ?? "",
   };
   // Edits stay undefined until the person changes a field, so the form follows the server's copy.
   const [edits, setEdits] = useState<Partial<typeof saved>>({});
   const name = edits.name ?? saved.name;
   const mail = edits.email ?? saved.email;
   const language = edits.language ?? saved.language;
-  const [photo, setPhoto] = useState(savedPhoto);
+  const accountName = edits.accountName ?? saved.accountName;
+  // A photo picked on this phone, waiting for Save; until then the saved one shows.
+  const [picked, setPicked] = useState<string | null>(null);
+  const photo = picked ?? user?.photoUrl ?? null;
+  const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
   const dirty =
     name !== saved.name ||
     mail !== saved.email ||
     language !== saved.language ||
-    photo !== savedPhoto;
+    (owner && accountName.trim() !== saved.accountName) ||
+    picked !== null;
+
+  async function save() {
+    setError(null);
+    setSaving(true);
+    try {
+      const photoKey = picked ? (await uploadAvatar(picked)).key : undefined;
+      if (owner && accountName.trim() !== saved.accountName) {
+        await rename.mutateAsync(accountName.trim());
+      }
+      await update.mutateAsync({ name: name.trim(), email: mail.trim(), language, photoKey });
+      haptics.success();
+      router.back();
+    } catch (e) {
+      haptics.error();
+      setError(messageFor(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function download() {
+    setError(null);
+    setExporting(true);
+    try {
+      const r = await shareAccountExport();
+      if (!r.ok) setError(r.message);
+    } catch (e) {
+      setError(messageFor(e));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function remove() {
+    setError(null);
+    try {
+      await deleteMe.mutateAsync();
+      signOut();
+    } catch (e) {
+      haptics.error();
+      setError(messageFor(e));
+    }
+  }
 
   function signOut() {
     haptics.warning();
@@ -59,25 +117,9 @@ export default function Profile() {
       title="Profile and account"
       action={{
         label: "Save",
-        disabled: !dirty || name.trim().length < 2 || update.isPending,
+        disabled: !dirty || name.trim().length < 2 || (owner && !accountName.trim()) || saving,
         testID: "profile-save",
-        onPress: () => {
-          setError(null);
-          setSavedPhoto(photo);
-          update.mutate(
-            { name: name.trim(), email: mail.trim(), language },
-            {
-              onSuccess: () => {
-                haptics.success();
-                router.back();
-              },
-              onError: (e) => {
-                haptics.error();
-                setError(messageFor(e));
-              },
-            },
-          );
-        },
+        onPress: save,
       }}
     >
       {error ? (
@@ -94,7 +136,7 @@ export default function Profile() {
             aspect: [1, 1],
             quality: 0.7,
           });
-          if (!r.canceled && r.assets[0]) setPhoto(r.assets[0].uri);
+          if (!r.canceled && r.assets[0]) setPicked(r.assets[0].uri);
         }}
       >
         {photo ? (
@@ -124,6 +166,15 @@ export default function Profile() {
         keyboardType="email-address"
         autoCapitalize="none"
       />
+      {owner ? (
+        <Field
+          label="Account name"
+          value={accountName}
+          onChangeText={(v) => setEdits((e) => ({ ...e, accountName: v }))}
+          autoCapitalize="words"
+          testID="profile-account-name"
+        />
+      ) : null}
       <View style={{ gap: 6 }}>
         <Text style={s.label}>App language</Text>
         <Segmented
@@ -135,6 +186,15 @@ export default function Profile() {
           onChange={(v) => setEdits((e) => ({ ...e, language: v }))}
         />
       </View>
+      {owner ? (
+        <Button
+          variant="ghost"
+          title="Download your data"
+          loading={exporting}
+          onPress={download}
+          testID="profile-export"
+        />
+      ) : null}
       <View style={{ paddingTop: 8 }}>
         <Button
           variant="ghost"
@@ -148,18 +208,36 @@ export default function Profile() {
         <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOut.duration(120)}>
           <Card title="Delete your account?">
             <Text style={ui.muted}>
-              Your booking page goes offline straight away, and your properties, bookings and team
-              are removed after 30 days. Guests with upcoming stays keep their confirmation emails.
+              {owner
+                ? "You're signed out everywhere and your booking page goes offline straight away. Your properties, bookings and team are deleted after 30 days; sign in again before then to keep them. Cancel any App Store or Google Play plan first."
+                : "You're signed out everywhere and leave the teams you're on. Your profile is deleted after 30 days; sign in again before then to keep it."}
             </Text>
+            <Field
+              label="Type DELETE to confirm"
+              value={typed}
+              onChangeText={setTyped}
+              autoCapitalize="characters"
+              testID="profile-delete-confirm"
+            />
             <View style={{ paddingTop: 12 }}>
               <Two>
                 <Button
                   compact
                   variant="ghost"
                   title="Keep account"
-                  onPress={() => setConfirm(false)}
+                  onPress={() => {
+                    setConfirm(false);
+                    setTyped("");
+                  }}
                 />
-                <Button compact title="Delete account" onPress={signOut} />
+                <Button
+                  compact
+                  title="Delete account"
+                  disabled={typed.trim() !== "DELETE"}
+                  loading={deleteMe.isPending}
+                  onPress={remove}
+                  testID="profile-delete"
+                />
               </Two>
             </View>
           </Card>

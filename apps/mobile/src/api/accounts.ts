@@ -31,3 +31,18 @@ export function useCreateAccount() {
     },
   });
 }
+
+/** Renames the active account. Owners only. */
+export function useRenameAccount() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => unwrap(api.PATCH("/v1/account", { body: { name } })),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: accountKeys.all });
+      client.invalidateQueries({ queryKey: meKeys.all });
+    },
+  });
+}
+
+/** Everything in the active account as one document. Owners only. */
+export const exportAccount = () => unwrap(api.GET("/v1/account/export"));

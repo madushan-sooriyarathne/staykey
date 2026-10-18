@@ -112,6 +112,92 @@ export interface paths {
         patch: operations["updateMe"];
         trace?: never;
     };
+    "/v1/me/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Get a link to upload the signed-in person's profile photo
+         * @description PUT the file to the returned link, then send its key as photoKey in PATCH /v1/me. The
+         *     photo belongs to the person, so it shows in every account they belong to.
+         */
+        post: operations["createMePhotoUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete the signed-in person and the accounts they own
+         * @description Signs the person out everywhere, removes them from teams in other accounts, and closes
+         *     the accounts they own, which takes their booking pages offline. Everything is deleted
+         *     30 days later; signing in again with the same number before then restores it. confirm
+         *     must be "DELETE". 409 store_plan_renews while an owned account's App Store or Google
+         *     Play plan will renew.
+         */
+        post: operations["deleteMe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Rename the account in X-Account-Id
+         * @description Owners only.
+         */
+        patch: operations["renameAccount"];
+        trace?: never;
+    };
+    "/v1/account/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Everything in the account, as one document
+         * @description The account, its properties with their full setup (bank details included), every stay
+         *     with its guest and payments, the team and the plan. Owners only.
+         */
+        get: operations["exportAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/accounts": {
         parameters: {
             query?: never;
@@ -342,6 +428,30 @@ export interface paths {
          *     awaiting payment confirms it. Owners and managers only.
          */
         post: operations["recordPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bookings/{bookingId}/erase-guest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Erase the details of the guest behind a stay
+         * @description Replaces the guest's name with "Guest removed", clears their phone, email, country and
+         *     notes on all their stays, and takes their name out of activity. The stays, prices and
+         *     payments stay. Owners only.
+         */
+        post: operations["eraseBookingGuest"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1117,6 +1227,8 @@ export interface components {
             name: string;
             email?: string;
             language: components["schemas"]["Language"];
+            /** @description The profile photo, when there is one. */
+            photoUrl?: string | null;
             /** Format: date-time */
             createdAt: string;
         };
@@ -1125,6 +1237,40 @@ export interface components {
             /** @description An empty string clears the email. */
             email?: string;
             language?: components["schemas"]["Language"];
+            /** @description A key from POST /v1/me/photo. An empty string removes the photo. */
+            photoKey?: string;
+        };
+        AvatarUploadRequest: {
+            /** @enum {string} */
+            contentType: "image/jpeg" | "image/png" | "image/webp" | "image/heic";
+            /**
+             * Format: int64
+             * @description Exact size in bytes, up to 5 MB.
+             */
+            size: number;
+        };
+        DeletionRequest: {
+            /** @description Must be "DELETE". */
+            confirm: string;
+        };
+        Deletion: {
+            /**
+             * Format: date-time
+             * @description When the person and their accounts are deleted for good.
+             */
+            deletesAt: string;
+        };
+        AccountPatch: {
+            name: string;
+        };
+        AccountExport: {
+            /** Format: date-time */
+            exportedAt: string;
+            account: components["schemas"]["Account"];
+            properties: components["schemas"]["Property"][];
+            bookings: components["schemas"]["Booking"][];
+            team: components["schemas"]["Team"];
+            subscription: components["schemas"]["Subscription"];
         };
         Me: {
             user: components["schemas"]["User"];
@@ -1931,7 +2077,7 @@ export interface components {
         };
         ConflictError: {
             /** @enum {string} */
-            code: "dates_taken" | "stale" | "bad_status" | "already_subscribed";
+            code: "dates_taken" | "stale" | "bad_status" | "already_subscribed" | "store_plan_renews";
             message: string;
             clash?: components["schemas"]["Clash"];
         };
@@ -2473,6 +2619,110 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    createMePhotoUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvatarUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Where to upload */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadTicket"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deleteMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeletionRequest"];
+            };
+        };
+        responses: {
+            /** @description Deletion scheduled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deletion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    renameAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountPatch"];
+            };
+        };
+        responses: {
+            /** @description The renamed account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    exportAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The export */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountExport"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     listAccounts: {
         parameters: {
             query?: never;
@@ -2918,6 +3168,29 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["KeyReused"];
+        };
+    };
+    eraseBookingGuest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Erased */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     rejectSlip: {

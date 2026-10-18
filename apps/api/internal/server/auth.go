@@ -82,7 +82,7 @@ func (s *Server) VerifyOtp(ctx context.Context, req oapi.VerifyOtpRequestObject)
 	}
 	return oapi.VerifyOtp200JSONResponse{
 		Tokens:   tokensToAPI(in.Tokens),
-		User:     userToAPI(in.User),
+		User:     s.userToAPI(ctx, in.User),
 		Accounts: accountsToAPI(accounts),
 		NewUser:  in.NewUser,
 	}, nil

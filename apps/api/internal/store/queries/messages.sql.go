@@ -20,7 +20,7 @@ SELECT p.account_id, a.name AS account_name, p.user_id, m.id AS membership_id, m
 FROM notification_prefs p
 JOIN memberships m ON m.account_id = p.account_id AND m.user_id = p.user_id AND m.status = 'active'
 JOIN accounts a ON a.id = p.account_id AND a.status <> 'closed'
-JOIN users u ON u.id = p.user_id
+JOIN users u ON u.id = p.user_id AND u.deleted_at IS NULL
 CROSS JOIN LATERAL (
     SELECT timezone(coalesce((SELECT pr.time_zone FROM properties pr WHERE pr.account_id = p.account_id
                               ORDER BY pr.created_at, pr.id LIMIT 1), 'Asia/Colombo'),

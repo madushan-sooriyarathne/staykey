@@ -209,5 +209,138 @@ func user(u queries.User) domain.User {
 	if u.Email != nil {
 		out.Email = *u.Email
 	}
+	if u.PhotoKey != nil {
+		out.PhotoKey = *u.PhotoKey
+	}
 	return out
+}
+
+// SetUserPhoto sets the person's profile photo; an empty key removes it. The old file is left
+// for the upload sweep, which deletes files nothing points at.
+func (s *Postgres) SetUserPhoto(ctx context.Context, userID uuid.UUID, key string) error {
+	var k *string
+	if key != "" {
+		k = &key
+	}
+	if err := s.db(ctx).SetUserPhoto(ctx, queries.SetUserPhotoParams{ID: userID, PhotoKey: k}); err != nil {
+		return fmt.Errorf("set user photo: %w", err)
+	}
+	return nil
+}
+
+// RenameAccount renames the tenant's account. Owners only.
+func (s *Postgres) RenameAccount(ctx context.Context, t tenant.Tenant, name string) (domain.AccountMembership, error) {
+	if t.Role != domain.RoleOwner {
+		return domain.AccountMembership{}, fmt.Errorf("rename account: role %s is not the owner", t.Role)
+	}
+	a, err := s.db(ctx).RenameAccount(ctx, queries.RenameAccountParams{ID: t.AccountID, Name: name})
+	if err != nil {
+		return domain.AccountMembership{}, notFound(err)
+	}
+	return domain.AccountMembership{
+		Account: domain.Account{
+			ID: a.ID, Name: a.Name, Status: domain.AccountStatus(a.Status),
+			TrialStartedAt: a.TrialStartedAt, CreatedAt: a.CreatedAt,
+		},
+		MembershipID: t.MembershipID,
+		Role:         t.Role,
+		PropertyIDs:  t.PropertyIDs,
+	}, nil
+}
+
+// DeleteUser starts deleting a person: they are signed out everywhere, leave the teams of
+// accounts they don't own, and the accounts they own close, which takes their booking pages
+// offline. PurgeDeletedUsers finishes the job after domain.DeletionDays; RestoreUser undoes it
+// before then. It returns when the deletion becomes final, and refuses with
+// domain.ErrStorePlanRenews while an owned account's store plan will renew.
+func (s *Postgres) DeleteUser(ctx context.Context, userID uuid.UUID, now time.Time) (time.Time, error) {
+	err := s.InTx(ctx, func(ctx context.Context) error {
+		q := s.db(ctx)
+		owned, err := q.OwnedAccountIDs(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("owned accounts: %w", err)
+		}
+		for _, id := range owned {
+			b, err := s.AccountBilling(ctx, id, now)
+			if err != nil {
+				return err
+			}
+			if b.Sub != nil && b.Sub.Source.IsStore() && b.Sub.WillRenew && b.Sub.GivesAccess(now) {
+				return domain.ErrStorePlanRenews
+			}
+		}
+		for _, id := range owned {
+			if err := q.CloseAccount(ctx, queries.CloseAccountParams{ID: id, Now: now}); err != nil {
+				return fmt.Errorf("close account: %w", err)
+			}
+		}
+		if err := q.DeleteTeamMemberships(ctx, userID); err != nil {
+			return fmt.Errorf("leave teams: %w", err)
+		}
+		if err := q.MarkUserDeleted(ctx, queries.MarkUserDeletedParams{ID: userID, Now: now}); err != nil {
+			return fmt.Errorf("mark user deleted: %w", err)
+		}
+		if err := q.RevokeUserSessions(ctx, queries.RevokeUserSessionsParams{UserID: userID, Now: now, Reason: "deleted"}); err != nil {
+			return fmt.Errorf("sign out: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return time.Time{}, err
+	}
+	return now.AddDate(0, 0, domain.DeletionDays), nil
+}
+
+// RestoreUser undoes a deletion that hasn't become final: the person is back and the accounts
+// they own reopen with the status their plan gives them. It reports whether there was anything
+// to restore. Team memberships in other accounts don't come back; their owners invite again.
+func (s *Postgres) RestoreUser(ctx context.Context, userID uuid.UUID, now time.Time) (bool, error) {
+	restored := false
+	err := s.InTx(ctx, func(ctx context.Context) error {
+		q := s.db(ctx)
+		n, err := q.RestoreUser(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("restore user: %w", err)
+		}
+		if n == 0 {
+			return nil
+		}
+		restored = true
+		ids, err := q.ReopenOwnedAccounts(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("reopen accounts: %w", err)
+		}
+		for _, id := range ids {
+			if err := s.recomputeBilling(ctx, id, now); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return restored, err
+}
+
+// PurgeDeletedUsers finishes deletions older than domain.DeletionDays: the accounts the person
+// owns go with every row in them, then the person. Files go with the upload sweep. One person
+// per transaction.
+func (s *Postgres) PurgeDeletedUsers(ctx context.Context, now time.Time) (int, error) {
+	ids, err := s.db(ctx).UsersDeletedBefore(ctx, now.AddDate(0, 0, -domain.DeletionDays))
+	if err != nil {
+		return 0, fmt.Errorf("deleted users: %w", err)
+	}
+	for i, id := range ids {
+		err := s.InTx(ctx, func(ctx context.Context) error {
+			if err := s.db(ctx).DeleteClosedOwnedAccounts(ctx, id); err != nil {
+				return fmt.Errorf("delete accounts: %w", err)
+			}
+			if err := s.db(ctx).DeleteUser(ctx, id); err != nil {
+				return fmt.Errorf("delete user: %w", err)
+			}
+			return nil
+		})
+		if err != nil {
+			return i, fmt.Errorf("user %s: %w", id, err)
+		}
+	}
+	return len(ids), nil
 }
