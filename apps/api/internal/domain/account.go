@@ -56,11 +56,13 @@ func (r Role) Can(p Permission) bool {
 
 // User is one person, identified by a phone number, who can belong to several accounts.
 type User struct {
-	ID       uuid.UUID
-	Phone    string // E.164, for example +94771234567
-	Name     string
-	Email    string
-	Language string // "en" or "si"
+	ID    uuid.UUID
+	Phone string // E.164, for example +94771234567
+	Name  string
+	Email string
+	// EmailConfirmed means the person opened the confirmation link sent to Email.
+	EmailConfirmed bool
+	Language       string // "en" or "si"
 	// PhotoKey is the profile photo's file key, or empty.
 	PhotoKey  string
 	CreatedAt time.Time
