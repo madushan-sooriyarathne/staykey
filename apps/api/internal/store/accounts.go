@@ -32,7 +32,10 @@ func (s *Postgres) UpdateUser(ctx context.Context, id uuid.UUID, p domain.UserPa
 	if err != nil {
 		return domain.User{}, notFound(err)
 	}
-	return user(u), nil
+	return user(queries.User{
+		ID: u.ID, Phone: u.Phone, Name: u.Name, Email: u.Email, Language: u.Language, PhotoKey: u.PhotoKey,
+		CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt, DeletedAt: u.DeletedAt, EmailConfirmedAt: u.EmailConfirmedAt,
+	}), nil
 }
 
 // UpsertUserByPhone returns the user with this number, creating them on first sign-in.

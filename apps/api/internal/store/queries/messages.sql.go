@@ -14,6 +14,7 @@ import (
 
 const dueSummaries = `-- name: DueSummaries :many
 SELECT p.account_id, a.name AS account_name, p.user_id, m.id AS membership_id, m.role, u.phone, p.push, p.whatsapp,
+       p.email AND u.email_confirmed_at IS NOT NULL AS email, coalesce(u.email, '')::text AS email_address,
        l.local_now::date AS local_day,
        coalesce((SELECT array_agg(mp.property_id ORDER BY mp.property_id) FROM membership_properties mp
                  WHERE mp.membership_id = m.id), '{}')::uuid[] AS property_ids
@@ -26,7 +27,7 @@ CROSS JOIN LATERAL (
                               ORDER BY pr.created_at, pr.id LIMIT 1), 'Asia/Colombo'),
                     $1::timestamptz) AS local_now
 ) l
-WHERE p.event = 'summary' AND (p.push OR p.whatsapp)
+WHERE p.event = 'summary' AND (p.push OR p.whatsapp OR (p.email AND u.email_confirmed_at IS NOT NULL))
   AND l.local_now::time >= '07:00' AND l.local_now::time < '11:00'
   AND (p.last_sent_on IS NULL OR p.last_sent_on < l.local_now::date)
 ORDER BY p.account_id, p.user_id
@@ -41,6 +42,8 @@ type DueSummariesRow struct {
 	Phone        string
 	Push         bool
 	Whatsapp     bool
+	Email        *bool
+	EmailAddress string
 	LocalDay     time.Time
 	PropertyIds  []uuid.UUID
 }
@@ -65,6 +68,8 @@ func (q *Queries) DueSummaries(ctx context.Context, now time.Time) ([]DueSummari
 			&i.Phone,
 			&i.Push,
 			&i.Whatsapp,
+			&i.Email,
+			&i.EmailAddress,
 			&i.LocalDay,
 			&i.PropertyIds,
 		); err != nil {
@@ -137,7 +142,7 @@ func (q *Queries) InsertTemplate(ctx context.Context, arg InsertTemplateParams) 
 }
 
 const listNotificationPrefs = `-- name: ListNotificationPrefs :many
-SELECT event, push, whatsapp FROM notification_prefs
+SELECT event, push, whatsapp, email FROM notification_prefs
 WHERE account_id = $1 AND user_id = $2
 ORDER BY array_position(ARRAY['booking', 'request', 'payment', 'cancellation', 'sync', 'summary'], event)
 `
@@ -151,6 +156,7 @@ type ListNotificationPrefsRow struct {
 	Event    string
 	Push     bool
 	Whatsapp bool
+	Email    bool
 }
 
 func (q *Queries) ListNotificationPrefs(ctx context.Context, arg ListNotificationPrefsParams) ([]ListNotificationPrefsRow, error) {
@@ -162,7 +168,12 @@ func (q *Queries) ListNotificationPrefs(ctx context.Context, arg ListNotificatio
 	items := []ListNotificationPrefsRow{}
 	for rows.Next() {
 		var i ListNotificationPrefsRow
-		if err := rows.Scan(&i.Event, &i.Push, &i.Whatsapp); err != nil {
+		if err := rows.Scan(
+			&i.Event,
+			&i.Push,
+			&i.Whatsapp,
+			&i.Email,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -225,9 +236,10 @@ func (q *Queries) MarkSummarySent(ctx context.Context, arg MarkSummarySentParams
 }
 
 const setNotificationPref = `-- name: SetNotificationPref :exec
-INSERT INTO notification_prefs (id, account_id, user_id, event, push, whatsapp)
-VALUES ($1, $2, $3, $4, $5, $6)
-ON CONFLICT (user_id, account_id, event) DO UPDATE SET push = excluded.push, whatsapp = excluded.whatsapp
+INSERT INTO notification_prefs (id, account_id, user_id, event, push, whatsapp, email)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (user_id, account_id, event) DO UPDATE SET push = excluded.push, whatsapp = excluded.whatsapp,
+                                                       email = excluded.email
 `
 
 type SetNotificationPrefParams struct {
@@ -237,6 +249,7 @@ type SetNotificationPrefParams struct {
 	Event     string
 	Push      bool
 	Whatsapp  bool
+	Email     bool
 }
 
 func (q *Queries) SetNotificationPref(ctx context.Context, arg SetNotificationPrefParams) error {
@@ -247,6 +260,7 @@ func (q *Queries) SetNotificationPref(ctx context.Context, arg SetNotificationPr
 		arg.Event,
 		arg.Push,
 		arg.Whatsapp,
+		arg.Email,
 	)
 	return err
 }
@@ -280,19 +294,25 @@ func (q *Queries) SummaryCounts(ctx context.Context, arg SummaryCountsParams) (S
 	return i, err
 }
 
-const updateTemplateBody = `-- name: UpdateTemplateBody :one
-UPDATE message_templates SET body = $1 WHERE id = $2 AND account_id = $3
+const updateTemplate = `-- name: UpdateTemplate :one
+UPDATE message_templates SET body = $1, channels = $2 WHERE id = $3 AND account_id = $4
 RETURNING id, account_id, key, name, channels, timing, body, created_at, updated_at
 `
 
-type UpdateTemplateBodyParams struct {
+type UpdateTemplateParams struct {
 	Body      string
+	Channels  []string
 	ID        uuid.UUID
 	AccountID uuid.UUID
 }
 
-func (q *Queries) UpdateTemplateBody(ctx context.Context, arg UpdateTemplateBodyParams) (MessageTemplate, error) {
-	row := q.db.QueryRow(ctx, updateTemplateBody, arg.Body, arg.ID, arg.AccountID)
+func (q *Queries) UpdateTemplate(ctx context.Context, arg UpdateTemplateParams) (MessageTemplate, error) {
+	row := q.db.QueryRow(ctx, updateTemplate,
+		arg.Body,
+		arg.Channels,
+		arg.ID,
+		arg.AccountID,
+	)
 	var i MessageTemplate
 	err := row.Scan(
 		&i.ID,

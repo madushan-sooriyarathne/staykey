@@ -152,7 +152,7 @@ func (q *Queries) FindNamedGuest(ctx context.Context, arg FindNamedGuestParams) 
 }
 
 const getBooking = `-- name: GetBooking :one
-SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
+SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, b.guest_token_sealed, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
        g.country AS guest_country
 FROM bookings b
 JOIN guests g ON g.id = b.guest_id
@@ -206,6 +206,7 @@ func (q *Queries) GetBooking(ctx context.Context, arg GetBookingParams) (GetBook
 		&i.Booking.UpdatedAt,
 		&i.Booking.GuestTokenHash,
 		&i.Booking.PaymentMethod,
+		&i.Booking.GuestTokenSealed,
 		&i.GuestName,
 		&i.GuestPhone,
 		&i.GuestEmail,
@@ -215,7 +216,7 @@ func (q *Queries) GetBooking(ctx context.Context, arg GetBookingParams) (GetBook
 }
 
 const getBookingForGuest = `-- name: GetBookingForGuest :one
-SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
+SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, b.guest_token_sealed, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
        g.country AS guest_country, p.slug AS property_slug, p.name AS property_name,
        p.check_in_time AS property_check_in, u.name AS unit_name
 FROM bookings b
@@ -273,6 +274,7 @@ func (q *Queries) GetBookingForGuest(ctx context.Context, id uuid.UUID) (GetBook
 		&i.Booking.UpdatedAt,
 		&i.Booking.GuestTokenHash,
 		&i.Booking.PaymentMethod,
+		&i.Booking.GuestTokenSealed,
 		&i.GuestName,
 		&i.GuestPhone,
 		&i.GuestEmail,
@@ -286,7 +288,7 @@ func (q *Queries) GetBookingForGuest(ctx context.Context, id uuid.UUID) (GetBook
 }
 
 const getBookingForUpdate = `-- name: GetBookingForUpdate :one
-SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
+SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, b.guest_token_sealed, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
        g.country AS guest_country
 FROM bookings b
 JOIN guests g ON g.id = b.guest_id
@@ -341,6 +343,7 @@ func (q *Queries) GetBookingForUpdate(ctx context.Context, arg GetBookingForUpda
 		&i.Booking.UpdatedAt,
 		&i.Booking.GuestTokenHash,
 		&i.Booking.PaymentMethod,
+		&i.Booking.GuestTokenSealed,
 		&i.GuestName,
 		&i.GuestPhone,
 		&i.GuestEmail,
@@ -778,7 +781,7 @@ func (q *Queries) ListBookingLines(ctx context.Context, arg ListBookingLinesPara
 }
 
 const listBookings = `-- name: ListBookings :many
-SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
+SELECT b.id, b.account_id, b.property_id, b.unit_id, b.ref, b.source, b.status, b.guest_id, b.adults, b.children, b.check_in, b.check_out, b.currency, b.total, b.guest_note, b.owner_note, b.request_expires_at, b.hold_expires_at, b.payment_due_at, b.cancel_reason, b.cancelled_at, b.external_uid, b.feed_id, b.promo_id, b.created_by, b.version, b.created_at, b.updated_at, b.guest_token_hash, b.payment_method, b.guest_token_sealed, g.name AS guest_name, g.phone AS guest_phone, g.email AS guest_email,
        g.country AS guest_country
 FROM bookings b
 JOIN guests g ON g.id = b.guest_id
@@ -859,6 +862,7 @@ func (q *Queries) ListBookings(ctx context.Context, arg ListBookingsParams) ([]L
 			&i.Booking.UpdatedAt,
 			&i.Booking.GuestTokenHash,
 			&i.Booking.PaymentMethod,
+			&i.Booking.GuestTokenSealed,
 			&i.GuestName,
 			&i.GuestPhone,
 			&i.GuestEmail,

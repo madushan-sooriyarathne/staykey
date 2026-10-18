@@ -13,13 +13,14 @@ import (
 )
 
 const activityRecipients = `-- name: ActivityRecipients :many
-SELECT m.user_id, m.role, u.phone, p.push, p.whatsapp
+SELECT m.user_id, m.role, u.phone, p.push, p.whatsapp,
+       p.email AND u.email_confirmed_at IS NOT NULL AS email, coalesce(u.email, '')::text AS email_address
 FROM memberships m
 JOIN accounts a ON a.id = m.account_id AND a.status <> 'closed'
 JOIN users u ON u.id = m.user_id AND u.deleted_at IS NULL
 JOIN notification_prefs p ON p.account_id = m.account_id AND p.user_id = m.user_id AND p.event = $1
 WHERE m.account_id = $2 AND m.status = 'active'
-  AND (p.push OR p.whatsapp)
+  AND (p.push OR p.whatsapp OR (p.email AND u.email_confirmed_at IS NOT NULL))
   AND m.user_id IS DISTINCT FROM $3::uuid
   AND ($4::uuid IS NULL
        OR NOT EXISTS (SELECT 1 FROM membership_properties mp WHERE mp.membership_id = m.id)
@@ -36,11 +37,13 @@ type ActivityRecipientsParams struct {
 }
 
 type ActivityRecipientsRow struct {
-	UserID   uuid.UUID
-	Role     string
-	Phone    string
-	Push     bool
-	Whatsapp bool
+	UserID       uuid.UUID
+	Role         string
+	Phone        string
+	Push         bool
+	Whatsapp     bool
+	Email        *bool
+	EmailAddress string
 }
 
 // Active members who want this event on some channel and can see the property, except the
@@ -65,6 +68,8 @@ func (q *Queries) ActivityRecipients(ctx context.Context, arg ActivityRecipients
 			&i.Phone,
 			&i.Push,
 			&i.Whatsapp,
+			&i.Email,
+			&i.EmailAddress,
 		); err != nil {
 			return nil, err
 		}

@@ -27,7 +27,7 @@ func (s *Postgres) ListTemplates(ctx context.Context, t tenant.Tenant) ([]domain
 
 // UpdateTemplate replaces a template's text.
 func (s *Postgres) UpdateTemplate(ctx context.Context, t tenant.Tenant, id uuid.UUID, body string) (domain.Template, error) {
-	r, err := s.db(ctx).UpdateTemplateBody(ctx, queries.UpdateTemplateBodyParams{Body: body, ID: id, AccountID: t.AccountID})
+	r, err := s.db(ctx).UpdateTemplate(ctx, queries.UpdateTemplateParams{Body: body, Channels: []string{"email"}, ID: id, AccountID: t.AccountID})
 	if err != nil {
 		return domain.Template{}, notFound(err)
 	}
