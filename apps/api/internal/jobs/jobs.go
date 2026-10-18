@@ -1,6 +1,7 @@
 // Package jobs runs StayKey's background work on river, the Postgres job queue: requests that
 // expire, stays that go unpaid, sweeps of expired holds, idempotency keys and uploads that were
-// never attached to anything, the team's alerts and their morning summary, and OTA calendars.
+// never attached to anything, the team's alerts and their morning summary, emails, and OTA
+// calendars.
 //
 // Each sweep is a periodic river job. River elects one leader to schedule them, so running
 // several API machines doesn't run a sweep several times over.
@@ -18,6 +19,7 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
+	"staykey.direct/api/internal/email"
 	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/ical"
 	"staykey.direct/api/internal/notify"
@@ -28,10 +30,12 @@ import (
 // sweep removes it. The app attaches files within minutes; a day leaves room for retries.
 const UploadGrace = 24 * time.Hour
 
-// Alerts sends the team's push notifications and WhatsApp messages.
+// Alerts sends the team's push notifications, WhatsApp messages and emails. Email also sends
+// the email outbox.
 type Alerts struct {
 	Push     notify.Expo
 	WhatsApp notify.WhatsApp
+	Email    email.Sender
 	Logger   *slog.Logger
 }
 
@@ -103,6 +107,17 @@ func sweeps(st *store.Postgres, fs files.Store, alerts Alerts, feeds *ical.Fetch
 		"morning_summary": {15 * time.Minute, func(ctx context.Context, now time.Time) error {
 			return SendSummaries(ctx, st, alerts, now)
 		}},
+		"send_emails": {time.Minute, func(ctx context.Context, now time.Time) error {
+			return SendEmails(ctx, st, alerts.Email, log, now)
+		}},
+		// Queues payment reminders, pre-arrival notes and thank-you emails ahead of their time.
+		"schedule_guest_emails": {15 * time.Minute, func(ctx context.Context, now time.Time) error {
+			n, err := st.QueueTimedGuestEmails(ctx, now)
+			if n > 0 {
+				log.Info("guest emails scheduled", "count", n)
+			}
+			return err
+		}},
 		"ical_import": {time.Minute, func(ctx context.Context, now time.Time) error {
 			return ImportFeeds(ctx, st, feeds, log, now)
 		}},
@@ -159,8 +174,51 @@ func SendAlerts(ctx context.Context, st *store.Postgres, a Alerts, now time.Time
 				}
 			}
 		}
+		for _, alert := range batch {
+			for _, r := range alert.Recipients {
+				if r.Email == "" {
+					continue
+				}
+				if err := sendTeamEmail(ctx, a, r.Email, alert.Activity.Title, alert.Activity.Subtitle); err != nil {
+					a.Logger.Warn("email alert failed", "error", err, "activity", alert.Activity.ID, "to", email.MaskAddress(r.Email))
+				}
+			}
+		}
 		return nil
 	})
+	return err
+}
+
+// sendTeamEmail sends an alert or a summary to a team member. Like WhatsApp, a failure is not
+// retried, since the push already went out.
+func sendTeamEmail(ctx context.Context, a Alerts, to, title, detail string) error {
+	if a.Email == nil {
+		return nil
+	}
+	text, html := email.Body(title+"\n\n"+detail+"\n\nOpen StayKey to see the details.",
+		"You get this because email is on in Notifications in the StayKey app.")
+	_, err := a.Email.Send(ctx, email.Message{To: to, FromName: "StayKey", Subject: title, Text: text, HTML: html})
+	return err
+}
+
+// SendEmails sends the due emails in the outbox.
+func SendEmails(ctx context.Context, st *store.Postgres, sender email.Sender, log *slog.Logger, now time.Time) error {
+	if sender == nil {
+		return nil
+	}
+	n, err := st.SendEmails(ctx, 50, now, func(ctx context.Context, e store.Email) (string, error) {
+		text, html := email.Body(e.Text, e.Footer)
+		id, err := sender.Send(ctx, email.Message{
+			To: e.To, FromName: e.FromName, ReplyTo: e.ReplyTo, Subject: e.Subject, Text: text, HTML: html, Link: e.Link,
+		})
+		if err != nil {
+			log.Warn("email send failed", "email_id", e.ID, "kind", e.Kind, "to", email.MaskAddress(e.To), "error", err)
+		}
+		return id, err
+	})
+	if n > 0 {
+		log.Info("emails sent", "count", n)
+	}
 	return err
 }
 
@@ -186,6 +244,11 @@ func SendSummaries(ctx context.Context, st *store.Postgres, a Alerts, now time.T
 		if sum.WhatsApp {
 			if err := a.WhatsApp.SendWhatsApp(ctx, sum.Phone, title, body); err != nil {
 				a.Logger.Warn("whatsapp summary failed", "error", err, "account", sum.AccountID)
+			}
+		}
+		if sum.Email != "" {
+			if err := sendTeamEmail(ctx, a, sum.Email, title, body); err != nil {
+				a.Logger.Warn("email summary failed", "error", err, "account", sum.AccountID, "to", email.MaskAddress(sum.Email))
 			}
 		}
 		if err := st.MarkSummarySent(ctx, sum.AccountID, sum.UserID, sum.Day); err != nil {

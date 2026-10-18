@@ -26,7 +26,10 @@ type Store interface {
 	tenant.Memberships
 
 	GetUser(ctx context.Context, id uuid.UUID) (domain.User, error)
-	UpdateUser(ctx context.Context, id uuid.UUID, p domain.UserPatch) (domain.User, error)
+	UpdateUser(ctx context.Context, id uuid.UUID, p domain.UserPatch, now time.Time) (domain.User, error)
+	ResendConfirmation(ctx context.Context, userID uuid.UUID, now time.Time) error
+	ConfirmEmail(ctx context.Context, token string, now time.Time) (string, error)
+	RecordSuppression(ctx context.Context, address, reason string) error
 	ListAccounts(ctx context.Context, userID uuid.UUID) ([]domain.AccountMembership, error)
 	CreateAccount(ctx context.Context, userID uuid.UUID, name string) (domain.AccountMembership, error)
 
@@ -74,7 +77,7 @@ type Store interface {
 	MarkActivityRead(ctx context.Context, t tenant.Tenant, now time.Time) error
 
 	ListTemplates(ctx context.Context, t tenant.Tenant) ([]domain.Template, error)
-	UpdateTemplate(ctx context.Context, t tenant.Tenant, id uuid.UUID, body string) (domain.Template, error)
+	UpdateTemplate(ctx context.Context, t tenant.Tenant, id uuid.UUID, body *string, channels []string) (domain.Template, error)
 	NotificationPrefs(ctx context.Context, t tenant.Tenant) ([]domain.NotificationPref, error)
 	SetNotificationPrefs(ctx context.Context, t tenant.Tenant, prefs []domain.NotificationPref) ([]domain.NotificationPref, error)
 	SavePushToken(ctx context.Context, userID, sessionID uuid.UUID, token, platform string) error
@@ -123,6 +126,9 @@ type Options struct {
 	// WebPayments takes web payments through Payments.lk, returning owners to BillingURL.
 	WebPayments WebGateway
 	BillingURL  string
+	// SNS checks the bounce and complaint notifications SES sends through SNS. Nil leaves
+	// POST /webhooks/ses answering 503.
+	SNS SNSChecker
 	// Media serves the local file store's files and uploads under /media/. Nil when files live
 	// in R2.
 	Media  http.Handler
