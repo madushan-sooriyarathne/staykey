@@ -164,6 +164,13 @@ func CardRefundFailed(b Booking, amount int64) Activity {
 		fmt.Sprintf("%s, %s, refund it another way", b.Ref, FormatMoney(amount, b.Currency)))
 }
 
+// CardKeyRefused is the line owners see when Payments.lk stops accepting their key, which
+// pauses card payments.
+func CardKeyRefused() Activity {
+	return Activity{Kind: ActivityBilling, Title: "Payments.lk stopped accepting your key",
+		Subtitle: "Card payments are paused until you connect a new key in Card payments"}
+}
+
 // SlipRejected is a bank slip someone on the team turned down.
 func SlipRejected(b Booking, actor string) Activity {
 	return stayActivity(b, ActivitySlip, "Bank slip from "+b.Guest.Name+" rejected",

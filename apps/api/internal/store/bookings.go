@@ -249,8 +249,17 @@ func (s *Postgres) CancelBooking(ctx context.Context, t tenant.Tenant, id uuid.U
 				return &domain.ValidationError{Field: "refund.amount", Message: "can't be more than the guest paid"}
 			}
 			refund.Kind, refund.ReceivedAt = "refund", now
-			if err := s.addPayment(ctx, t, b.ID, b.Currency, *refund); err != nil {
-				return err
+			card := false
+			if refund.Method == "card" {
+				var err error
+				if card, err = s.addCardRefunds(ctx, t, *b, *refund); err != nil {
+					return err
+				}
+			}
+			if !card {
+				if err := s.addPayment(ctx, t, b.ID, b.Currency, *refund); err != nil {
+					return err
+				}
 			}
 		}
 		b.CancelReason, b.CancelledAt = reason, &now
@@ -576,6 +585,8 @@ func (s *Postgres) loadBookingDetails(ctx context.Context, accountID uuid.UUID, 
 		b := index[p.BookingID]
 		b.Payments = append(b.Payments, domain.Payment{
 			ID: p.ID, Kind: p.Kind, Method: p.Method, Amount: p.Amount, Note: p.Note, ReceivedAt: p.ReceivedAt, SlipID: p.SlipID,
+			Status: p.Status, Charged: deref(p.ChargedCents), Rate: deref(p.Rate), CollectedBy: domain.Collector(deref(p.CollectedBy)),
+			RefundOf: p.RefundOf, Failure: deref(p.Failure),
 		})
 	}
 	slips, err := q.ListSlips(ctx, queries.ListSlipsParams{AccountID: accountID, BookingIds: ids})

@@ -131,8 +131,8 @@ SELECT EXISTS (
 -- after refunds that are pending or went through.
 -- name: RefundableCardPayments :many
 SELECT p.id, p.amount, p.charged_cents, p.rate, p.collected_by,
-       p.amount - coalesce(sum(r.amount) FILTER (WHERE r.status <> 'failed'), 0)::bigint AS amount_left,
-       p.charged_cents - coalesce(sum(r.charged_cents) FILTER (WHERE r.status <> 'failed'), 0)::bigint AS charged_left
+       (p.amount - coalesce(sum(r.amount) FILTER (WHERE r.status <> 'failed'), 0))::bigint AS amount_left,
+       (coalesce(p.charged_cents, 0) - coalesce(sum(r.charged_cents) FILTER (WHERE r.status <> 'failed'), 0))::bigint AS charged_left
 FROM payments p
 LEFT JOIN payments r ON r.refund_of = p.id
 WHERE p.booking_id = @booking_id AND p.account_id = @account_id AND p.kind = 'payment'
@@ -147,7 +147,7 @@ SELECT r.id, r.account_id, r.booking_id, r.charged_cents, r.collected_by, o.prov
 FROM payments r
 JOIN payments o ON o.id = r.refund_of
 WHERE r.kind = 'refund' AND r.status = 'pending' AND r.provider_ref IS NULL
-  AND (r.attempted_at IS NULL OR r.attempted_at < @stale_before)
+  AND (r.attempted_at IS NULL OR r.attempted_at < @stale_before::timestamptz)
   AND (sqlc.narg('booking_id')::uuid IS NULL OR r.booking_id = sqlc.narg('booking_id')::uuid)
 ORDER BY r.created_at
 LIMIT @row_limit
@@ -160,7 +160,7 @@ UPDATE payments SET attempted_at = @attempted_at WHERE id = ANY (@ids::uuid[]);
 UPDATE payments SET provider_ref = @provider_ref WHERE id = @id AND provider_ref IS NULL;
 
 -- name: FailCardRefund :one
-UPDATE payments SET status = 'failed', failure = @failure
+UPDATE payments SET status = 'failed', failure = @failure::text
 WHERE id = @id AND status = 'pending'
 RETURNING account_id, booking_id;
 
@@ -170,6 +170,23 @@ WHERE provider_ref = @provider_ref AND kind = 'refund' AND status = 'pending'
   AND (sqlc.narg('account_id')::uuid IS NULL OR account_id = sqlc.narg('account_id')::uuid)
 RETURNING id, account_id, booking_id, status;
 
--- name: SetProviderFee :exec
+
+-- The pending refund of a payment for an amount, when its event arrives before the refund's id
+-- was saved.
+-- name: PendingRefundOfPayment :one
+SELECT r.id
+FROM payments r
+JOIN payments o ON o.id = r.refund_of
+WHERE o.provider_ref = @payment_ref AND r.kind = 'refund' AND r.status = 'pending'
+  AND r.provider_ref IS NULL AND r.charged_cents = @charged_cents
+  AND (sqlc.narg('account_id')::uuid IS NULL OR r.account_id = sqlc.narg('account_id')::uuid)
+ORDER BY r.created_at
+LIMIT 1
+FOR UPDATE OF r;
+
+-- name: PaymentAmount :one
+SELECT amount FROM payments WHERE id = @id;
+
+-- name: SetCollectedFee :exec
 UPDATE payments SET provider_fee_cents = @provider_fee_cents
-WHERE account_id = @account_id AND provider_ref = @provider_ref AND kind = 'payment';
+WHERE provider_ref = @provider_ref AND kind = 'payment' AND collected_by = 'staykey';
