@@ -1,7 +1,6 @@
 package billing
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -9,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -66,44 +64,12 @@ func (p PaymentsLK) CreateCheckout(ctx context.Context, r CheckoutRequest) (Chec
 		"successUrl":  r.SuccessURL,
 		"cancelUrl":   r.CancelURL,
 	}
-	raw, err := json.Marshal(body)
-	if err != nil {
-		return Checkout{}, fmt.Errorf("payments.lk: encode checkout: %w", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.base()+"/v1/checkouts", bytes.NewReader(raw))
-	if err != nil {
-		return Checkout{}, fmt.Errorf("payments.lk: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+p.SecretKey)
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Idempotency-Key", r.Reference)
-	res, err := p.client().Do(req)
-	if err != nil {
-		return Checkout{}, fmt.Errorf("payments.lk: create checkout: %w", err)
-	}
-	defer res.Body.Close()
-	reply, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
-	if err != nil {
-		return Checkout{}, fmt.Errorf("payments.lk: read checkout: %w", err)
-	}
-	if res.StatusCode < 200 || res.StatusCode > 299 {
-		var e struct {
-			Code    string `json:"code"`
-			Reason  string `json:"reason"`
-			TraceID string `json:"traceId"`
-		}
-		if err := json.Unmarshal(reply, &e); err != nil {
-			return Checkout{}, fmt.Errorf("payments.lk: create checkout answered %d", res.StatusCode)
-		}
-		return Checkout{}, fmt.Errorf("payments.lk: create checkout answered %d %s %s (trace %s)", res.StatusCode, e.Code, e.Reason, e.TraceID)
-	}
 	var c struct {
 		ID  string `json:"id"`
 		URL string `json:"url"`
 	}
-	if err := json.Unmarshal(reply, &c); err != nil {
-		return Checkout{}, fmt.Errorf("payments.lk: decode checkout: %w", err)
+	if err := request(ctx, p.client(), p.base(), p.SecretKey, http.MethodPost, "/v1/checkouts", r.Reference, body, &c); err != nil {
+		return Checkout{}, fmt.Errorf("payments.lk: create checkout: %w", err)
 	}
 	if c.ID == "" || !strings.HasPrefix(c.URL, "https://") {
 		return Checkout{}, errors.New("payments.lk: checkout came back without an id or an https url")
@@ -129,6 +95,8 @@ type Payment struct {
 	Currency    string `json:"currency"`
 	Reference   string `json:"reference"`
 	CheckoutID  string `json:"checkoutId"`
+	// FeeCents is Payments.lk's fee, known once the payment settles.
+	FeeCents *int64 `json:"feeCents"`
 }
 
 // VerifyEvent checks the Payments-Signature header against the raw body and reads the event.
