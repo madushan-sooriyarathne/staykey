@@ -179,8 +179,12 @@ export function quote(
   return { nights, nightly, lines, total };
 }
 
-export function paidOf(b: Booking): number {
-  return b.payments.reduce((n, x) => n + (x.method === "refund" ? -x.amount : x.amount), 0);
+/** What the guest has paid less refunds. A card refund that failed doesn't count. */
+export function paidOf(b: Pick<Booking, "payments">): number {
+  return b.payments.reduce((n, x) => {
+    if (x.status === "failed") return n;
+    return n + (x.method === "refund" ? -x.amount : x.amount);
+  }, 0);
 }
 
 export function balanceOf(b: Booking): number {

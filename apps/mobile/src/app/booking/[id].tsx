@@ -341,6 +341,21 @@ function Note({ label, text }: { label: string; text: string }) {
   );
 }
 
+const PAYS = { bank: "By bank transfer", property: "At the property", card: "By card" } as const;
+
+/** A payment's line: how and when, and for card refunds whether Payments.lk has sent them. */
+function paymentLabel(p: Booking["payments"][number]): string {
+  const how = p.method === "refund" && p.via === "card" ? "Card refund" : METHOD_LABEL[p.method];
+  const when = new Date(p.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const state =
+    p.status === "pending"
+      ? ", on its way"
+      : p.status === "failed"
+        ? ", failed; refund another way"
+        : "";
+  return `${how}, ${when}${state}`;
+}
+
 function PaymentCard({ booking: b, property }: { booking: Booking; property: PropertyConfig }) {
   const due = balanceOf(b);
   const paid = paidOf(b);
@@ -369,19 +384,14 @@ function PaymentCard({ booking: b, property }: { booking: Booking; property: Pro
           />
         ))}
         <KV label="Total" value={m(b.total)} total />
-        {b.paymentMethod ? (
-          <KV
-            label="Pays"
-            value={b.paymentMethod === "bank" ? "By bank transfer" : "At the property"}
-            muted
-          />
-        ) : null}
+        {b.paymentMethod ? <KV label="Pays" value={PAYS[b.paymentMethod]} muted /> : null}
         {b.payments.map((p) => (
           <KV
             key={p.id}
             muted
-            label={`${METHOD_LABEL[p.method]}, ${new Date(p.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
-            value={p.method === "refund" ? `-${m(p.amount)}` : m(p.amount)}
+            label={paymentLabel(p)}
+            value={`${p.method === "refund" ? "-" : ""}${m(p.amount)}${p.charged && property.currency !== "LKR" ? ` (${money(p.charged, "LKR")})` : ""}`}
+            tone={p.status === "failed" ? "ember" : undefined}
           />
         ))}
         {b.status !== "cancelled" && b.status !== "declined" ? (

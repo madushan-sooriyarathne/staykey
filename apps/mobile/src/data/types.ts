@@ -128,7 +128,12 @@ export type PropertyConfig = {
       cancelIfUnpaid: boolean;
     };
     atProperty: boolean;
+    /** Read back, pending means switched on but something in cardsMissing keeps cards off. */
     cards: "off" | "pending" | "on";
+    cardCharge: "deposit" | "full";
+    /** Rupee cents per 1.00 of the property's currency, for card checkouts. */
+    cardRate?: number;
+    cardsMissing?: ("mode" | "connection" | "payout_profile" | "rate")[];
   };
 
   booking: {
@@ -172,6 +177,13 @@ export type Payment = {
   method: "bank" | "cash" | "card" | "refund";
   at: string;
   note?: string;
+  /** How a refund went back. */
+  via?: "bank" | "cash" | "card";
+  /** Card refunds are pending until Payments.lk reports them, and may fail. */
+  status?: "pending" | "succeeded" | "failed";
+  /** Rupee cents a card payment or refund moved. */
+  charged?: number;
+  failure?: string;
 };
 
 export type Booking = {
@@ -196,7 +208,7 @@ export type Booking = {
   createdAt: string;
   requestExpiresAt?: string;
   /** How a guest who booked on the booking page said they'd pay. */
-  paymentMethod?: "bank" | "property";
+  paymentMethod?: "bank" | "property" | "card";
   cancel?: { reason: string; refund: number; at: string };
   /** Sent back with changes, so an edit made on a stale copy is refused. */
   version: number;
