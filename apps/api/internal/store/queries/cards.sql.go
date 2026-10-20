@@ -241,6 +241,17 @@ func (q *Queries) GetCardConnection(ctx context.Context, accountID uuid.UUID) (G
 	return i, err
 }
 
+const getCardCursor = `-- name: GetCardCursor :one
+SELECT events_since FROM card_cursors WHERE source = $1
+`
+
+func (q *Queries) GetCardCursor(ctx context.Context, source string) (time.Time, error) {
+	row := q.db.QueryRow(ctx, getCardCursor, source)
+	var events_since time.Time
+	err := row.Scan(&events_since)
+	return events_since, err
+}
+
 const getCardState = `-- name: GetCardState :one
 
 
@@ -628,6 +639,21 @@ type SetCardCheckoutProviderParams struct {
 
 func (q *Queries) SetCardCheckoutProvider(ctx context.Context, arg SetCardCheckoutProviderParams) error {
 	_, err := q.db.Exec(ctx, setCardCheckoutProvider, arg.ProviderCheckoutID, arg.ID)
+	return err
+}
+
+const setCardCursor = `-- name: SetCardCursor :exec
+INSERT INTO card_cursors (source, events_since) VALUES ($1, $2)
+ON CONFLICT (source) DO UPDATE SET events_since = greatest(card_cursors.events_since, excluded.events_since)
+`
+
+type SetCardCursorParams struct {
+	Source      string
+	EventsSince time.Time
+}
+
+func (q *Queries) SetCardCursor(ctx context.Context, arg SetCardCursorParams) error {
+	_, err := q.db.Exec(ctx, setCardCursor, arg.Source, arg.EventsSince)
 	return err
 }
 

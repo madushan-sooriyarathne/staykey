@@ -77,6 +77,13 @@ CREATE TABLE card_events (
 
 CREATE INDEX card_events_account_id_idx ON card_events (account_id) WHERE account_id IS NOT NULL;
 
+-- Where the next events poll starts for StayKey's own collection key. Owner connections keep
+-- theirs on card_connections.
+CREATE TABLE card_cursors (
+    source       text        PRIMARY KEY CHECK (char_length(source) <= 60),
+    events_since timestamptz NOT NULL
+);
+
 -- A card refund is pending from the cancel screen until Payments.lk reports it. refund_of is the
 -- card payment it goes back to; attempted_at marks the last time it was sent.
 ALTER TABLE payments
@@ -155,6 +162,7 @@ ALTER TABLE payments
     DROP COLUMN charged_cents,
     DROP COLUMN status;
 
+DROP TABLE card_cursors;
 DROP TABLE card_events;
 DROP TABLE card_checkouts;
 
