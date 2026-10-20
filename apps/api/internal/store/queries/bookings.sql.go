@@ -931,7 +931,8 @@ func (q *Queries) ListFeedBookings(ctx context.Context, arg ListFeedBookingsPara
 
 const listPayments = `-- name: ListPayments :many
 
-SELECT id, booking_id, kind, method, amount, note, received_at, slip_id
+SELECT id, booking_id, kind, method, amount, note, received_at, slip_id, status, charged_cents,
+       charged_currency, rate, collected_by, refund_of, failure
 FROM payments
 WHERE account_id = $1 AND booking_id = ANY ($2::uuid[])
 ORDER BY booking_id, received_at, id
@@ -943,14 +944,21 @@ type ListPaymentsParams struct {
 }
 
 type ListPaymentsRow struct {
-	ID         uuid.UUID
-	BookingID  uuid.UUID
-	Kind       string
-	Method     string
-	Amount     int64
-	Note       string
-	ReceivedAt time.Time
-	SlipID     *uuid.UUID
+	ID              uuid.UUID
+	BookingID       uuid.UUID
+	Kind            string
+	Method          string
+	Amount          int64
+	Note            string
+	ReceivedAt      time.Time
+	SlipID          *uuid.UUID
+	Status          string
+	ChargedCents    *int64
+	ChargedCurrency *string
+	Rate            *int64
+	CollectedBy     *string
+	RefundOf        *uuid.UUID
+	Failure         *string
 }
 
 // Payments and slips -----------------------------------------------------------------------
@@ -972,6 +980,13 @@ func (q *Queries) ListPayments(ctx context.Context, arg ListPaymentsParams) ([]L
 			&i.Note,
 			&i.ReceivedAt,
 			&i.SlipID,
+			&i.Status,
+			&i.ChargedCents,
+			&i.ChargedCurrency,
+			&i.Rate,
+			&i.CollectedBy,
+			&i.RefundOf,
+			&i.Failure,
 		); err != nil {
 			return nil, err
 		}
