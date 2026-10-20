@@ -13,8 +13,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
+
 	"staykey.direct/api/internal/auth"
 	"staykey.direct/api/internal/billing"
+	"staykey.direct/api/internal/cards"
 	"staykey.direct/api/internal/config"
 	"staykey.direct/api/internal/email"
 	"staykey.direct/api/internal/files"
@@ -52,7 +55,12 @@ func run() error {
 		BookingPage: func(slug string) string { return cfg.BookingScheme + "://" + slug + "." + cfg.BookingDomain },
 		VerifyEmail: cfg.VerifyEmailURL,
 	}
-	db, err := store.NewPostgres(ctx, cfg.DatabaseURL, store.WithSecrets(box), store.WithLinks(links))
+	collectMode := ""
+	if k := cfg.Cards.CollectSecretKey; k != "" {
+		collectMode = billing.Merchant{SecretKey: k}.Mode()
+	}
+	db, err := store.NewPostgres(ctx, cfg.DatabaseURL, store.WithSecrets(box), store.WithLinks(links),
+		store.WithCards(store.CardConfig{CollectMode: collectMode, PayoutsEnabled: cfg.Cards.PayoutsEnabled}))
 	if err != nil {
 		return err
 	}
@@ -80,8 +88,15 @@ func run() error {
 			return err
 		}
 	}
+	cardService := &cards.Service{
+		Store: db, CollectKey: cfg.Cards.CollectSecretKey, Production: cfg.IsProduction(), BaseURL: cfg.PaymentsLK.APIURL,
+		StayLink: func(slug string, bookingID uuid.UUID, token string) string {
+			return links.BookingPage(slug) + "/stay/" + bookingID.String() + "?t=" + token
+		},
+		Logger: log,
+	}
 	alerts := jobs.Alerts{Push: notify.Expo{AccessToken: cfg.ExpoAccessToken}, WhatsApp: whatsApp, Email: mailer, Logger: log}
-	jobClient, err := jobs.Start(ctx, db.Pool(), db, fileStore, alerts, ical.NewFetcher(cfg.ICalAllowPrivate), log)
+	jobClient, err := jobs.Start(ctx, db.Pool(), db, fileStore, alerts, ical.NewFetcher(cfg.ICalAllowPrivate), cardService, log)
 	if err != nil {
 		return err
 	}
@@ -111,6 +126,7 @@ func run() error {
 		Logger:          log,
 		ForwardSecret:   cfg.ForwardSecret,
 		BillingURL:      cfg.BillingURL,
+		Cards:           cardService,
 	}
 	if rc := cfg.RevenueCat; rc.SecretKey != "" {
 		client := billing.RevenueCat{SecretKey: rc.SecretKey, ExternalKey: rc.ExternalKey}

@@ -51,6 +51,8 @@ type Config struct {
 	// routes that need it answer 503 billing_not_configured.
 	RevenueCat RevenueCat
 	PaymentsLK PaymentsLK
+	// Cards are guest card payments through Payments.lk.
+	Cards Cards
 	// BillingURL is the web billing page on the marketing site. Payments.lk returns owners to
 	// it, and to its /done page after paying.
 	BillingURL string
@@ -86,6 +88,15 @@ type PaymentsLK struct {
 	SecretKey     string
 	WebhookSecret string
 	APIURL        string
+}
+
+// Cards configures guest card payments. Owners connect their own Payments.lk keys in the app;
+// CollectSecretKey is StayKey's own merchant account for owners on StayKey payouts, kept apart
+// from the one that takes plan payments. PayoutsEnabled offers payouts to owners, and must stay
+// off in production until StayKey may collect payments for others.
+type Cards struct {
+	CollectSecretKey string
+	PayoutsEnabled   bool
 }
 
 // SES holds the Amazon SES v2 settings. From is an address on the verified domain;
@@ -173,6 +184,10 @@ func Load() (Config, error) {
 			SecretKey:     os.Getenv("STAYKEY_PAYMENTSLK_SECRET_KEY"),
 			WebhookSecret: os.Getenv("STAYKEY_PAYMENTSLK_WEBHOOK_SECRET"),
 			APIURL:        os.Getenv("STAYKEY_PAYMENTSLK_API_URL"),
+		},
+		Cards: Cards{
+			CollectSecretKey: os.Getenv("STAYKEY_COLLECT_PAYMENTSLK_SECRET_KEY"),
+			PayoutsEnabled:   os.Getenv("STAYKEY_PAYOUTS_ENABLED") == "true",
 		},
 		ForwardSecret: os.Getenv("STAYKEY_FORWARD_SECRET"),
 		R2: R2{
@@ -270,6 +285,20 @@ func (c Config) validate() error {
 		if c.IsProduction() && !strings.HasPrefix(p.SecretKey, "sk_live_") {
 			return errors.New("STAYKEY_PAYMENTSLK_SECRET_KEY must be a live key (sk_live_...) in production")
 		}
+	}
+	if k := c.Cards.CollectSecretKey; k != "" {
+		if !strings.HasPrefix(k, "sk_test_") && !strings.HasPrefix(k, "sk_live_") {
+			return errors.New("STAYKEY_COLLECT_PAYMENTSLK_SECRET_KEY must be a Payments.lk secret key (sk_live_... or sk_test_...)")
+		}
+		if c.IsProduction() && !strings.HasPrefix(k, "sk_live_") {
+			return errors.New("STAYKEY_COLLECT_PAYMENTSLK_SECRET_KEY must be a live key (sk_live_...) in production")
+		}
+		if k == c.PaymentsLK.SecretKey {
+			return errors.New("STAYKEY_COLLECT_PAYMENTSLK_SECRET_KEY must be a separate merchant account from STAYKEY_PAYMENTSLK_SECRET_KEY")
+		}
+	}
+	if c.Cards.PayoutsEnabled && c.Cards.CollectSecretKey == "" {
+		return errors.New("STAYKEY_PAYOUTS_ENABLED needs STAYKEY_COLLECT_PAYMENTSLK_SECRET_KEY")
 	}
 	if c.RevenueCat.WebhookAuth != "" && c.RevenueCat.SecretKey == "" {
 		return errors.New("the RevenueCat webhook needs STAYKEY_REVENUECAT_SECRET_KEY to read subscribers")

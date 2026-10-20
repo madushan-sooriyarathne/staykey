@@ -61,22 +61,13 @@ func (s *Postgres) CardState(ctx context.Context, accountID uuid.UUID) (domain.C
 	}
 	st := domain.CardState{Mode: domain.CardMode(r.CardMode), CollectMode: s.cards.CollectMode}
 	if r.KeyLast4 != nil {
-		st.Connection = &domain.CardConnection{Last4: *r.KeyLast4, Mode: deref(r.Mode), Status: deref(r.Status)}
+		st.Connection = &domain.CardConnection{Last4: *r.KeyLast4, Mode: deref(r.Mode), Status: deref(r.Status), CheckedAt: deref(r.CheckedAt)}
 	}
 	st.PayoutsReady, err = s.payoutsReady(ctx, accountID)
 	if err != nil {
 		return domain.CardState{}, err
 	}
 	return st, nil
-}
-
-// CardCheckedAt is when the owner's connection was last checked.
-func (s *Postgres) CardCheckedAt(ctx context.Context, t tenant.Tenant) (time.Time, error) {
-	r, err := s.db(ctx).GetCardState(ctx, t.AccountID)
-	if err != nil {
-		return time.Time{}, notFound(err)
-	}
-	return deref(r.CheckedAt), nil
 }
 
 // PayoutsAvailable reports whether this server offers StayKey payouts.
@@ -186,6 +177,7 @@ func (s *Postgres) cardsMissing(ctx context.Context, accountID uuid.UUID, detail
 			st = &got
 		}
 		pay.CardsMissing = domain.CardsMissing(*st, *pay, details[i].Currency)
+		pay.CardsTest = st.KeyMode() == "test"
 	}
 	return nil
 }

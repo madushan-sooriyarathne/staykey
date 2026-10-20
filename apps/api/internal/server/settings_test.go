@@ -227,10 +227,10 @@ func TestPatchValidation(t *testing.T) {
 			"bank":       map[string]any{"enabled": true, "bankName": "", "accountName": "", "accountNumber": "", "payWithinHours": 24, "cancelIfUnpaid": true},
 			"atProperty": true, "cards": "off",
 		}}, "payments.bank.bankName"},
-		"cards approved by the app": {map[string]any{"payments": map[string]any{
+		"a card rate past the limit": {map[string]any{"payments": map[string]any{
 			"bank":       map[string]any{"enabled": false, "bankName": "", "accountName": "", "accountNumber": "", "payWithinHours": 24, "cancelIfUnpaid": true},
-			"atProperty": true, "cards": "on",
-		}}, "payments.cards"},
+			"atProperty": true, "cards": "on", "cardRate": 20000000,
+		}}, "payments.cardRate"},
 		"same code twice": {map[string]any{"promos": []map[string]any{
 			{"code": "SUMMER", "kind": "percent", "amount": 10}, {"code": "summer", "kind": "fixed", "amount": 500},
 		}}, "promos[1].code"},

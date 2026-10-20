@@ -57,8 +57,13 @@ func (s *Server) propertyToAPI(ctx context.Context, d domain.PropertyDetail, can
 				CancelIfUnpaid: d.Payments.Bank.CancelIfUnpaid,
 			},
 			AtProperty: d.Payments.AtProperty,
-			Cards:      oapi.PaymentSettingsCards(d.Payments.Cards),
 		},
+	}
+	out.Payments.Cards, out.Payments.CardsMissing = cardsToAPI(d.Payments)
+	charge := oapi.PaymentSettingsCardCharge(d.Payments.CardCharge)
+	out.Payments.CardCharge = &charge
+	if d.Payments.CardRate > 0 {
+		out.Payments.CardRate = &d.Payments.CardRate
 	}
 	if d.Branding.LogoKey != "" {
 		key, url := d.Branding.LogoKey, s.files.URL(ctx, d.Branding.LogoKey)
@@ -173,6 +178,10 @@ func patchFromAPI(in oapi.PropertyPatch) domain.PropertyPatch {
 			},
 			AtProperty: pay.AtProperty,
 			Cards:      string(pay.Cards),
+			CardRate:   deref(pay.CardRate),
+		}
+		if pay.CardCharge != nil {
+			p.Payments.CardCharge = string(*pay.CardCharge)
 		}
 	}
 	if g := in.ExtraGuest; g != nil {

@@ -82,6 +82,8 @@ type PaymentSettings struct {
 	CardCharge   string // deposit or full
 	CardRate     int64  // rupee cents per 1.00 of the property's currency; 0 when unset
 	CardsMissing []string
+	// CardsTest is true when card payments go to a sandbox key.
+	CardsTest bool
 }
 
 // CardsReady reports whether guests can pay this property by card now.

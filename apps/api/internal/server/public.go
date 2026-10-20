@@ -57,7 +57,7 @@ func (s *Server) GetPublicProperty(ctx context.Context, req oapi.GetPublicProper
 			WindowMonths: p.Rules.WindowMonths, ClosedArrival: nonNil(p.Rules.ClosedArrival),
 		},
 		Booking:  oapi.PublicBookingSettings{Mode: oapi.PublicBookingSettingsMode(p.Booking.Mode), HoldMinutes: p.Booking.HoldMinutes},
-		Payments: oapi.PublicPayments{Bank: p.Payments.Bank.Enabled, AtProperty: p.Payments.AtProperty},
+		Payments: oapi.PublicPayments{Bank: p.Payments.Bank.Enabled, AtProperty: p.Payments.AtProperty, Card: publicCard(p)},
 		Branding: oapi.PublicBranding{Color: p.Branding.Color},
 	}
 	reason, whatsapp, err := s.pausedReason(ctx, p)
@@ -219,7 +219,8 @@ func (s *Server) CreateGuestBooking(ctx context.Context, req oapi.CreateGuestBoo
 		return nil, apiErr(&domain.ValidationError{Field: "guest.phone", Message: "is needed so the property can reach you"}, "")
 	case len(note) > 2000:
 		return nil, apiErr(&domain.ValidationError{Field: "note", Message: "must be at most 2000 characters"}, "")
-	case method == "bank" && !p.Payments.Bank.Enabled, method == "property" && !p.Payments.AtProperty, method != "bank" && method != "property":
+	case method == "bank" && !p.Payments.Bank.Enabled, method == "property" && !p.Payments.AtProperty,
+		method == "card" && !p.Payments.CardsReady(), method != "bank" && method != "property" && method != "card":
 		return nil, apiErr(&domain.ValidationError{Field: "paymentMethod", Message: "isn't a way this property takes payment"}, "")
 	}
 	if err := in.Validate(p); err != nil {
@@ -244,6 +245,10 @@ func (s *Server) CreateGuestBooking(ctx context.Context, req oapi.CreateGuestBoo
 		nb.RequestExpiresAt = &expires
 	case method == "bank" && p.Payments.Bank.CancelIfUnpaid:
 		due := now.Add(time.Duration(p.Payments.Bank.PayWithinHours) * time.Hour)
+		nb.PaymentDueAt = &due
+	case method == "card":
+		// The guest goes straight to the checkout, so the stay waits only as long as it runs.
+		due := now.Add(domain.CardCheckoutMinutes * time.Minute)
 		nb.PaymentDueAt = &due
 	}
 
@@ -431,6 +436,7 @@ func (s *Server) guestBookingToAPI(gb domain.GuestBooking, p domain.PropertyDeta
 	for i, sl := range gb.Slips {
 		out.Slips[i] = oapi.GuestSlip{Amount: sl.Amount, Status: oapi.GuestSlipStatus(sl.Status), UploadedAt: sl.UploadedAt}
 	}
+	out.Card = guestCard(gb, p)
 	return out
 }
 
@@ -459,7 +465,7 @@ func (s *Server) pausedReason(ctx context.Context, p domain.PropertyDetail) (oap
 		return oapi.PublicPropertyPausedReasonLapsed, b.OwnerPhone, nil
 	case p.Status == "paused":
 		return oapi.PublicPropertyPausedReasonPaused, "", nil
-	case !p.Payments.Bank.Enabled && !p.Payments.AtProperty:
+	case !p.Payments.Bank.Enabled && !p.Payments.AtProperty && !p.Payments.CardsReady():
 		return oapi.PublicPropertyPausedReasonNoPaymentMethod, "", nil
 	}
 	return "", "", nil
