@@ -1,9 +1,16 @@
 "use server";
 
-import type { GuestPaymentMethod, Quote } from "@staykey/api-client";
+import type { CardPurpose, GuestPaymentMethod, Quote } from "@staykey/api-client";
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
-import { bookStay, holdStay, type Problem, quoteStay, uploadSlip } from "@/lib/api";
+import {
+  bookStay,
+  holdStay,
+  type Problem,
+  quoteStay,
+  startCardCheckout,
+  uploadSlip,
+} from "@/lib/api";
 import { isDay } from "@/lib/dates";
 import { pagePath } from "@/lib/paths";
 
@@ -77,7 +84,11 @@ export async function hold(_: FormState, form: FormData): Promise<FormState> {
 }
 
 function paymentMethod(value: string): GuestPaymentMethod | undefined {
-  return value === "bank" || value === "property" ? value : undefined;
+  return value === "bank" || value === "property" || value === "card" ? value : undefined;
+}
+
+function cardPurpose(value: string): CardPurpose | undefined {
+  return value === "deposit" || value === "full" || value === "balance" ? value : undefined;
 }
 
 /** Books the stay and opens the guest's stay page, whose link carries their token. */
@@ -113,7 +124,23 @@ export async function book(_: FormState, form: FormData): Promise<FormState> {
   );
   if (!res.ok) return { problem: res.problem };
   const { booking, token } = res.data;
-  redirect(`${await pagePath(slug, `/stay/${booking.id}`)}?t=${encodeURIComponent(token)}`);
+  const stayPage = `${await pagePath(slug, `/stay/${booking.id}`)}?t=${encodeURIComponent(token)}`;
+  // Booking by card goes straight to the checkout. If it can't open, the stay page offers it.
+  const first = booking.card?.options[0];
+  if (method === "card" && booking.status === "awaiting_payment" && first) {
+    const checkout = await startCardCheckout(booking.id, token, first.purpose);
+    if (checkout.ok) redirect(checkout.data.url);
+  }
+  redirect(stayPage);
+}
+
+/** Opens a Payments.lk checkout from the stay page. */
+export async function payByCard(_: FormState, form: FormData): Promise<FormState> {
+  const purpose = cardPurpose(text(form, "purpose"));
+  if (!purpose) return { problem: { message: "Choose what to pay." } };
+  const res = await startCardCheckout(text(form, "bookingId"), text(form, "token"), purpose);
+  if (!res.ok) return { problem: res.problem };
+  redirect(res.data.url);
 }
 
 /** Sends a photo of a bank slip for the guest's booking. */

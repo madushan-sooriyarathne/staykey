@@ -1,10 +1,11 @@
 import { formatMoney, type GuestBooking } from "@staykey/api-client";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getGuestBooking, getPublicProperty } from "@/lib/api";
+import { checkCardCheckout, getGuestBooking, getPublicProperty } from "@/lib/api";
 import { cx } from "@/lib/cx";
 import { formatRange } from "@/lib/dates";
 import { param } from "@/lib/stay-params";
+import { CardForm } from "./card-form";
 import { SlipForm } from "./slip-form";
 
 // The link carries the guest's token, so it must not leak to other sites or search engines.
@@ -26,10 +27,13 @@ const STATUS: Record<GuestBooking["status"], { title: string; note: string }> = 
 
 export default async function StayPage(props: PageProps<"/p/[slug]/stay/[bookingId]">) {
   const { slug, bookingId } = await props.params;
-  const token = param(await props.searchParams, "t");
+  const search = await props.searchParams;
+  const token = param(search, "t");
   if (!token) notFound();
+  // Back from Payments.lk, ask it about the payment now rather than waiting for the next poll.
+  const returned = param(search, "paid") === "1";
   const [b, property] = await Promise.all([
-    getGuestBooking(bookingId, token),
+    returned ? checkCardCheckout(bookingId, token) : getGuestBooking(bookingId, token),
     getPublicProperty(slug),
   ]);
   if (!b) notFound();
@@ -82,6 +86,14 @@ export default async function StayPage(props: PageProps<"/p/[slug]/stay/[booking
         )}
       </section>
 
+      {returned && (
+        <p role="status" className="rounded-card bg-subtle p-4 text-graphite">
+          {b.paid > 0
+            ? "Payment received. Thank you."
+            : "We're waiting for Payments.lk to confirm your payment. This page updates when you open it again."}
+        </p>
+      )}
+
       {deadline && (
         <p className="rounded-card bg-ember-tint p-4 text-ember-ink">
           {b.status === "requested" ? "The owner answers by" : "Please pay by"}{" "}
@@ -127,6 +139,8 @@ export default async function StayPage(props: PageProps<"/p/[slug]/stay/[booking
           </ul>
         </section>
       )}
+
+      {b.card && <CardForm bookingId={b.id} token={token} currency={b.currency} card={b.card} />}
 
       {takesSlips && <SlipForm bookingId={b.id} token={token} currency={b.currency} />}
     </main>
