@@ -39,6 +39,13 @@ WHERE account_id = @account_id AND status = 'connected';
 UPDATE card_connections SET events_since = @events_since
 WHERE account_id = @account_id AND events_since < @events_since;
 
+-- name: GetCardCursor :one
+SELECT events_since FROM card_cursors WHERE source = @source;
+
+-- name: SetCardCursor :exec
+INSERT INTO card_cursors (source, events_since) VALUES (@source, @events_since)
+ON CONFLICT (source) DO UPDATE SET events_since = greatest(card_cursors.events_since, excluded.events_since);
+
 -- Connections the events job reads: working, on accounts that use their own account and are
 -- still open.
 -- name: ListLiveCardConnections :many
