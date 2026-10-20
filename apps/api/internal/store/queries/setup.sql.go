@@ -781,7 +781,7 @@ func (q *Queries) ListLengthDiscounts(ctx context.Context, arg ListLengthDiscoun
 const listPaymentSettings = `-- name: ListPaymentSettings :many
 
 SELECT property_id, bank_enabled, bank_name, account_name, account_number_enc, pay_within_hours,
-       cancel_if_unpaid, at_property, cards_status
+       cancel_if_unpaid, at_property, cards_status, card_charge, card_rate
 FROM payment_settings
 WHERE account_id = $1 AND property_id = ANY ($2::uuid[])
 `
@@ -801,6 +801,8 @@ type ListPaymentSettingsRow struct {
 	CancelIfUnpaid   bool
 	AtProperty       bool
 	CardsStatus      string
+	CardCharge       string
+	CardRate         *int64
 }
 
 // Payment settings -------------------------------------------------------------------------
@@ -823,6 +825,8 @@ func (q *Queries) ListPaymentSettings(ctx context.Context, arg ListPaymentSettin
 			&i.CancelIfUnpaid,
 			&i.AtProperty,
 			&i.CardsStatus,
+			&i.CardCharge,
+			&i.CardRate,
 		); err != nil {
 			return nil, err
 		}
@@ -1425,10 +1429,10 @@ func (q *Queries) UpdateUnit(ctx context.Context, arg UpdateUnitParams) error {
 const upsertPaymentSettings = `-- name: UpsertPaymentSettings :exec
 INSERT INTO payment_settings (property_id, account_id, bank_enabled, bank_name, account_name,
                               account_number_enc, pay_within_hours, cancel_if_unpaid, at_property,
-                              cards_status)
+                              cards_status, card_charge, card_rate)
 VALUES ($1, $2, $3, $4, $5,
         $6, $7, $8, $9,
-        $10)
+        $10, $11, $12)
 ON CONFLICT (property_id) DO UPDATE SET
     bank_enabled       = excluded.bank_enabled,
     bank_name          = excluded.bank_name,
@@ -1437,7 +1441,9 @@ ON CONFLICT (property_id) DO UPDATE SET
     pay_within_hours   = excluded.pay_within_hours,
     cancel_if_unpaid   = excluded.cancel_if_unpaid,
     at_property        = excluded.at_property,
-    cards_status       = excluded.cards_status
+    cards_status       = excluded.cards_status,
+    card_charge        = excluded.card_charge,
+    card_rate          = excluded.card_rate
 WHERE payment_settings.account_id = excluded.account_id
 `
 
@@ -1452,6 +1458,8 @@ type UpsertPaymentSettingsParams struct {
 	CancelIfUnpaid   bool
 	AtProperty       bool
 	CardsStatus      string
+	CardCharge       string
+	CardRate         *int64
 }
 
 func (q *Queries) UpsertPaymentSettings(ctx context.Context, arg UpsertPaymentSettingsParams) error {
@@ -1466,6 +1474,8 @@ func (q *Queries) UpsertPaymentSettings(ctx context.Context, arg UpsertPaymentSe
 		arg.CancelIfUnpaid,
 		arg.AtProperty,
 		arg.CardsStatus,
+		arg.CardCharge,
+		arg.CardRate,
 	)
 	return err
 }

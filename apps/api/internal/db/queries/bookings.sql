@@ -170,7 +170,8 @@ ORDER BY created_at, id;
 -- Payments and slips -----------------------------------------------------------------------
 
 -- name: ListPayments :many
-SELECT id, booking_id, kind, method, amount, note, received_at, slip_id
+SELECT id, booking_id, kind, method, amount, note, received_at, slip_id, status, charged_cents,
+       charged_currency, rate, collected_by, refund_of, failure
 FROM payments
 WHERE account_id = @account_id AND booking_id = ANY (@booking_ids::uuid[])
 ORDER BY booking_id, received_at, id;

@@ -60,17 +60,17 @@ VALUES (@id, @account_id, @property_id, @key, @caption, @position);
 
 -- name: ListPaymentSettings :many
 SELECT property_id, bank_enabled, bank_name, account_name, account_number_enc, pay_within_hours,
-       cancel_if_unpaid, at_property, cards_status
+       cancel_if_unpaid, at_property, cards_status, card_charge, card_rate
 FROM payment_settings
 WHERE account_id = @account_id AND property_id = ANY (@property_ids::uuid[]);
 
 -- name: UpsertPaymentSettings :exec
 INSERT INTO payment_settings (property_id, account_id, bank_enabled, bank_name, account_name,
                               account_number_enc, pay_within_hours, cancel_if_unpaid, at_property,
-                              cards_status)
+                              cards_status, card_charge, card_rate)
 VALUES (@property_id, @account_id, @bank_enabled, @bank_name, @account_name,
         sqlc.narg('account_number_enc'), @pay_within_hours, @cancel_if_unpaid, @at_property,
-        @cards_status)
+        @cards_status, @card_charge, sqlc.narg('card_rate'))
 ON CONFLICT (property_id) DO UPDATE SET
     bank_enabled       = excluded.bank_enabled,
     bank_name          = excluded.bank_name,
@@ -79,7 +79,9 @@ ON CONFLICT (property_id) DO UPDATE SET
     pay_within_hours   = excluded.pay_within_hours,
     cancel_if_unpaid   = excluded.cancel_if_unpaid,
     at_property        = excluded.at_property,
-    cards_status       = excluded.cards_status
+    cards_status       = excluded.cards_status,
+    card_charge        = excluded.card_charge,
+    card_rate          = excluded.card_rate
 WHERE payment_settings.account_id = excluded.account_id;
 
 -- Seasons and length discounts -------------------------------------------------------------
