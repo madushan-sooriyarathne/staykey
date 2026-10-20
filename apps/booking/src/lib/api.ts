@@ -1,6 +1,8 @@
 import "server-only";
 import {
   type Availability,
+  type CardCheckout,
+  type CardPurpose,
   createStayKeyClient,
   forwardVisitor,
   type GuestBooking,
@@ -96,6 +98,35 @@ export async function getGuestBooking(id: string, token: string): Promise<GuestB
   });
   if (response.status === 404) return null;
   if (!data) throw new Error(`StayKey API returned ${response.status} for a guest booking`);
+  return data;
+}
+
+/** Opens a Payments.lk checkout for part of a guest's stay. */
+export async function startCardCheckout(
+  id: string,
+  token: string,
+  purpose: CardPurpose,
+): Promise<Result<CardCheckout>> {
+  const { data, error, response } = await api.POST(
+    "/v1/public/bookings/{bookingId}/card-checkout",
+    {
+      params: { path: { bookingId: id }, header: { "X-Booking-Token": token } },
+      body: { purpose },
+    },
+  );
+  return result(data, error, response);
+}
+
+/**
+ * Asks Payments.lk about the stay's open checkouts now, for a guest coming back from paying,
+ * and returns the stay. Null when the id or token is wrong.
+ */
+export async function checkCardCheckout(id: string, token: string): Promise<GuestBooking | null> {
+  const { data, response } = await api.POST("/v1/public/bookings/{bookingId}/card-checkout/check", {
+    params: { path: { bookingId: id }, header: { "X-Booking-Token": token } },
+  });
+  if (response.status === 404) return null;
+  if (!data) throw new Error(`StayKey API returned ${response.status} for a card check`);
   return data;
 }
 

@@ -7,6 +7,8 @@ import {
   formatMoney,
   type PublicExtra,
   type PublicProperty,
+  type Quote,
+  toRupees,
 } from "@staykey/api-client";
 import Link from "next/link";
 import { useActionState, useEffect, useId, useRef, useState, useTransition } from "react";
@@ -68,9 +70,14 @@ export function CheckoutForm(props: Props) {
   };
 
   const methods = [
+    payments.card && {
+      value: "card",
+      label: "Card",
+      note: cardNote(payments.card, priced.quote, mode),
+    },
     payments.bank && { value: "bank", label: "Bank transfer", note: "Bank details come next." },
     payments.atProperty && { value: "property", label: "Pay at the property", note: "On arrival." },
-  ].filter((m) => m !== false);
+  ].filter((m) => m !== undefined && m !== false);
 
   const problemFor = (name: string) =>
     state.problem?.field === name || state.problem?.field === `guest.${name}`
@@ -276,6 +283,22 @@ export function CheckoutForm(props: Props) {
       )}
     </form>
   );
+}
+
+/** What paying by card will charge, in the rupees Payments.lk takes. */
+function cardNote(
+  card: NonNullable<PublicProperty["payments"]["card"]>,
+  q: Quote | undefined,
+  mode: PublicProperty["booking"]["mode"],
+): string {
+  const test = card.testMode ? " Test mode, no real charge." : "";
+  if (mode === "request") return `Through Payments.lk once the owner confirms.${test}`;
+  if (!q) return `Through Payments.lk.${test}`;
+  const rupees = (amount: number) => formatMoney(toRupees(amount, card.rate), "LKR");
+  if (card.charge === "deposit" && q.deposit > 0 && q.deposit < q.total) {
+    return `Deposit ${rupees(q.deposit)} now through Payments.lk, the rest later.${test}`;
+  }
+  return `${rupees(q.total)} now through Payments.lk.${test}`;
 }
 
 function Summary({
