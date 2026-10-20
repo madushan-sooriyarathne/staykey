@@ -89,7 +89,7 @@ func (s *Postgres) CreateProperty(ctx context.Context, t tenant.Tenant, p domain
 		}
 		if err := s.db(ctx).UpsertPaymentSettings(ctx, queries.UpsertPaymentSettingsParams{
 			PropertyID: id, AccountID: t.AccountID, PayWithinHours: 24, CancelIfUnpaid: true,
-			AtProperty: true, CardsStatus: "off",
+			AtProperty: true, CardsStatus: "off", CardCharge: domain.CardChargeDeposit,
 		}); err != nil {
 			return err
 		}

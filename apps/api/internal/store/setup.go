@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -73,6 +74,8 @@ func (s *Postgres) loadSetup(ctx context.Context, accountID uuid.UUID, details [
 			},
 			AtProperty: p.AtProperty,
 			Cards:      p.CardsStatus,
+			CardCharge: p.CardCharge,
+			CardRate:   deref(p.CardRate),
 		}
 	}
 
@@ -163,7 +166,7 @@ func (s *Postgres) loadSetup(ctx context.Context, accountID uuid.UUID, details [
 		}
 		byID[f.PropertyID].IcalFeeds = append(byID[f.PropertyID].IcalFeeds, feed)
 	}
-	return nil
+	return s.cardsMissing(ctx, accountID, details)
 }
 
 // applySetup writes every section the patch carries. It runs inside the caller's transaction,
@@ -317,26 +320,23 @@ func (s *Postgres) applySetup(ctx context.Context, accountID, propertyID uuid.UU
 
 func (s *Postgres) applyPayments(ctx context.Context, accountID, propertyID uuid.UUID, pay domain.PaymentSettings) error {
 	q := s.db(ctx)
-	current, err := q.ListPaymentSettings(ctx, queries.ListPaymentSettingsParams{AccountID: accountID, PropertyIds: []uuid.UUID{propertyID}})
-	if err != nil {
-		return err
-	}
-	// Card payments turn on when PayHere approves them, never from the app.
-	if pay.Cards == "on" && (len(current) == 0 || current[0].CardsStatus != "on") {
-		return &domain.ValidationError{Field: "payments.cards", Message: "card payments turn on once PayHere approves them"}
-	}
-
 	var enc []byte
 	if pay.Bank.AccountNumber != "" {
+		var err error
 		if enc, err = s.sealAccountNumber(propertyID, pay.Bank.AccountNumber); err != nil {
 			return err
 		}
+	}
+	charge := cmp.Or(pay.CardCharge, domain.CardChargeDeposit)
+	var rate *int64
+	if pay.CardRate > 0 {
+		rate = &pay.CardRate
 	}
 	return q.UpsertPaymentSettings(ctx, queries.UpsertPaymentSettingsParams{
 		PropertyID: propertyID, AccountID: accountID, BankEnabled: pay.Bank.Enabled,
 		BankName: pay.Bank.BankName, AccountName: pay.Bank.AccountName, AccountNumberEnc: enc,
 		PayWithinHours: int16(pay.Bank.PayWithinHours), CancelIfUnpaid: pay.Bank.CancelIfUnpaid,
-		AtProperty: pay.AtProperty, CardsStatus: pay.Cards,
+		AtProperty: pay.AtProperty, CardsStatus: cmp.Or(pay.Cards, "off"), CardCharge: charge, CardRate: rate,
 	})
 }
 

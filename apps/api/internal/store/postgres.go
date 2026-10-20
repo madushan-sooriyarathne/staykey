@@ -28,6 +28,7 @@ type Postgres struct {
 	q       *queries.Queries
 	secrets *secret.Box
 	links   Links
+	cards   CardConfig
 }
 
 // Option configures a Postgres store.

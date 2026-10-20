@@ -65,7 +65,7 @@ SELECT r.id, r.account_id, r.booking_id, r.charged_cents, r.collected_by, o.prov
 FROM payments r
 JOIN payments o ON o.id = r.refund_of
 WHERE r.kind = 'refund' AND r.status = 'pending' AND r.provider_ref IS NULL
-  AND (r.attempted_at IS NULL OR r.attempted_at < $1)
+  AND (r.attempted_at IS NULL OR r.attempted_at < $1::timestamptz)
   AND ($2::uuid IS NULL OR r.booking_id = $2::uuid)
 ORDER BY r.created_at
 LIMIT $3
@@ -73,7 +73,7 @@ FOR UPDATE OF r SKIP LOCKED
 `
 
 type ClaimCardRefundsParams struct {
-	StaleBefore *time.Time
+	StaleBefore time.Time
 	BookingID   *uuid.UUID
 	RowLimit    int32
 }
@@ -126,13 +126,13 @@ func (q *Queries) DeleteCardConnection(ctx context.Context, accountID uuid.UUID)
 }
 
 const failCardRefund = `-- name: FailCardRefund :one
-UPDATE payments SET status = 'failed', failure = $1
+UPDATE payments SET status = 'failed', failure = $1::text
 WHERE id = $2 AND status = 'pending'
 RETURNING account_id, booking_id
 `
 
 type FailCardRefundParams struct {
-	Failure *string
+	Failure string
 	ID      uuid.UUID
 }
 
@@ -527,10 +527,48 @@ func (q *Queries) OpenCardCheckouts(ctx context.Context, bookingID uuid.UUID) ([
 	return items, nil
 }
 
+const paymentAmount = `-- name: PaymentAmount :one
+SELECT amount FROM payments WHERE id = $1
+`
+
+func (q *Queries) PaymentAmount(ctx context.Context, id uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, paymentAmount, id)
+	var amount int64
+	err := row.Scan(&amount)
+	return amount, err
+}
+
+const pendingRefundOfPayment = `-- name: PendingRefundOfPayment :one
+SELECT r.id
+FROM payments r
+JOIN payments o ON o.id = r.refund_of
+WHERE o.provider_ref = $1 AND r.kind = 'refund' AND r.status = 'pending'
+  AND r.provider_ref IS NULL AND r.charged_cents = $2
+  AND ($3::uuid IS NULL OR r.account_id = $3::uuid)
+ORDER BY r.created_at
+LIMIT 1
+FOR UPDATE OF r
+`
+
+type PendingRefundOfPaymentParams struct {
+	PaymentRef   *string
+	ChargedCents *int64
+	AccountID    *uuid.UUID
+}
+
+// The pending refund of a payment for an amount, when its event arrives before the refund's id
+// was saved.
+func (q *Queries) PendingRefundOfPayment(ctx context.Context, arg PendingRefundOfPaymentParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, pendingRefundOfPayment, arg.PaymentRef, arg.ChargedCents, arg.AccountID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const refundableCardPayments = `-- name: RefundableCardPayments :many
 SELECT p.id, p.amount, p.charged_cents, p.rate, p.collected_by,
-       p.amount - coalesce(sum(r.amount) FILTER (WHERE r.status <> 'failed'), 0)::bigint AS amount_left,
-       p.charged_cents - coalesce(sum(r.charged_cents) FILTER (WHERE r.status <> 'failed'), 0)::bigint AS charged_left
+       (p.amount - coalesce(sum(r.amount) FILTER (WHERE r.status <> 'failed'), 0))::bigint AS amount_left,
+       (coalesce(p.charged_cents, 0) - coalesce(sum(r.charged_cents) FILTER (WHERE r.status <> 'failed'), 0))::bigint AS charged_left
 FROM payments p
 LEFT JOIN payments r ON r.refund_of = p.id
 WHERE p.booking_id = $1 AND p.account_id = $2 AND p.kind = 'payment'
@@ -550,8 +588,8 @@ type RefundableCardPaymentsRow struct {
 	ChargedCents *int64
 	Rate         *int64
 	CollectedBy  *string
-	AmountLeft   int32
-	ChargedLeft  int32
+	AmountLeft   int64
+	ChargedLeft  int64
 }
 
 // Card payments of a stay that can still be refunded, newest first, with what is left of each
@@ -671,19 +709,18 @@ func (q *Queries) SetCardMode(ctx context.Context, arg SetCardModeParams) error 
 	return err
 }
 
-const setProviderFee = `-- name: SetProviderFee :exec
+const setCollectedFee = `-- name: SetCollectedFee :exec
 UPDATE payments SET provider_fee_cents = $1
-WHERE account_id = $2 AND provider_ref = $3 AND kind = 'payment'
+WHERE provider_ref = $2 AND kind = 'payment' AND collected_by = 'staykey'
 `
 
-type SetProviderFeeParams struct {
+type SetCollectedFeeParams struct {
 	ProviderFeeCents *int64
-	AccountID        uuid.UUID
 	ProviderRef      *string
 }
 
-func (q *Queries) SetProviderFee(ctx context.Context, arg SetProviderFeeParams) error {
-	_, err := q.db.Exec(ctx, setProviderFee, arg.ProviderFeeCents, arg.AccountID, arg.ProviderRef)
+func (q *Queries) SetCollectedFee(ctx context.Context, arg SetCollectedFeeParams) error {
+	_, err := q.db.Exec(ctx, setCollectedFee, arg.ProviderFeeCents, arg.ProviderRef)
 	return err
 }
 
