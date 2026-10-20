@@ -187,7 +187,7 @@ func TestAConnectedKeyShowsOnlyItsLastFour(t *testing.T) {
 		body: map[string]any{"secretKey": ownerCardKey}})
 	e.expect(rec, http.StatusOK)
 	got := decode[oapi.CardPayments](t, rec)
-	if got.Mode != oapi.CardModeOwn || got.Connection == nil || got.Connection.Last4 != "jWDarjt"[3:] || strings.Contains(rec.Body.String(), ownerCardKey) {
+	if got.Mode != oapi.CardModeOwn || got.Connection == nil || got.Connection.Last4 != ownerCardKey[len(ownerCardKey)-4:] || strings.Contains(rec.Body.String(), ownerCardKey) {
 		t.Errorf("card payments %s", rec.Body.String())
 	}
 }
