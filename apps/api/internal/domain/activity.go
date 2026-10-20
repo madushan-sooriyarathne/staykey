@@ -151,6 +151,19 @@ func PaymentRecorded(b Booking, actor string) Activity {
 		fmt.Sprintf("%s, recorded by %s", b.Ref, firstName(actor)))
 }
 
+// CardPaid is a card payment a guest made through Payments.lk.
+func CardPaid(b Booking, amount int64) Activity {
+	return stayActivity(b, ActivityPayment, "Card payment from "+b.Guest.Name,
+		fmt.Sprintf("%s, %s", b.Ref, FormatMoney(amount, b.Currency)))
+}
+
+// CardRefundFailed is a card refund Payments.lk couldn't make, which the owner has to settle
+// another way.
+func CardRefundFailed(b Booking, amount int64) Activity {
+	return stayActivity(b, ActivityPayment, "Card refund to "+b.Guest.Name+" failed",
+		fmt.Sprintf("%s, %s, refund it another way", b.Ref, FormatMoney(amount, b.Currency)))
+}
+
 // SlipRejected is a bank slip someone on the team turned down.
 func SlipRejected(b Booking, actor string) Activity {
 	return stayActivity(b, ActivitySlip, "Bank slip from "+b.Guest.Name+" rejected",
@@ -163,8 +176,11 @@ func DirectBooking(b Booking) Activity {
 		return BookingAdded(b, "")
 	}
 	pays := "pays by bank transfer"
-	if b.PaymentMethod == "property" {
+	switch b.PaymentMethod {
+	case "property":
 		pays = "pays at the property"
+	case "card":
+		pays = "pays by card"
 	}
 	return stayActivity(b, ActivityBooking, "New direct booking from "+b.Guest.Name,
 		FormatRange(b.CheckIn, b.CheckOut)+", "+pays)
