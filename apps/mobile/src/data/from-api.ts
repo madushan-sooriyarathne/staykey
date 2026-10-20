@@ -74,7 +74,14 @@ export function toPropertyConfig(p: Property): PropertyConfig {
       minNights: pr.minNights ?? undefined,
       note: pr.note || undefined,
     })),
-    payments: p.payments,
+    payments: {
+      bank: p.payments.bank,
+      atProperty: p.payments.atProperty,
+      cards: p.payments.cards,
+      cardCharge: p.payments.cardCharge ?? "deposit",
+      cardRate: p.payments.cardRate || undefined,
+      cardsMissing: p.payments.cardsMissing,
+    },
     booking: p.booking,
     branding: {
       color: p.branding.color,
@@ -124,7 +131,14 @@ export function toPatch(changes: Partial<PropertyConfig>): PropertyPatch {
   if (c.branding !== undefined) {
     patch.branding = { color: c.branding.color, logoKey: c.branding.logoKey };
   }
-  if (c.payments !== undefined) patch.payments = c.payments;
+  if (c.payments !== undefined) {
+    const { cardsMissing: _readOnly, ...pay } = c.payments;
+    patch.payments = {
+      ...pay,
+      cards: pay.cards === "off" ? "off" : "on",
+      cardRate: pay.cardRate ?? 0,
+    };
+  }
   if (c.extraGuest !== undefined) patch.extraGuest = c.extraGuest ?? { above: 0, amount: 0 };
   if (c.units !== undefined) {
     patch.units = c.units.map((u) => ({
@@ -202,6 +216,10 @@ export function toBooking(b: ApiBooking): Booking {
     method: p.kind === "refund" ? ("refund" as const) : p.method,
     at: p.receivedAt,
     note: p.note || undefined,
+    via: p.kind === "refund" ? p.method : undefined,
+    status: p.status,
+    charged: p.charged,
+    failure: p.failure,
   }));
   const slips = b.slips ?? [];
   const slip = slips.find((x) => x.status === "pending") ?? slips[slips.length - 1];
@@ -230,7 +248,10 @@ export function toBooking(b: ApiBooking): Booking {
     cancel: b.cancel && {
       reason: b.cancel.reason,
       at: b.cancel.at,
-      refund: payments.reduce((n, p) => n + (p.method === "refund" ? p.amount : 0), 0),
+      refund: payments.reduce(
+        (n, p) => n + (p.method === "refund" && p.status !== "failed" ? p.amount : 0),
+        0,
+      ),
     },
     version: b.version,
   };

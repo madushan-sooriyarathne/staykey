@@ -77,6 +77,7 @@ export function propertyFromDraft(
       },
       atProperty: d.payAtProperty,
       cards: "off",
+      cardCharge: "deposit",
     },
     booking: {
       mode: ical.length ? "request" : "instant",

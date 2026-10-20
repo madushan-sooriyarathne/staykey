@@ -154,6 +154,14 @@ export default function MoreScreen() {
               onPress={() => router.push("/subscription")}
             />
           ) : null}
+          {can("billing") ? (
+            <ListRow
+              testID="more-card-payments"
+              icon={I.card}
+              title="Card payments"
+              onPress={() => router.push("/card-payments")}
+            />
+          ) : null}
           <ListRow
             icon={I.person}
             title="Profile and account"

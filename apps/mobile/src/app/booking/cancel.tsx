@@ -52,6 +52,8 @@ export default function CancelBooking() {
   // Refunds go back the way the guest last paid unless the owner picks another way.
   const paidBy = booking.payments.findLast((p) => p.method !== "refund")?.method;
   const method = chosen ?? (paidBy && paidBy !== "refund" ? paidBy : "bank");
+  // Card payments taken through Payments.lk, which a card refund goes back to.
+  const byCard = booking.payments.some((p) => p.method === "card" && p.charged);
 
   async function confirm() {
     if (!booking) return;
@@ -157,6 +159,12 @@ export default function CancelBooking() {
                   />
                 ))}
               </View>
+              {method === "card" && byCard ? (
+                <InfoNote icon={I.card}>
+                  The refund goes back to {first}'s card through Payments.lk and usually arrives in
+                  a few working days. It can't be more than {first} paid by card.
+                </InfoNote>
+              ) : null}
             </View>
           ) : null}
         </View>
