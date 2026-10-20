@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"staykey.direct/api/internal/auth"
+	"staykey.direct/api/internal/cards"
 	"staykey.direct/api/internal/domain"
 	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/oapi"
@@ -95,6 +96,12 @@ type Store interface {
 	SetWebCheckoutProvider(ctx context.Context, t tenant.Tenant, id uuid.UUID, providerID string) error
 	PayWebCheckout(ctx context.Context, ev store.BillingEvent, pay store.WebPayment, now time.Time) (domain.PaidPeriod, error)
 	ExpireWebCheckout(ctx context.Context, ev store.BillingEvent, providerID string) error
+
+	CardState(ctx context.Context, accountID uuid.UUID) (domain.CardState, error)
+	SetCardMode(ctx context.Context, t tenant.Tenant, mode domain.CardMode) (domain.CardState, error)
+	ConnectCards(ctx context.Context, t tenant.Tenant, key, mode string, now time.Time) (domain.CardState, error)
+	DisconnectCards(ctx context.Context, t tenant.Tenant) (domain.CardState, error)
+	PayoutsAvailable() bool
 }
 
 // Options configures a Server.
@@ -126,6 +133,8 @@ type Options struct {
 	// WebPayments takes web payments through Payments.lk, returning owners to BillingURL.
 	WebPayments WebGateway
 	BillingURL  string
+	// Cards takes guest card payments through Payments.lk. Nil leaves cards off.
+	Cards *cards.Service
 	// SNS checks the bounce and complaint notifications SES sends through SNS. Nil leaves
 	// POST /webhooks/ses answering 503.
 	SNS SNSChecker

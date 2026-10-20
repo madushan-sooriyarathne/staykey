@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Guest card payments through Payments.lk hosted checkouts.
@@ -103,9 +104,10 @@ type CardState struct {
 
 // CardConnection is an owner's own Payments.lk account, without its key.
 type CardConnection struct {
-	Last4  string
-	Mode   string // test or live
-	Status string // connected or failed
+	Last4     string
+	Mode      string // test or live
+	Status    string // connected or failed
+	CheckedAt time.Time
 }
 
 // CardsMissing says what keeps cards from working on a property that has them switched on, or
