@@ -69,7 +69,21 @@ type Payment struct {
 	Note       string
 	ReceivedAt time.Time
 	SlipID     *uuid.UUID
+	// Status is succeeded for everything but card refunds, which are pending until
+	// Payments.lk reports them and may fail.
+	Status string
+	// Charged is the rupee cents a card payment or refund moved, with the rate used (rupee
+	// cents per 1.00 of the booking's currency, 0 for rupees).
+	Charged     int64
+	Rate        int64
+	CollectedBy Collector
+	RefundOf    *uuid.UUID
+	Failure     string
 }
+
+// Counts reports whether a payment or refund moves the balance: everything but a failed card
+// refund. A pending refund counts, so the same money can't be refunded twice.
+func (p Payment) Counts() bool { return p.Status != "failed" }
 
 // Slip is a bank transfer receipt a guest uploaded.
 type Slip struct {
@@ -104,7 +118,8 @@ type Booking struct {
 	OwnerNote        string
 	RequestExpiresAt *time.Time
 	PaymentDueAt     *time.Time
-	// PaymentMethod is how a guest who booked on the page said they'd pay: bank or property.
+	// PaymentMethod is how a guest who booked on the page said they'd pay: bank, property or
+	// card.
 	PaymentMethod string
 	CancelReason  string
 	CancelledAt   *time.Time
@@ -117,6 +132,9 @@ type Booking struct {
 func (b Booking) Paid() int64 {
 	var n int64
 	for _, p := range b.Payments {
+		if !p.Counts() {
+			continue
+		}
 		if p.Kind == "refund" {
 			n -= p.Amount
 		} else {

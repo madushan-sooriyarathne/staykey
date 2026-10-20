@@ -76,8 +76,16 @@ type BankDetails struct {
 type PaymentSettings struct {
 	Bank       BankDetails
 	AtProperty bool
-	Cards      string // off, pending (applied) or on (approved by PayHere)
+	// Cards is what the owner chose, off or on. CardsMissing says what keeps cards from
+	// working when they are on, filled in when settings are loaded; empty means ready.
+	Cards        string
+	CardCharge   string // deposit or full
+	CardRate     int64  // rupee cents per 1.00 of the property's currency; 0 when unset
+	CardsMissing []string
 }
+
+// CardsReady reports whether guests can pay this property by card now.
+func (p PaymentSettings) CardsReady() bool { return p.Cards == "on" && len(p.CardsMissing) == 0 }
 
 // Season changes nightly prices between two "MM-DD" days every year.
 type Season struct {
@@ -293,7 +301,6 @@ var (
 	chargePers         = []string{"stay", "night", "guest"}
 	extraPers          = []string{"stay", "night", "guest", "trip", "guestNight"}
 	icalChannels       = []string{"airbnb", "booking", "agoda", "expedia", "other"}
-	cardsRequestable   = []string{"off", "pending"}
 	daysInMonth        = [13]int{0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 	defaultHouseRules  = []string{"No smoking indoors", "No parties or events"}
 	defaultBrandColor  = "#09090b"
@@ -368,6 +375,13 @@ func (p *PropertyPatch) Normalize() {
 		b.BankName = strings.TrimSpace(b.BankName)
 		b.AccountName = strings.Join(strings.Fields(b.AccountName), " ")
 		b.AccountNumber = strings.Join(strings.Fields(b.AccountNumber), "")
+		// pending was what the app sent while cards waited for approval; it now means on.
+		if p.Payments.Cards == "pending" {
+			p.Payments.Cards = "on"
+		}
+		if p.Payments.CardCharge == "" {
+			p.Payments.CardCharge = CardChargeDeposit
+		}
 	}
 	if p.Units != nil {
 		for i := range *p.Units {
@@ -563,8 +577,14 @@ func (p PropertyPatch) validatePayments() error {
 	if b.PayWithinHours < 1 || b.PayWithinHours > 168 {
 		return invalid("payments.bank.payWithinHours", "must be between 1 and 168")
 	}
-	if !slices.Contains(cardsRequestable, pay.Cards) && pay.Cards != "on" {
-		return invalid("payments.cards", "must be off or pending")
+	if pay.Cards != "off" && pay.Cards != "on" {
+		return invalid("payments.cards", "must be off or on")
+	}
+	if pay.CardCharge != CardChargeDeposit && pay.CardCharge != CardChargeFull {
+		return invalid("payments.cardCharge", "must be deposit or full")
+	}
+	if pay.CardRate < 0 || pay.CardRate > MaxCardRate {
+		return invalid("payments.cardRate", "must be between Rs 0.01 and Rs 100,000.00")
 	}
 	return nil
 }
