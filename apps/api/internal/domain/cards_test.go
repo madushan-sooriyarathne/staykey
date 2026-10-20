@@ -163,7 +163,7 @@ func TestCardKeyMode(t *testing.T) {
 }
 
 func TestCardKeyModeRefusesOtherKeys(t *testing.T) {
-	for _, key := range []string{"pk_live_fixture-key-0001", "ak_test_fixture-key-0001", "sk_test_short", "sk_live_4eC39 HqLyjWDarjtT1zdp7dc", ""} {
+	for _, key := range []string{"pk_live_fixture-key-0001", "ak_test_fixture-key-0001", "sk_test_short", "sk_live_fixture key-0001", ""} {
 		t.Run(key, func(t *testing.T) {
 			if _, err := CardKeyMode(key); !errors.Is(err, ErrInvalidCardKey) {
 				t.Errorf("CardKeyMode(%q) error = %v, want ErrInvalidCardKey", key, err)
