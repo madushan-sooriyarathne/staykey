@@ -52,11 +52,11 @@ func TestComposedEmailsHaveNoEmDash(t *testing.T) {
 	}
 }
 
-func TestOnlyReceiptsMentionAnAmount(t *testing.T) {
+func TestOnlyReceiptsAndPayoutsMentionAnAmount(t *testing.T) {
 	for _, kind := range EmailKinds {
 		t.Run(string(kind), func(t *testing.T) {
 			_, text := ComposeEmail(kind, sampleValues())
-			if mentions := strings.Contains(text, "LKR"); mentions != (kind == EmailPlanReceipt) {
+			if mentions := strings.Contains(text, "LKR"); mentions != (kind == EmailPlanReceipt || kind == EmailPayoutSent) {
 				t.Errorf("ComposeEmail(%s) mentions an amount: %v", kind, mentions)
 			}
 		})

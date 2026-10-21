@@ -79,10 +79,10 @@ CREATE TABLE payout_entries (
     FOREIGN KEY (payout_id, account_id) REFERENCES payouts (id, account_id)
 );
 
--- One payment, refund or payout is entered once per kind.
+-- One payment or refund is entered once per kind, and one payout once. A payout_returned entry
+-- stays out of every payout until the next one takes it, so it names its payout in the note.
 CREATE UNIQUE INDEX payout_entries_payment_kind_key ON payout_entries (payment_id, kind) WHERE payment_id IS NOT NULL;
-CREATE UNIQUE INDEX payout_entries_payout_kind_key ON payout_entries (payout_id, kind)
-    WHERE kind IN ('payout', 'payout_returned');
+CREATE UNIQUE INDEX payout_entries_payout_key ON payout_entries (payout_id) WHERE kind = 'payout';
 CREATE INDEX payout_entries_account_id_idx ON payout_entries (account_id, available_on);
 CREATE INDEX payout_entries_unpaid_idx ON payout_entries (account_id) WHERE payout_id IS NULL;
 CREATE INDEX payout_entries_payout_id_idx ON payout_entries (payout_id) WHERE payout_id IS NOT NULL;

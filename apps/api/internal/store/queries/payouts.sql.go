@@ -95,6 +95,25 @@ func (q *Queries) BatchPayouts(ctx context.Context, batchID uuid.UUID) ([]BatchP
 	return items, nil
 }
 
+const collectedRefund = `-- name: CollectedRefund :one
+SELECT account_id, booking_id, charged_cents FROM payments
+WHERE id = $1 AND kind = 'refund' AND collected_by = 'staykey' AND charged_cents IS NOT NULL
+`
+
+type CollectedRefundRow struct {
+	AccountID    uuid.UUID
+	BookingID    uuid.UUID
+	ChargedCents *int64
+}
+
+// A card refund of money StayKey collected, for the ledger.
+func (q *Queries) CollectedRefund(ctx context.Context, id uuid.UUID) (CollectedRefundRow, error) {
+	row := q.db.QueryRow(ctx, collectedRefund, id)
+	var i CollectedRefundRow
+	err := row.Scan(&i.AccountID, &i.BookingID, &i.ChargedCents)
+	return i, err
+}
+
 const failPayout = `-- name: FailPayout :one
 UPDATE payouts SET status = 'failed', reason = $1, failed_at = $2
 WHERE id = $3 AND status IN ('prepared', 'paid')
@@ -226,6 +245,17 @@ func (q *Queries) GetPayoutProfile(ctx context.Context, accountID uuid.UUID) (Ge
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const hasPayoutBatch = `-- name: HasPayoutBatch :one
+SELECT EXISTS (SELECT 1 FROM payout_batches WHERE period_end = $1)
+`
+
+func (q *Queries) HasPayoutBatch(ctx context.Context, periodEnd time.Time) (bool, error) {
+	row := q.db.QueryRow(ctx, hasPayoutBatch, periodEnd)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const hasPayoutProfile = `-- name: HasPayoutProfile :one

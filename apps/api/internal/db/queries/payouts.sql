@@ -170,3 +170,11 @@ LEFT JOIN bookings b ON b.id = e.booking_id AND b.account_id = e.account_id
 LEFT JOIN guests g ON g.id = b.guest_id
 WHERE e.payout_id = @payout_id AND e.account_id = @account_id AND e.kind <> 'payout'
 ORDER BY coalesce(b.check_in, e.available_on), e.created_at, e.id;
+
+-- name: HasPayoutBatch :one
+SELECT EXISTS (SELECT 1 FROM payout_batches WHERE period_end = @period_end);
+
+-- A card refund of money StayKey collected, for the ledger.
+-- name: CollectedRefund :one
+SELECT account_id, booking_id, charged_cents FROM payments
+WHERE id = @id AND kind = 'refund' AND collected_by = 'staykey' AND charged_cents IS NOT NULL;
