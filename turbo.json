@@ -5,7 +5,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "env": ["NEXT_PUBLIC_*", "STAYKEY_*"],
+      "env": ["NEXT_PUBLIC_*", "STAYKEY_*", "SENTRY_ORG", "SENTRY_PROJECT"],
+      "passThroughEnv": ["CI", "SENTRY_AUTH_TOKEN"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", "bin/**"]
     },
     "typecheck": {
