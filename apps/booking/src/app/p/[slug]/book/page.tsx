@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PrivacyNote } from "@/components/privacy-note";
 import { getPublicProperty, quoteStay } from "@/lib/api";
 import { formatRange, nightsBetween } from "@/lib/dates";
 import { pagePath } from "@/lib/paths";
@@ -68,6 +69,7 @@ export default async function BookPage(props: PageProps<"/p/[slug]/book">) {
         mode={property.booking.mode}
         initialQuote={priced.ok ? { quote: priced.data } : { problem: priced.problem }}
       />
+      <PrivacyNote propertyName={property.name} />
     </main>
   );
 }

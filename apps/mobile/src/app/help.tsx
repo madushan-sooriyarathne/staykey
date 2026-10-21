@@ -6,12 +6,11 @@ import { Pressable, StyleSheet, Text } from "react-native";
 import Animated, { FadeInDown, FadeOut, LinearTransition } from "react-native-reanimated";
 import { Field, PressScale } from "@/components/controls";
 import { I } from "@/components/icons";
-import { Appear, Page, SectionHeader, ui } from "@/components/kit";
+import { Appear, List, ListRow, Page, SectionHeader, ui } from "@/components/kit";
 import { font } from "@/components/ui";
 import { email, openWhatsApp } from "@/lib/contact";
 import { haptics } from "@/lib/haptics";
-
-const SUPPORT_WHATSAPP = "+94 77 000 0000";
+import { openSite, SITE_LINKS, SUPPORT_EMAIL, SUPPORT_WHATSAPP } from "@/lib/site";
 
 const TOPICS = [
   {
@@ -28,7 +27,7 @@ const TOPICS = [
   },
   {
     q: "Start taking card payments",
-    a: "Open Payment methods and tap Connect card payments. PayHere emails you the documents they need, and approval usually takes a few days. Bank transfer and pay at property work in the meantime.",
+    a: "Open More, then Card payments, and connect your Payments.lk account by pasting the secret key from its dashboard. Payments.lk needs a business registered in Sri Lanka. Then turn on cards in each property's payment methods. Guests pay in rupees and the money goes straight to your Payments.lk account.",
   },
   {
     q: "Invite a caretaker",
@@ -61,10 +60,7 @@ export default function Help() {
           <Text style={[s.contactTitle, { color: colors.snow }]}>WhatsApp us</Text>
           <Text style={[ui.faint, { color: colors.ash }]}>Chat with our team</Text>
         </PressScale>
-        <PressScale
-          style={s.contact}
-          onPress={() => email("support@staykey.direct", "Help with my account")}
-        >
+        <PressScale style={s.contact} onPress={() => email(SUPPORT_EMAIL, "Help with my account")}>
           <SymbolView name={I.mail} tintColor={colors.iron} size={20} />
           <Text style={s.contactTitle}>Email us</Text>
           <Text style={ui.faint}>For account issues</Text>
@@ -113,6 +109,27 @@ export default function Help() {
           </Text>
         ) : null}
       </Appear>
+      <SectionHeader title="More from StayKey" />
+      <List>
+        <ListRow
+          testID="help-site"
+          icon={I.globe}
+          title="Help centre"
+          subtitle="Guides and answers on staykey.direct"
+          onPress={() => openSite(SITE_LINKS.support)}
+        />
+        <ListRow icon={I.doc} title="Terms of service" onPress={() => openSite(SITE_LINKS.terms)} />
+        <ListRow
+          icon={I.lock}
+          title="Privacy policy"
+          onPress={() => openSite(SITE_LINKS.privacy)}
+        />
+        <ListRow
+          icon={I.trash}
+          title="Deleting your account"
+          onPress={() => openSite(SITE_LINKS.deleteAccount)}
+        />
+      </List>
       <Text style={[ui.faint, { textAlign: "center" }]}>
         Version {Constants.expoConfig?.version ?? "1.0.0"}
       </Text>
