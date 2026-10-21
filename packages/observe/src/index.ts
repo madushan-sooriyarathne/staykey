@@ -90,8 +90,12 @@ export function cleanEvent<T extends object>(input: T): T {
       if (typeof v === "string") event.tags[k] = scrub(v);
     }
   }
-  // The SDKs put the request path, query string included, in contexts such as nextjs.
-  if (event.contexts) event.contexts = cleanValues(event.contexts);
+  // The SDKs put the request path, query string included, in contexts such as nextjs. A phone's
+  // name is often its owner's ("Nimal's iPhone").
+  if (event.contexts) {
+    event.contexts = cleanValues(event.contexts);
+    if (isPlainObject(event.contexts.device)) delete event.contexts.device.name;
+  }
   if (event.extra) event.extra = cleanValues(event.extra);
   if (event.breadcrumbs) {
     event.breadcrumbs = event.breadcrumbs.map((b) => cleanBreadcrumb(b));
@@ -124,7 +128,8 @@ function isPlainObject(v: unknown): v is Dict {
 function cleanValues(dict: Dict): Dict {
   const out: Dict = {};
   for (const [k, v] of Object.entries(dict)) {
-    if (typeof v === "string") out[k] = /^(?:\/|https?:\/\/)/.test(v) ? cleanUrl(v) : scrub(v);
+    if (typeof v === "string")
+      out[k] = /^(?:\/|[a-z][a-z0-9+.-]*:\/\/)/i.test(v) ? cleanUrl(v) : scrub(v);
     else if (isPlainObject(v)) out[k] = cleanValues(v);
     else out[k] = v;
   }

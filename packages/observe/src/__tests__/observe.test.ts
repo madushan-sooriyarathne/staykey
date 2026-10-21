@@ -86,6 +86,14 @@ describe("cleanEvent", () => {
     const e = cleanEvent({ contexts: { nextjs: { request_path: "/stay/1?t=guest-token" } } });
     expect(e.contexts).toEqual({ nextjs: { request_path: "/stay/1" } });
   });
+  test("drops the query from an app link in contexts", () => {
+    const e = cleanEvent({ contexts: { route: { url: "staykey://join?token=invite-123" } } });
+    expect(e.contexts).toEqual({ route: { url: "staykey://join" } });
+  });
+  test("drops the phone's name", () => {
+    const e = cleanEvent({ contexts: { device: { name: "Nimal's iPhone", model: "iPhone16,1" } } });
+    expect(e.contexts).toEqual({ device: { model: "iPhone16,1" } });
+  });
   test("scrubs other strings in contexts", () => {
     const e = cleanEvent({ contexts: { app: { note: "for emma@example.com" } } });
     expect(e.contexts).toEqual({ app: { note: "for [removed]" } });
