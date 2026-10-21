@@ -15,7 +15,8 @@ import { visitorAddress } from "./visitor";
 
 // Only this site's server calls the API; the owner's browser holds httpOnly cookies and never
 // sees a token.
-const api = createStayKeyClient(process.env.STAYKEY_API_URL ?? "http://localhost:8080");
+const API_URL = process.env.STAYKEY_API_URL ?? "http://localhost:8080";
+const api = createStayKeyClient(API_URL);
 api.use(forwardVisitor(process.env.STAYKEY_FORWARD_SECRET, visitorAddress));
 
 export type Result<T> = { ok: true; data: T } | { ok: false; status: number; message: string };
@@ -68,6 +69,25 @@ export async function plans(): Promise<Plan[]> {
   const { data, response } = await api.GET("/v1/public/plans");
   if (!data) throw new Error(`StayKey API returned ${response.status} for plans`);
   return data.items;
+}
+
+/**
+ * The plans with their web prices for the public pages, cached for an hour. It goes through
+ * plain fetch, since the client drops Next's cache options, and it never throws: null means the
+ * prices can't be shown right now and the page says so.
+ */
+export async function cachedPlans(): Promise<Plan[] | null> {
+  try {
+    const res = await fetch(`${API_URL}/v1/public/plans`, {
+      next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { items?: Plan[] };
+    return body.items?.length ? body.items : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function checkout(
