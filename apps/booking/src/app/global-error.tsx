@@ -2,7 +2,6 @@
 
 // A global error boundary replaces the root layout, so it is a client component with its own
 // <html> and reports the error itself.
-import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 import "./globals.css";
@@ -15,7 +14,7 @@ export default function GlobalError({
   retry: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    import("@sentry/nextjs").then((Sentry) => Sentry.captureException(error));
   }, [error]);
 
   return (
