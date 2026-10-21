@@ -154,6 +154,19 @@ func TestNothingIsPaidOutBeforeCheckIn(t *testing.T) {
 	}
 }
 
+func TestAStayThatMovesEarlierIsPaidOutWithItsNewDates(t *testing.T) {
+	t.Parallel()
+	h := payoutHouse(t)
+	ctx := context.Background()
+	id := h.payDeposit(ctx, t, "a", "2026-11-20", "2026-11-22")
+	if _, err := h.s.Pool().Exec(ctx, "UPDATE bookings SET check_in = '2026-10-20', check_out = '2026-10-22' WHERE id = $1", id); err != nil {
+		t.Fatal(err)
+	}
+	if b := prepare(ctx, t, h.s, firstPayout); b.Payouts != 1 {
+		t.Errorf("batch has %d payouts after the stay moved before its period end, want 1", b.Payouts)
+	}
+}
+
 func TestABatchIsPreparedOncePerMonday(t *testing.T) {
 	t.Parallel()
 	h := payoutHouse(t)
@@ -332,5 +345,19 @@ func TestRowSecurityHidesAnotherAccountsPayouts(t *testing.T) {
 	}
 	if n != 0 {
 		t.Errorf("another tenant sees %d payout rows, want 0", n)
+	}
+}
+
+func TestABatchWithAHeldPayoutCantBeMarkedPaid(t *testing.T) {
+	t.Parallel()
+	h := payoutHouse(t)
+	ctx := context.Background()
+	h.payDeposit(ctx, t, "a", "2026-10-10", "2026-10-12")
+	b := prepare(ctx, t, h.s, firstPayout)
+	if _, err := h.s.SetPayoutProfile(ctx, h.t, payoutDetails("9001234567"), firstPayout.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.s.MarkBatchPaid(ctx, b.ID, "BOC-0001", firstPayout.Add(2*time.Hour)); !errors.Is(err, store.ErrHeldPayouts) {
+		t.Errorf("MarkBatchPaid = %v, want ErrHeldPayouts", err)
 	}
 }
