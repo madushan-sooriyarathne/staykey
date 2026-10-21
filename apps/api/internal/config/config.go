@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -97,6 +98,8 @@ type PaymentsLK struct {
 type Cards struct {
 	CollectSecretKey string
 	PayoutsEnabled   bool
+	// PayoutFeeBPS is StayKey's processing charge on the payments it collects, in basis points.
+	PayoutFeeBPS int
 }
 
 // SES holds the Amazon SES v2 settings. From is an address on the verified domain;
@@ -187,7 +190,6 @@ func Load() (Config, error) {
 		},
 		Cards: Cards{
 			CollectSecretKey: os.Getenv("STAYKEY_COLLECT_PAYMENTSLK_SECRET_KEY"),
-			PayoutsEnabled:   os.Getenv("STAYKEY_PAYOUTS_ENABLED") == "true",
 		},
 		ForwardSecret: os.Getenv("STAYKEY_FORWARD_SECRET"),
 		R2: R2{
@@ -206,6 +208,17 @@ func Load() (Config, error) {
 		return Config{}, errors.New("STAYKEY_ICAL_ALLOW_PRIVATE can't be true in production")
 	}
 	cfg.ICalAllowPrivate = !cfg.IsProduction() && allowPrivate != "false"
+
+	payoutsEnabled := getenv("STAYKEY_PAYOUTS_ENABLED", "false")
+	if payoutsEnabled != "true" && payoutsEnabled != "false" {
+		return Config{}, errors.New("STAYKEY_PAYOUTS_ENABLED must be true or false")
+	}
+	cfg.Cards.PayoutsEnabled = payoutsEnabled == "true"
+	fee, err := strconv.Atoi(getenv("STAYKEY_PAYOUT_FEE_BPS", "300"))
+	if err != nil || fee < 0 || fee > 1000 {
+		return Config{}, errors.New("STAYKEY_PAYOUT_FEE_BPS must be basis points from 0 to 1000 (300 is 3%)")
+	}
+	cfg.Cards.PayoutFeeBPS = fee
 
 	key, err := dataKey(cfg.IsProduction())
 	if err != nil {
