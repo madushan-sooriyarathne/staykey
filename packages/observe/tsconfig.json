@@ -1,0 +1,5 @@
+{
+  "extends": "@staykey/config/tsconfig/library.json",
+  "include": ["src"],
+  "exclude": ["src/__tests__"]
+}
