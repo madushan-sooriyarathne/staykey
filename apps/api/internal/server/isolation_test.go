@@ -110,6 +110,7 @@ func TestTenantIsolation(t *testing.T) {
 	}})
 	e.expect(rec, http.StatusOK)
 	aliceFeed := decode[oapi.Property](t, rec).IcalFeeds[0]
+	alicePayout := e.payout(aliceTenant)
 
 	// Alice's records, by the path parameter names routes use for them. Later phases add units,
 	// team members and so on here as their routes arrive.
@@ -123,6 +124,7 @@ func TestTenantIsolation(t *testing.T) {
 		"membershipId": aliceMember.ID.String(),
 		"templateId":   aliceTemplate.Id.String(),
 		"feedId":       aliceFeed.Id.String(),
+		"payoutId":     alicePayout.String(),
 	}
 
 	routes := ownerRoutes(t)
