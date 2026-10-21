@@ -1,9 +1,10 @@
 import Link from "next/link";
 
+// Pricing stays visible on phones; the rest wait for room.
 const NAV = [
-  { href: "/#features", label: "Features" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/support", label: "Support" },
+  { href: "/#features", label: "Features", always: false },
+  { href: "/pricing", label: "Pricing", always: true },
+  { href: "/support", label: "Support", always: false },
 ];
 
 export function SiteHeader() {
@@ -17,7 +18,9 @@ export function SiteHeader() {
           <Link
             key={n.href}
             href={n.href}
-            className="focus-ring hidden rounded-button px-3 py-2 text-iron text-sm hover:text-obsidian sm:inline-block"
+            className={`focus-ring rounded-button px-3 py-2 text-iron text-sm hover:text-obsidian ${
+              n.always ? "inline-block" : "hidden sm:inline-block"
+            }`}
           >
             {n.label}
           </Link>
