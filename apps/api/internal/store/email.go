@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"staykey.direct/api/internal/domain"
+	"staykey.direct/api/internal/observe"
 	"staykey.direct/api/internal/store/queries"
 )
 
@@ -185,6 +186,7 @@ func (s *Postgres) recordSend(ctx context.Context, id uuid.UUID, attempts int16,
 		if err := s.db(ctx).MarkEmail(ctx, queries.MarkEmailParams{ID: id, Status: "failed", LastError: &msg}); err != nil {
 			return fmt.Errorf("mark email failed: %w", err)
 		}
+		observe.Warn(ctx, "email failed for good: "+msg, map[string]string{"email_id": id.String()})
 		return nil
 	default:
 		retry, msg := now.Add(time.Duration(attempts*attempts)*5*time.Minute), sendErr.Error()

@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"staykey.direct/api/internal/ical"
 	"staykey.direct/api/internal/jobs"
 	"staykey.direct/api/internal/notify"
+	"staykey.direct/api/internal/observe"
 	"staykey.direct/api/internal/secret"
 	"staykey.direct/api/internal/server"
 	"staykey.direct/api/internal/sms"
@@ -44,6 +46,12 @@ func run() error {
 	}
 
 	log := newLogger(cfg)
+	reporting, err := observe.Init(observe.Config{DSN: cfg.Observe.SentryDSN, Environment: cfg.Env, Release: cfg.Observe.Release})
+	if err != nil {
+		return fmt.Errorf("sentry: %w", err)
+	}
+	log.Info("error reporting", "sentry", reporting, "release", cfg.Observe.Release)
+	defer observe.Flush(2 * time.Second)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -98,7 +106,8 @@ func run() error {
 		Logger: log,
 	}
 	alerts := jobs.Alerts{Push: notify.Expo{AccessToken: cfg.ExpoAccessToken}, WhatsApp: whatsApp, Email: mailer, Logger: log}
-	jobClient, err := jobs.Start(ctx, db.Pool(), db, fileStore, alerts, ical.NewFetcher(cfg.ICalAllowPrivate), cardService, log)
+	beats := &observe.Heartbeats{URLs: cfg.Observe.Heartbeats, Logger: log}
+	jobClient, err := jobs.Start(ctx, db.Pool(), db, fileStore, alerts, ical.NewFetcher(cfg.ICalAllowPrivate), cardService, beats, log)
 	if err != nil {
 		return err
 	}
@@ -127,6 +136,7 @@ func run() error {
 		Media:           media,
 		Logger:          log,
 		ForwardSecret:   cfg.ForwardSecret,
+		OpsSecret:       cfg.Observe.OpsSecret,
 		BillingURL:      cfg.BillingURL,
 		Cards:           cardService,
 	}
@@ -191,9 +201,11 @@ func newFileStore(cfg config.Config) (files.Store, http.Handler, error) {
 	return local, local.Handler(), nil
 }
 
+// newLogger writes JSON in production, so the log service can search its fields, and text in
+// development. Every line written with a request's context carries the request id.
 func newLogger(cfg config.Config) *slog.Logger {
 	if cfg.IsProduction() {
-		return slog.New(slog.NewJSONHandler(os.Stdout, nil))
+		return slog.New(observe.LogHandler(slog.NewJSONHandler(os.Stdout, nil)))
 	}
-	return slog.New(slog.NewTextHandler(os.Stdout, nil))
+	return slog.New(observe.LogHandler(slog.NewTextHandler(os.Stdout, nil)))
 }

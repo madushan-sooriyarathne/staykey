@@ -2,7 +2,7 @@
 
 As of 5 Oct 2026. Live, editable copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d
 
-Status: phases 1 Foundations, 2 Properties and setup, 3 Bookings core, 4 Team, activity and messages and 5 Calendar sync and booking page are done, and phases 6 Billing and hardening, 7 Gaps noted in the handover, 8 Email through AWS SES, 9 Guest card payments through Payments.lk and 10 the marketing site are built, with their gates waiting for sandbox accounts, the AWS account, the live domain, the store listings and, for StayKey payouts, legal advice and Payable's approval (see `docs/HANDOVER.md`).
+Status: phases 1 Foundations, 2 Properties and setup, 3 Bookings core, 4 Team, activity and messages and 5 Calendar sync and booking page are done, and phases 6 Billing and hardening, 7 Gaps noted in the handover, 8 Email through AWS SES, 9 Guest card payments through Payments.lk, 10 the marketing site and 11 error tracking, uptime and logs are built, with their gates waiting for sandbox accounts, the AWS account, the live domain, the store listings, the monitoring accounts and first deploy and, for StayKey payouts, legal advice and Payable's approval (see `docs/HANDOVER.md`).
 
 ## Goal and scope
 
