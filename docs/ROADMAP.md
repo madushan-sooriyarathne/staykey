@@ -99,7 +99,7 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [x] Log retention and search for the API (JSON logs with request ids; `infra/log-shipper` to Grafana Cloud, `docs/RUNBOOK.md`)
 - [ ] **Gate:** an error thrown on purpose in each surface shows up with its release, and stopping the API raises an alert (checked locally with a stand-in Sentry; runs on the first production deploy)
 
-### Phase 12 End-to-end and load tests (next)
+### Phase 12 End-to-end and load tests (next, see `docs/phase-12-plan.md`)
 
 - [ ] Playwright on web against a seeded API: booking page, checkout, stay page and slip, widget, web billing; run in CI
 - [ ] Maestro flows on iOS and Android: sign-in, onboarding, new booking, approve a request, record a payment
