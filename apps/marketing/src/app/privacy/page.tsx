@@ -116,7 +116,13 @@ export default function PrivacyPage() {
           <li>Expo, for delivering app notifications;</li>
           <li>Meta, for WhatsApp alerts, once they are switched on;</li>
           <li>Payments.lk and Payable, for card payments and refunds;</li>
-          <li>RevenueCat, Apple and Google, for plans bought in the app.</li>
+          <li>RevenueCat, Apple and Google, for plans bought in the app;</li>
+          <li>
+            Sentry, for reports of errors in our servers, website and app, with names, phone
+            numbers, email addresses and payment details removed first;
+          </li>
+          <li>Better Stack, for checking that StayKey is up;</li>
+          <li>Grafana Labs, for our server logs, which it keeps for 14 days.</li>
         </ul>
         <p>
           We may also share data when the law requires it, or to protect people from harm or fraud.
