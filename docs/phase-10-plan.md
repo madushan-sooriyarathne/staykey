@@ -24,8 +24,9 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 - **No client JavaScript is needed.** The monthly or yearly choice on `/pricing` is a link (`?period=yearly`), rendered on the server.
 - **Store links come from settings:** `STAYKEY_APP_STORE_URL`, `STAYKEY_PLAY_STORE_URL` and `STAYKEY_APP_STORE_ID`, the last for Apple's Smart App Banner. While a link is unset, its button reads "Coming soon to the App Store" and isn't a link. The buttons are plain text buttons in the brand style; swap in Apple's and Google's official badge artwork once the listings are live (both stores require their own badges when badges are used).
 - **`/download` picks a store by user agent:** iPhone and iPad go to the App Store, Android to Google Play, everything else to `/#download`. It never sets a cookie.
-- **Support is email first:** support@staykey.direct (already used in emails and the app). WhatsApp shows only when `STAYKEY_SUPPORT_WHATSAPP` is set. There is no contact form, so there is nothing to spam and nothing to store.
-- **Legal pages are drafts until a lawyer reviews them.** They are written to fit Sri Lanka's Personal Data Protection Act No. 9 of 2022. Each shows its version and date. While `LEGAL_REVIEWED` in `src/lib/company.ts` is false, each also shows "Draft, under legal review" and isn't indexed. The company's legal name, address and registration number live in the same file.
+- **Support:** support@staykey.direct (already used in emails and the app), plus WhatsApp at +94 71 688 0657. There is no contact form, so there is nothing to spam and nothing to store.
+- **The company behind StayKey** is Advertaro (Private) Limited, registration number PV00242164, of No. 18, Gnanathilake Road, Mount Lavinia, Sri Lanka. Its contact for legal and data protection requests is hello@madushan.dev and +94 71 688 0657. These details appear in the terms, the privacy policy, the payout terms and the footer, and live in `src/lib/company.ts`.
+- **Legal pages are drafts until a lawyer reviews them.** They are written to fit Sri Lanka's Personal Data Protection Act No. 9 of 2022. Each shows its version and date. While `LEGAL_REVIEWED` in `src/lib/company.ts` is false, each also shows "Draft, under legal review" and isn't indexed.
 - **Who controls which data:** StayKey is the controller of owners' and team members' data, and processes guests' data for the owner, who controls it. The privacy policy covers both, and the booking page links to it where guests type their details.
 - **The payout terms page** carries the version the app records (`2026-10`). It says StayKey payouts aren't available yet, isn't in the sitemap or the navigation, and isn't indexed. Only the app's payout details screen links to it, and that screen only shows when payouts are offered.
 - **Features describe what is built.** Card payments are described as the owner's own Payments.lk account; StayKey payouts aren't mentioned anywhere public while `STAYKEY_PAYOUTS_ENABLED` is off in production.
@@ -60,9 +61,12 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 ### 1. Shared layout and content
 - `src/components/site-header.tsx` and `site-footer.tsx`:
   - the header has the wordmark, Features, Pricing, Support and "Get the app" (to `#download`);
-  - the footer has Terms, Privacy, Support, Delete your account, the company line from `company.ts`, and the year.
+  - the footer has Terms, Privacy, Support, Delete your account, the year, and "StayKey is a product of Advertaro (Private) Limited, PV00242164".
   - The billing, join and email pages keep their own minimal shells.
-- `src/lib/company.ts`: legal name, address, registration number, support email, `LEGAL_REVIEWED`, and the legal versions and dates (`PRIVACY_VERSION`, `TERMS_VERSION`, `PAYOUT_TERMS_VERSION = "2026-10"`).
+- `src/lib/company.ts`:
+  - the company: `Advertaro (Private) Limited`, `PV00242164`, `No. 18, Gnanathilake Road, Mount Lavinia, Sri Lanka`;
+  - contacts: legal and data protection `hello@madushan.dev`, support `support@staykey.direct`, WhatsApp `+94716880657` (shown as +94 71 688 0657, linked as `https://wa.me/94716880657`);
+  - `LEGAL_REVIEWED`, and the legal versions and dates (`PRIVACY_VERSION`, `TERMS_VERSION`, `PAYOUT_TERMS_VERSION = "2026-10"`).
 - `src/lib/stores.ts`: reads the store settings on the server and returns each link or `null`. Also `storeFor(userAgent)`, with unit tests for iPhone, iPad, Android and desktop agents.
 - Tests use `bun:test` in `src/lib/__tests__/`, excluded from `tsc` the way `apps/mobile` excludes its own; add a `test` script (`bun test src`).
 - `src/lib/api.ts` gains `plans()`, which returns `Result<Plan[]>` with a one hour revalidation; check the Next 16 caching guide for the right option with openapi-fetch. `src/lib/format.ts` gains a yearly saving helper ("2 months free"), with tests.
@@ -80,7 +84,7 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
   - the download section (`id="download"`).
 - **`/pricing`:** monthly and yearly links; three plan cards (name, units, price, yearly saving); every plan's included features (from the app's `INCLUDED`, kept in step by hand); the free period ("Free until your first direct booking, for up to 60 days"); no commission on bookings; how to pay (in the app through the App Store or Google Play, or on the web in rupees at `/billing`); and questions about changing plans.
 - **`/support`:**
-  - email and, when set, WhatsApp;
+  - email and WhatsApp;
   - the help topics from the app, brought up to date (Airbnb calendar, the widget, a WhatsApp booking, card payments with Payments.lk, inviting a caretaker, deleting your account);
   - a line on response times ("We reply within one working day, Sri Lanka time").
 - **`/privacy`:**
@@ -132,7 +136,7 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 ### 5. Mobile app
 - `help.tsx`:
   - replace the PayHere topic with Payments.lk card payments;
-  - take the WhatsApp number from `EXPO_PUBLIC_SUPPORT_WHATSAPP` and hide the row when it's unset;
+  - replace the placeholder WhatsApp number with +94 71 688 0657;
   - add links to the support page, terms, privacy and account deletion.
 - `paywall.tsx` and `subscription.tsx`: "Terms of use" and "Privacy policy" links under the purchase button, which App Store review requires for subscriptions.
 - The onboarding phone step: "By continuing you agree to StayKey's Terms and Privacy Policy", with both links.
@@ -170,7 +174,7 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 
 ## Risks
 
-- **Legal text read as legal advice.** The drafts are marked as drafts until reviewed, and the company details come from the owner.
+- **Legal text read as legal advice.** The drafts are marked as drafts until reviewed.
 - **Prices drifting** between the site, the app's store prices and `domain.Plans`. The site reads web prices from the API. Store prices are only described ("the App Store shows the price in your currency"), never hard-coded on the site.
 - **Store review.** Apple wants a privacy policy, terms of use links in the app and in the listing, and a support page. Google wants an account deletion page. This phase delivers all four before submission.
 - **Overpromising.** Features name only what is built and switched on, and screenshots come from the real app.
@@ -187,8 +191,9 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 
 | Question | Default if unanswered |
 | --- | --- |
-| The legal entity behind StayKey: name, registered address, registration number and a contact for data protection | Placeholders in `company.ts`, legal pages marked as drafts; needed before launch |
-| Support WhatsApp number | Email only until one is given |
+| ~~The legal entity behind StayKey~~ | Answered: Advertaro (Private) Limited, PV00242164, No. 18, Gnanathilake Road, Mount Lavinia; hello@madushan.dev |
+| ~~Support WhatsApp number~~ | Answered: +94 71 688 0657 |
+| Should support email come from hello@madushan.dev instead of support@staykey.direct | No; support stays on support@staykey.direct, which emails already use, and hello@madushan.dev is the legal and data protection contact |
 | App Store and Google Play listing links and the App Store app id | "Coming soon" buttons until the listings exist |
 | Analytics on the marketing site | None |
 | Languages | English only |
