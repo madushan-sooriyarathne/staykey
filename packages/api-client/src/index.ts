@@ -75,6 +75,14 @@ export type CardCheckout = Schemas["CardCheckout"];
 export type CardMode = Schemas["CardMode"];
 export type CardPayments = Schemas["CardPayments"];
 export type CardConnection = Schemas["CardConnection"];
+export type PayoutProfile = Schemas["PayoutProfile"];
+export type PayoutProfileInput = Schemas["PayoutProfileInput"];
+export type Payouts = Schemas["Payouts"];
+export type Payout = Schemas["Payout"];
+export type PayoutStatus = Schemas["PayoutStatus"];
+export type PayoutStatement = Schemas["PayoutStatement"];
+export type PayoutLine = Schemas["PayoutLine"];
+export type PayoutEntryKind = Schemas["PayoutEntryKind"];
 
 /** Header that names the account an owner route acts on. */
 export const ACCOUNT_HEADER = "X-Account-Id";
