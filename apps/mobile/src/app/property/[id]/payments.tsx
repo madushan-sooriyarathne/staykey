@@ -1,11 +1,13 @@
-import { useLocalSearchParams } from "expo-router";
+import { colors } from "@staykey/tokens";
+import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
-import { Tag } from "@/components/brand";
 import { Button, Field, InfoNote, Pill } from "@/components/controls";
 import { I } from "@/components/icons";
-import { Card, KV, List, ListRow, SectionHeader, SwitchRow } from "@/components/kit";
+import { Card, KV, List, SectionHeader, SwitchRow } from "@/components/kit";
+import { font } from "@/components/ui";
+import type { PropertyConfig } from "@/data/types";
 import { SettingsPage, useSettings } from "@/features/property/settings";
 
 const KEYS = ["payments"] as const;
@@ -20,11 +22,28 @@ const BANKS = [
   "DFCC Bank",
 ];
 
-/** Bank transfer details and deadline, pay at property, and card payments for owners who want them. */
+/** What the card switch says: ready, or the first thing keeping cards off. */
+function cardsLine(pay: PropertyConfig["payments"], currency: string): string {
+  if (pay.cards === "off") return "Guests pay through Payments.lk";
+  switch (pay.cardsMissing?.[0]) {
+    case "mode":
+    case "connection":
+      return "Waiting for your Payments.lk account";
+    case "payout_profile":
+      return "Waiting for your payout details";
+    case "rate":
+      return `Waiting for a rupee rate for ${currency}`;
+  }
+  return pay.cards === "on" ? "Guests can pay by card" : "Save to turn cards on";
+}
+
+/** Bank transfer details and deadline, pay at property, and card payments through Payments.lk. */
 export default function PaymentMethods() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { draft, set, dirty, save, status, property } = useSettings(id, KEYS);
   const [editBank, setEditBank] = useState(false);
+  // What the owner is typing into the rate, so "300." isn't reformatted under them.
+  const [typedRate, setRateText] = useState<string | null>(null);
   if (!draft || !property)
     return (
       <SettingsPage title="Payment methods" missing>
@@ -32,10 +51,11 @@ export default function PaymentMethods() {
       </SettingsPage>
     );
   const pay = draft.payments;
+  const rateText = typedRate ?? (pay.cardRate ? (pay.cardRate / 100).toFixed(2) : "");
   const bank = pay.bank;
   const setBank = (patch: Partial<typeof bank>) =>
     set({ payments: { ...pay, bank: { ...bank, ...patch } } });
-  const none = !bank.enabled && !pay.atProperty && pay.cards !== "on";
+  const none = !bank.enabled && !pay.atProperty && pay.cards === "off";
 
   return (
     <SettingsPage title="Payment methods" dirty={dirty && !none} onSave={save} status={status}>
@@ -128,38 +148,63 @@ export default function PaymentMethods() {
           onChange={(atProperty) => set({ payments: { ...pay, atProperty } })}
         />
       </List>
-      <List>
-        <ListRow
+      <Card>
+        <SwitchRow
           icon={I.card}
           title="Card payments"
-          subtitle={
-            pay.cards === "pending"
-              ? "Application in review"
-              : pay.cards === "on"
-                ? "Visa and Mastercard through PayHere"
-                : "Approval takes a few days"
-          }
-          chevron={false}
-          trailing={
-            <Tag
-              tone={pay.cards === "on" ? "spark" : pay.cards === "pending" ? "ember" : "soft"}
-              label={pay.cards === "on" ? "On" : pay.cards === "pending" ? "In review" : "Off"}
-            />
-          }
+          subtitle={cardsLine(pay, property.currency)}
+          value={pay.cards !== "off"}
+          onChange={(on) => set({ payments: { ...pay, cards: on ? "on" : "off" } })}
         />
-      </List>
-      {pay.cards === "off" ? (
+        {pay.cards !== "off" ? (
+          <Animated.View
+            entering={FadeInDown.duration(220)}
+            exiting={FadeOut.duration(120)}
+            style={{ gap: 8, paddingBottom: 6 }}
+          >
+            <SectionHeader title="A card pays when booking" />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Pill
+                label={
+                  property.depositPercent > 0
+                    ? `The deposit, ${property.depositPercent}%`
+                    : "The deposit"
+                }
+                selected={pay.cardCharge === "deposit"}
+                onPress={() => set({ payments: { ...pay, cardCharge: "deposit" } })}
+              />
+              <Pill
+                label="The full amount"
+                selected={pay.cardCharge === "full"}
+                onPress={() => set({ payments: { ...pay, cardCharge: "full" } })}
+              />
+            </View>
+            {property.currency !== "LKR" ? (
+              <Field
+                testID="cards-rate"
+                label={`Rupees per ${property.currency}, for card checkouts`}
+                value={rateText}
+                onChangeText={(t) => {
+                  const clean = t.replace(/[^\d.]/g, "");
+                  setRateText(clean);
+                  const cents = Math.round(Number(clean) * 100);
+                  set({ payments: { ...pay, cardRate: cents > 0 ? cents : undefined } });
+                }}
+                keyboardType="decimal-pad"
+                prefix={<Text style={s.prefix}>Rs</Text>}
+              />
+            ) : null}
+          </Animated.View>
+        ) : null}
+      </Card>
+      {pay.cards !== "off" && pay.cardsMissing?.length ? (
         <Button
           compact
           variant="ghost"
-          title="Connect card payments"
-          onPress={() => set({ payments: { ...pay, cards: "pending" } })}
+          title="Set up card payments"
+          icon={I.card}
+          onPress={() => router.push("/card-payments")}
         />
-      ) : pay.cards === "pending" ? (
-        <InfoNote icon={I.card}>
-          We've started your PayHere application. You'll get an email with the documents they need,
-          usually within a day. Save to keep this.
-        </InfoNote>
       ) : null}
       {none ? (
         <InfoNote icon={I.warning}>Turn on at least one way for guests to pay.</InfoNote>
@@ -167,3 +212,7 @@ export default function PaymentMethods() {
     </SettingsPage>
   );
 }
+
+const s = StyleSheet.create({
+  prefix: { fontFamily: font.medium, fontSize: 16, color: colors.steel },
+});

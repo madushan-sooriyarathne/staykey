@@ -84,6 +84,7 @@ export function makeProperty(base: Base): PropertyConfig {
       },
       atProperty: true,
       cards: "off",
+      cardCharge: "deposit",
     },
     booking: {
       mode: "instant",

@@ -52,12 +52,13 @@ const emailClaimStale = 15 * time.Minute
 type emailPayload struct {
 	Name string `json:"name,omitempty"`
 	// Token is the confirmation token, sealed for the email row.
-	Token   []byte             `json:"token,omitempty"`
-	Device  string             `json:"device,omitempty"`
-	At      *time.Time         `json:"at,omitempty"`
-	FinalOn *time.Time         `json:"finalOn,omitempty"`
-	On      string             `json:"on,omitempty"`
-	Receipt *domain.PaidPeriod `json:"receipt,omitempty"`
+	Token   []byte               `json:"token,omitempty"`
+	Device  string               `json:"device,omitempty"`
+	At      *time.Time           `json:"at,omitempty"`
+	FinalOn *time.Time           `json:"finalOn,omitempty"`
+	On      string               `json:"on,omitempty"`
+	Receipt *domain.PaidPeriod   `json:"receipt,omitempty"`
+	Payout  *domain.PayoutNotice `json:"payout,omitempty"`
 }
 
 type queuedEmail struct {
@@ -248,7 +249,7 @@ func (s *Postgres) renderAccountEmail(ctx context.Context, r queries.Email, kind
 			return Email{}, "skipped", nil
 		}
 	}
-	v := domain.EmailValues{Name: p.Name, Device: p.Device, Receipt: p.Receipt}
+	v := domain.EmailValues{Name: p.Name, Device: p.Device, Receipt: p.Receipt, Payout: p.Payout}
 	if p.At != nil {
 		v.At = *p.At
 	}

@@ -27,6 +27,8 @@ const (
 	EmailAccountRestored   EmailKind = "account_restored"
 	EmailDeletionCompleted EmailKind = "deletion_completed"
 	EmailPlanReceipt       EmailKind = "plan_receipt"
+	EmailPayoutSent        EmailKind = "payout_sent"
+	EmailPayoutBankChanged EmailKind = "payout_bank_changed"
 
 	EmailReceived   EmailKind = "received"
 	EmailConfirmed  EmailKind = "confirmed"
@@ -39,7 +41,7 @@ const (
 // EmailKinds lists every kind, account kinds first.
 var EmailKinds = []EmailKind{
 	EmailWelcome, EmailConfirm, EmailChanged, EmailNewSignIn, EmailDeletionScheduled, EmailAccountRestored,
-	EmailDeletionCompleted, EmailPlanReceipt,
+	EmailDeletionCompleted, EmailPlanReceipt, EmailPayoutSent, EmailPayoutBankChanged,
 	EmailReceived, EmailConfirmed, EmailDeclined, EmailReminder, EmailPrearrival, EmailThanks,
 }
 
@@ -173,10 +175,28 @@ type EmailValues struct {
 	At      time.Time
 	FinalOn time.Time
 	Receipt *PaidPeriod
+	Payout  *PayoutNotice
+}
+
+// PayoutNotice is what payout emails say: the amount and period of a payout sent, or the last
+// four digits of a new bank account and how long it holds payouts.
+type PayoutNotice struct {
+	Amount       int64     `json:"amount,omitempty"`
+	PeriodEnd    time.Time `json:"periodEnd,omitzero"`
+	BankName     string    `json:"bankName,omitempty"`
+	AccountLast4 string    `json:"accountLast4,omitempty"`
+	HeldUntil    time.Time `json:"heldUntil,omitzero"`
+}
+
+func payoutNotice(n *PayoutNotice) PayoutNotice {
+	if n == nil {
+		return PayoutNotice{}
+	}
+	return *n
 }
 
 // ComposeEmail writes an email's subject and plain text. Template kinds wrap the account's
-// template; the rest are StayKey's own words. Only receipts mention an amount.
+// template; the rest are StayKey's own words. Only receipts and payouts mention an amount.
 func ComposeEmail(kind EmailKind, v EmailValues) (subject, text string) {
 	hi := "Hi " + firstWord(v.Name) + ","
 	if firstWord(v.Name) == "" {
@@ -232,6 +252,18 @@ func ComposeEmail(kind EmailKind, v EmailValues) (subject, text string) {
 			"Period: " + FormatDate(r.Start, v.Location) + " to " + FormatDate(r.End, v.Location) + "\n" +
 			"Payment ID: " + r.PaymentID + "\n\n" +
 			"Keep this email for your records."
+	case EmailPayoutSent:
+		n := payoutNotice(v.Payout)
+		return "Your StayKey payout of " + FormatMoney(n.Amount, CardCurrency) + " is on its way", hi + "\n\n" +
+			"We've sent " + FormatMoney(n.Amount, CardCurrency) + " to your bank account for guest card payments up to " +
+			FormatDate(n.PeriodEnd, time.UTC) + ", less StayKey's processing charge and any refunds.\n\n" +
+			"It usually reaches your account in 1 to 2 working days. The statement is in the StayKey app under More, Payouts."
+	case EmailPayoutBankChanged:
+		n := payoutNotice(v.Payout)
+		return "Your StayKey payout account was changed", hi + "\n\n" +
+			"Payouts from StayKey will now go to your " + n.BankName + " account ending " + n.AccountLast4 + ". " +
+			"To keep your money safe, payouts are held until " + FormatMoment(n.HeldUntil, v.Location) + ".\n\n" +
+			"If you didn't make this change, write to " + SupportEmail + " straight away and we'll stop the payout."
 
 	case EmailReceived:
 		switch v.Status {

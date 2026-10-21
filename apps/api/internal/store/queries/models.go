@@ -21,6 +21,7 @@ type Account struct {
 	UpdatedAt            time.Time
 	BookingSeq           int32
 	ClosedAt             *time.Time
+	CardMode             string
 }
 
 type Activity struct {
@@ -68,6 +69,25 @@ type Booking struct {
 	GuestTokenHash   []byte
 	PaymentMethod    *string
 	GuestTokenSealed []byte
+}
+
+type CardCheckout struct {
+	ID                 uuid.UUID
+	AccountID          uuid.UUID
+	BookingID          uuid.UUID
+	CollectedBy        string
+	Purpose            string
+	Amount             int64
+	Currency           string
+	ChargedCents       int64
+	Rate               *int64
+	Mode               string
+	ProviderCheckoutID *string
+	ProviderPaymentID  *string
+	Status             string
+	ExpiresAt          time.Time
+	CreatedAt          time.Time
+	PaidAt             *time.Time
 }
 
 type Email struct {
@@ -138,6 +158,14 @@ type OtpChallenge struct {
 	ConsumedAt *time.Time
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
+}
+
+type PayoutBatch struct {
+	ID         uuid.UUID
+	PeriodEnd  time.Time
+	PreparedAt time.Time
+	PaidAt     *time.Time
+	BankRef    *string
 }
 
 type Session struct {

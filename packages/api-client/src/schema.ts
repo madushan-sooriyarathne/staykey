@@ -901,6 +901,144 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/card-payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Where the account's guest card payments go
+         * @description The card mode, the owner's own Payments.lk connection (never its key) and whether this
+         *     server offers StayKey payouts. Owners only.
+         */
+        get: operations["getCardPayments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/card-payments/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Choose where guest card payments go
+         * @description own takes payments on the owner's connected Payments.lk account; payouts takes them on
+         *     StayKey's account and pays the owner by bank transfer. 409 payouts_unavailable when the
+         *     server doesn't offer payouts or the payout details aren't complete. Owners only.
+         */
+        put: operations["setCardMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/card-payments/connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Connect the owner's own Payments.lk account
+         * @description Checks the secret key with Payments.lk, then keeps it sealed. 400 invalid_key when
+         *     Payments.lk refuses it or it isn't a secret key; 400 test_key_in_production on a live
+         *     server; 503 payments_unreachable when Payments.lk can't be reached. Owners only.
+         */
+        put: operations["connectCards"];
+        post?: never;
+        /**
+         * Forget the owner's Payments.lk key
+         * @description Card payments stop until another key is connected or StayKey payouts are chosen.
+         *     Refunds of earlier card payments then can't be sent. Owners only.
+         */
+        delete: operations["disconnectCards"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/card-payments/payout-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The owner's payout details for StayKey payouts
+         * @description The NIC and account number come back as their last four characters only. 404 when no
+         *     details have been given. Owners only.
+         */
+        get: operations["getPayoutProfile"];
+        /**
+         * Give or change the payout details
+         * @description A legal name, NIC, and a bank account in the owner's own name, with the current payout
+         *     terms accepted. Changing the bank, branch or account number holds the next payout for
+         *     72 hours and tells the owner by email and in Activity. Owners only.
+         */
+        put: operations["setPayoutProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * StayKey payout balances and past payouts
+         * @description Rupee cents. available is in the next payout, pending waits for stays to start, and
+         *     onTheWay is in payouts prepared but not yet paid. Owners only.
+         */
+        get: operations["getPayouts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/payouts/{payoutId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A payout's statement
+         * @description Each stay's payment, StayKey's processing charge, refunds and adjustments it paid. Owners only.
+         */
+        get: operations["getPayout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks/revenuecat": {
         parameters: {
             query?: never;
@@ -1195,6 +1333,58 @@ export interface paths {
         put?: never;
         /** Send an uploaded bank slip to the owner */
         post: operations["addGuestSlip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/bookings/{bookingId}/card-checkout": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The token returned when the guest booked. */
+                "X-Booking-Token": components["parameters"]["BookingToken"];
+            };
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a card payment for the stay
+         * @description Returns the Payments.lk checkout to send the guest to, reusing an open one for the same
+         *     amount. deposit and full pay a stay waiting for payment; balance pays what is left on a
+         *     confirmed stay. 409 bad_status, cards_off or nothing_to_pay; 503 payments_unreachable.
+         */
+        post: operations["createCardCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/bookings/{bookingId}/card-checkout/check": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The token returned when the guest booked. */
+                "X-Booking-Token": components["parameters"]["BookingToken"];
+            };
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask Payments.lk about the stay's open checkouts now
+         * @description For the stay page when the guest comes back from paying.
+         */
+        post: operations["checkCardCheckout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1657,10 +1847,24 @@ export interface components {
             bank: components["schemas"]["BankDetails"];
             atProperty: boolean;
             /**
-             * @description The app can apply (pending) or withdraw (off); "on" comes from PayHere's approval.
+             * @description Send off or on. Read back, on means guests can pay by card now and pending means
+             *     cards are switched on but something in cardsMissing keeps them from working.
              * @enum {string}
              */
             cards: "off" | "pending" | "on";
+            /**
+             * @description What a card pays when a guest books. Defaults to deposit.
+             * @enum {string}
+             */
+            cardCharge?: "deposit" | "full";
+            /**
+             * Format: int64
+             * @description Rupee cents per 1.00 of the property's currency, for card checkouts, which are in
+             *     rupees. Needed unless the property is priced in LKR; 0 or absent means unset.
+             */
+            cardRate?: number;
+            /** @description What keeps cards from working, when they are switched on. */
+            readonly cardsMissing?: ("mode" | "connection" | "payout_profile" | "rate")[];
         };
         BookingSettings: {
             /** @enum {string} */
@@ -1812,6 +2016,22 @@ export interface components {
             /** @description Guests can pay by bank transfer. */
             bank: boolean;
             atProperty: boolean;
+            card?: components["schemas"]["PublicCard"];
+        };
+        /** @description Present when guests can pay by card through Payments.lk. */
+        PublicCard: {
+            /**
+             * @description What a card pays when booking.
+             * @enum {string}
+             */
+            charge: "deposit" | "full";
+            /**
+             * Format: int64
+             * @description Rupee cents per 1.00 of the property's currency; absent for LKR.
+             */
+            rate?: number;
+            /** @description The checkout is a sandbox; no real money moves. */
+            testMode: boolean;
         };
         PublicBranding: {
             color: string;
@@ -1860,7 +2080,7 @@ export interface components {
          * @description How a guest who booked on the page said they'd pay.
          * @enum {string}
          */
-        GuestPaymentMethod: "bank" | "property";
+        GuestPaymentMethod: "bank" | "property" | "card";
         GuestBookingRequest: {
             /** Format: uuid */
             holdId?: string;
@@ -1912,7 +2132,37 @@ export interface components {
             /** Format: date-time */
             requestExpiresAt?: string;
             bank?: components["schemas"]["GuestBank"];
+            card?: components["schemas"]["GuestCard"];
             slips: components["schemas"]["GuestSlip"][];
+        };
+        /** @description What the guest can pay by card now. Present when the property takes cards. */
+        GuestCard: {
+            testMode: boolean;
+            options: components["schemas"]["CardOption"][];
+        };
+        CardOption: {
+            purpose: components["schemas"]["CardPurpose"];
+            amount: components["schemas"]["Money"];
+            /**
+             * Format: int64
+             * @description The same in rupee cents, what the card is charged.
+             */
+            charged: number;
+        };
+        /** @enum {string} */
+        CardPurpose: "deposit" | "full" | "balance";
+        CardCheckoutRequest: {
+            purpose: components["schemas"]["CardPurpose"];
+        };
+        CardCheckout: {
+            /** @description The hosted checkout to send the guest to. */
+            url: string;
+            amount: components["schemas"]["Money"];
+            currency: components["schemas"]["Currency"];
+            /** Format: int64 */
+            charged: number;
+            chargedCurrency: components["schemas"]["Currency"];
+            testMode: boolean;
         };
         /** @description Where to transfer, for guests paying by bank transfer. */
         GuestBank: {
@@ -1978,6 +2228,24 @@ export interface components {
             note: string;
             /** Format: date-time */
             receivedAt: string;
+            /**
+             * @description Card refunds are pending until Payments.lk reports them, and may fail.
+             * @enum {string}
+             */
+            status?: "pending" | "succeeded" | "failed";
+            /**
+             * Format: int64
+             * @description For card payments and refunds, the rupee cents moved.
+             */
+            charged?: number;
+            chargedCurrency?: components["schemas"]["Currency"];
+            /**
+             * Format: int64
+             * @description Rupee cents per 1.00 of the booking's currency, when it isn't LKR.
+             */
+            rate?: number;
+            /** @description Why a card refund failed. */
+            failure?: string;
         };
         Slip: {
             /** Format: uuid */
@@ -2390,6 +2658,127 @@ export interface components {
             plan: components["schemas"]["PlanId"];
             period: components["schemas"]["BillingPeriod"];
         };
+        /** @enum {string} */
+        CardMode: "off" | "own" | "payouts";
+        CardPayments: {
+            mode: components["schemas"]["CardMode"];
+            connection?: components["schemas"]["CardConnection"];
+            /** @description This server offers StayKey payouts. */
+            payoutsAvailable: boolean;
+            payoutProfile?: components["schemas"]["PayoutProfile"];
+        };
+        CardConnection: {
+            /** @description The last four characters of the key. */
+            last4: string;
+            /** @enum {string} */
+            mode: "test" | "live";
+            /**
+             * @description failed when Payments.lk stopped accepting the key.
+             * @enum {string}
+             */
+            status: "connected" | "failed";
+            /** Format: date-time */
+            checkedAt: string;
+        };
+        CardModeInput: {
+            mode: components["schemas"]["CardMode"];
+        };
+        CardConnectionInput: {
+            /** @description A Payments.lk secret key, sk_live_... or sk_test_... */
+            secretKey: string;
+        };
+        PayoutProfile: {
+            legalName: string;
+            nicLast4: string;
+            bankName: string;
+            branch: string;
+            accountName: string;
+            accountLast4: string;
+            termsVersion: string;
+            /** Format: date-time */
+            acceptedAt: string;
+            /** Format: date-time */
+            bankChangedAt: string;
+            /**
+             * Format: date-time
+             * @description Set while a recent change of bank account holds payouts.
+             */
+            heldUntil?: string;
+        };
+        PayoutProfileInput: {
+            /** @description As on the NIC. */
+            legalName: string;
+            /** @description 9 digits and V or X, or 12 digits. */
+            nic: string;
+            bankName: string;
+            branch: string;
+            /** @description The name on the bank account, which must be the owner's own. */
+            accountName: string;
+            accountNumber: string;
+            /** @description The version of the payout terms accepted, which must be the current one. */
+            acceptTerms: string;
+        };
+        /** @enum {string} */
+        PayoutStatus: "prepared" | "paid" | "failed";
+        Payout: {
+            /** Format: uuid */
+            id: string;
+            periodEnd: components["schemas"]["Day"];
+            /**
+             * Format: int64
+             * @description Rupee cents.
+             */
+            amount: number;
+            status: components["schemas"]["PayoutStatus"];
+            /** @description Why a failed payout didn't go through. */
+            reason?: string;
+            /** Format: date-time */
+            preparedAt: string;
+            /** Format: date-time */
+            paidAt?: string;
+            /** Format: date-time */
+            failedAt?: string;
+        };
+        Payouts: {
+            /** Format: int64 */
+            available: number;
+            /** Format: int64 */
+            pending: number;
+            /** Format: int64 */
+            onTheWay: number;
+            nextPayoutOn: components["schemas"]["Day"];
+            /**
+             * Format: int64
+             * @description The smallest payout; smaller balances roll over.
+             */
+            minimum: number;
+            /** Format: date-time */
+            heldUntil?: string;
+            payouts: components["schemas"]["Payout"][];
+        };
+        /** @enum {string} */
+        PayoutEntryKind: "payment" | "processing" | "refund" | "refund_returned" | "adjustment" | "payout_returned";
+        PayoutLine: {
+            /** Format: uuid */
+            id: string;
+            kind: components["schemas"]["PayoutEntryKind"];
+            /**
+             * Format: int64
+             * @description Rupee cents, negative for money taken out.
+             */
+            amount: number;
+            availableOn: components["schemas"]["Day"];
+            note: string;
+            /** Format: uuid */
+            bookingId?: string;
+            bookingRef?: string;
+            guestName?: string;
+            checkIn?: components["schemas"]["Day"];
+        };
+        PayoutStatement: {
+            payout: components["schemas"]["Payout"];
+            lines: components["schemas"]["PayoutLine"][];
+        };
         WebCheckout: {
             /** @description The hosted checkout to send the owner to. */
             url: string;
@@ -2472,8 +2861,9 @@ export interface components {
         };
         /**
          * @description The nights are taken (code dates_taken), the property isn't taking bookings
-         *     (not_taking_bookings), or the stay takes no more slips (bad_status). Nothing about other
-         *     stays is included.
+         *     (not_taking_bookings), the stay takes no more slips or payments (bad_status), cards are
+         *     off (cards_off), or nothing is left to pay (nothing_to_pay). Nothing about other stays
+         *     is included.
          */
         PublicConflict: {
             headers: {
@@ -2505,6 +2895,7 @@ export interface components {
     parameters: {
         Id: string;
         BookingId: string;
+        PayoutId: string;
         SlipId: string;
         BlockId: string;
         InviteId: string;
@@ -3856,6 +4247,209 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    getCardPayments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account's card setup */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardPayments"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setCardMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardModeInput"];
+            };
+        };
+        responses: {
+            /** @description The account's card setup */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardPayments"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    connectCards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardConnectionInput"];
+            };
+        };
+        responses: {
+            /** @description The account's card setup */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardPayments"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    disconnectCards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account's card setup */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardPayments"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPayoutProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The payout details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutProfile"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setPayoutProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayoutProfileInput"];
+            };
+        };
+        responses: {
+            /** @description The payout details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutProfile"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPayouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account's payouts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payouts"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payoutId: components["parameters"]["PayoutId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The payout and its statement */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutStatement"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     revenueCatWebhook: {
         parameters: {
             query?: never;
@@ -4245,6 +4839,67 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["PublicConflict"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    createCardCheckout: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The token returned when the guest booked. */
+                "X-Booking-Token": components["parameters"]["BookingToken"];
+            };
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardCheckoutRequest"];
+            };
+        };
+        responses: {
+            /** @description The checkout */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardCheckout"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["PublicConflict"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    checkCardCheckout: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The token returned when the guest booked. */
+                "X-Booking-Token": components["parameters"]["BookingToken"];
+            };
+            path: {
+                bookingId: components["parameters"]["BookingId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The booking after the check */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestBooking"];
+                };
+            };
+            404: components["responses"]["NotFound"];
             429: components["responses"]["TooManyRequests"];
         };
     };

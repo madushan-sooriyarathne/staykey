@@ -27,8 +27,14 @@ type house struct {
 
 func newHouse(tb testing.TB) house {
 	tb.Helper()
+	return newHouseWith(tb)
+}
+
+// newHouseWith is newHouse on a store with opts.
+func newHouseWith(tb testing.TB, opts ...store.Option) house {
+	tb.Helper()
 	ctx := context.Background()
-	s := storetest.New(tb)
+	s := storetest.New(tb, opts...)
 	u, _, err := s.UpsertUserByPhone(ctx, "+94771234567")
 	if err != nil {
 		tb.Fatal(err)

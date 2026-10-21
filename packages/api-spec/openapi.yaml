@@ -28,6 +28,7 @@ tags:
   - name: activity
   - name: messages
   - name: billing
+  - name: cards
   - name: public
 
 paths:
@@ -1422,6 +1423,233 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
 
+  /v1/card-payments:
+    get:
+      tags: [cards]
+      operationId: getCardPayments
+      summary: Where the account's guest card payments go
+      description: |
+        The card mode, the owner's own Payments.lk connection (never its key) and whether this
+        server offers StayKey payouts. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The account's card setup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardPayments"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/card-payments/mode:
+    put:
+      tags: [cards]
+      operationId: setCardMode
+      summary: Choose where guest card payments go
+      description: |
+        own takes payments on the owner's connected Payments.lk account; payouts takes them on
+        StayKey's account and pays the owner by bank transfer. 409 payouts_unavailable when the
+        server doesn't offer payouts or the payout details aren't complete. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CardModeInput"
+      responses:
+        "200":
+          description: The account's card setup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardPayments"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/card-payments/connection:
+    put:
+      tags: [cards]
+      operationId: connectCards
+      summary: Connect the owner's own Payments.lk account
+      description: |
+        Checks the secret key with Payments.lk, then keeps it sealed. 400 invalid_key when
+        Payments.lk refuses it or it isn't a secret key; 400 test_key_in_production on a live
+        server; 503 payments_unreachable when Payments.lk can't be reached. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CardConnectionInput"
+      responses:
+        "200":
+          description: The account's card setup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardPayments"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    delete:
+      tags: [cards]
+      operationId: disconnectCards
+      summary: Forget the owner's Payments.lk key
+      description: |
+        Card payments stop until another key is connected or StayKey payouts are chosen.
+        Refunds of earlier card payments then can't be sent. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The account's card setup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardPayments"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/card-payments/payout-profile:
+    get:
+      tags: [cards]
+      operationId: getPayoutProfile
+      summary: The owner's payout details for StayKey payouts
+      description: |
+        The NIC and account number come back as their last four characters only. 404 when no
+        details have been given. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The payout details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [cards]
+      operationId: setPayoutProfile
+      summary: Give or change the payout details
+      description: |
+        A legal name, NIC, and a bank account in the owner's own name, with the current payout
+        terms accepted. Changing the bank, branch or account number holds the next payout for
+        72 hours and tells the owner by email and in Activity. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayoutProfileInput"
+      responses:
+        "200":
+          description: The payout details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutProfile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/payouts:
+    get:
+      tags: [cards]
+      operationId: getPayouts
+      summary: StayKey payout balances and past payouts
+      description: |
+        Rupee cents. available is in the next payout, pending waits for stays to start, and
+        onTheWay is in payouts prepared but not yet paid. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The account's payouts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payouts"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/payouts/{payoutId}:
+    get:
+      tags: [cards]
+      operationId: getPayout
+      summary: A payout's statement
+      description: Each stay's payment, StayKey's processing charge, refunds and adjustments it paid. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      parameters:
+        - $ref: "#/components/parameters/PayoutId"
+      responses:
+        "200":
+          description: The payout and its statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutStatement"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /webhooks/revenuecat:
     post:
       tags: [billing]
@@ -1806,6 +2034,63 @@ paths:
         "409":
           $ref: "#/components/responses/PublicConflict"
 
+  /v1/public/bookings/{bookingId}/card-checkout:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+      - $ref: "#/components/parameters/BookingToken"
+    post:
+      tags: [public]
+      operationId: createCardCheckout
+      summary: Start a card payment for the stay
+      description: |
+        Returns the Payments.lk checkout to send the guest to, reusing an open one for the same
+        amount. deposit and full pay a stay waiting for payment; balance pays what is left on a
+        confirmed stay. 409 bad_status, cards_off or nothing_to_pay; 503 payments_unreachable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CardCheckoutRequest"
+      responses:
+        "201":
+          description: The checkout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardCheckout"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/PublicConflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /v1/public/bookings/{bookingId}/card-checkout/check:
+    parameters:
+      - $ref: "#/components/parameters/BookingId"
+      - $ref: "#/components/parameters/BookingToken"
+    post:
+      tags: [public]
+      operationId: checkCardCheckout
+      summary: Ask Payments.lk about the stay's open checkouts now
+      description: For the stay page when the guest comes back from paying.
+      responses:
+        "200":
+          description: The booking after the check
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestBooking"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /ical/{file}:
     get:
       tags: [public]
@@ -1862,6 +2147,13 @@ components:
         format: uuid
     BookingId:
       name: bookingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PayoutId:
+      name: payoutId
       in: path
       required: true
       schema:
@@ -1983,8 +2275,9 @@ components:
     PublicConflict:
       description: |
         The nights are taken (code dates_taken), the property isn't taking bookings
-        (not_taking_bookings), or the stay takes no more slips (bad_status). Nothing about other
-        stays is included.
+        (not_taking_bookings), the stay takes no more slips or payments (bad_status), cards are
+        off (cards_off), or nothing is left to pay (nothing_to_pay). Nothing about other stays
+        is included.
       content:
         application/json:
           schema:
@@ -2871,7 +3164,28 @@ components:
         cards:
           type: string
           enum: ["off", pending, "on"]
-          description: The app can apply (pending) or withdraw (off); "on" comes from PayHere's approval.
+          description: |
+            Send off or on. Read back, on means guests can pay by card now and pending means
+            cards are switched on but something in cardsMissing keeps them from working.
+        cardCharge:
+          type: string
+          enum: [deposit, full]
+          description: What a card pays when a guest books. Defaults to deposit.
+        cardRate:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 10000000
+          description: |
+            Rupee cents per 1.00 of the property's currency, for card checkouts, which are in
+            rupees. Needed unless the property is priced in LKR; 0 or absent means unset.
+        cardsMissing:
+          type: array
+          readOnly: true
+          description: What keeps cards from working, when they are switched on.
+          items:
+            type: string
+            enum: [mode, connection, payout_profile, rate]
 
     BookingSettings:
       type: object
@@ -3158,6 +3472,25 @@ components:
           description: Guests can pay by bank transfer.
         atProperty:
           type: boolean
+        card:
+          $ref: "#/components/schemas/PublicCard"
+
+    PublicCard:
+      type: object
+      description: Present when guests can pay by card through Payments.lk.
+      required: [charge, testMode]
+      properties:
+        charge:
+          type: string
+          enum: [deposit, full]
+          description: What a card pays when booking.
+        rate:
+          type: integer
+          format: int64
+          description: Rupee cents per 1.00 of the property's currency; absent for LKR.
+        testMode:
+          type: boolean
+          description: The checkout is a sandbox; no real money moves.
 
     PublicBranding:
       type: object
@@ -3254,7 +3587,7 @@ components:
 
     GuestPaymentMethod:
       type: string
-      enum: [bank, property]
+      enum: [bank, property, card]
       description: How a guest who booked on the page said they'd pay.
 
     GuestBookingRequest:
@@ -3364,10 +3697,67 @@ components:
           format: date-time
         bank:
           $ref: "#/components/schemas/GuestBank"
+        card:
+          $ref: "#/components/schemas/GuestCard"
         slips:
           type: array
           items:
             $ref: "#/components/schemas/GuestSlip"
+
+    GuestCard:
+      type: object
+      description: What the guest can pay by card now. Present when the property takes cards.
+      required: [testMode, options]
+      properties:
+        testMode:
+          type: boolean
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/CardOption"
+
+    CardOption:
+      type: object
+      required: [purpose, amount, charged]
+      properties:
+        purpose:
+          $ref: "#/components/schemas/CardPurpose"
+        amount:
+          $ref: "#/components/schemas/Money"
+        charged:
+          type: integer
+          format: int64
+          description: The same in rupee cents, what the card is charged.
+
+    CardPurpose:
+      type: string
+      enum: [deposit, full, balance]
+
+    CardCheckoutRequest:
+      type: object
+      required: [purpose]
+      properties:
+        purpose:
+          $ref: "#/components/schemas/CardPurpose"
+
+    CardCheckout:
+      type: object
+      required: [url, amount, currency, charged, chargedCurrency, testMode]
+      properties:
+        url:
+          type: string
+          description: The hosted checkout to send the guest to.
+        amount:
+          $ref: "#/components/schemas/Money"
+        currency:
+          $ref: "#/components/schemas/Currency"
+        charged:
+          type: integer
+          format: int64
+        chargedCurrency:
+          $ref: "#/components/schemas/Currency"
+        testMode:
+          type: boolean
 
     GuestBank:
       type: object
@@ -3486,6 +3876,23 @@ components:
         receivedAt:
           type: string
           format: date-time
+        status:
+          type: string
+          enum: [pending, succeeded, failed]
+          description: Card refunds are pending until Payments.lk reports them, and may fail.
+        charged:
+          type: integer
+          format: int64
+          description: For card payments and refunds, the rupee cents moved.
+        chargedCurrency:
+          $ref: "#/components/schemas/Currency"
+        rate:
+          type: integer
+          format: int64
+          description: Rupee cents per 1.00 of the booking's currency, when it isn't LKR.
+        failure:
+          type: string
+          description: Why a card refund failed.
 
     Slip:
       type: object
@@ -4326,6 +4733,219 @@ components:
           $ref: "#/components/schemas/PlanId"
         period:
           $ref: "#/components/schemas/BillingPeriod"
+
+    CardMode:
+      type: string
+      enum: ["off", own, payouts]
+
+    CardPayments:
+      type: object
+      required: [mode, payoutsAvailable]
+      properties:
+        mode:
+          $ref: "#/components/schemas/CardMode"
+        connection:
+          $ref: "#/components/schemas/CardConnection"
+        payoutsAvailable:
+          type: boolean
+          description: This server offers StayKey payouts.
+        payoutProfile:
+          $ref: "#/components/schemas/PayoutProfile"
+
+    CardConnection:
+      type: object
+      required: [last4, mode, status, checkedAt]
+      properties:
+        last4:
+          type: string
+          description: The last four characters of the key.
+        mode:
+          type: string
+          enum: [test, live]
+        status:
+          type: string
+          enum: [connected, failed]
+          description: failed when Payments.lk stopped accepting the key.
+        checkedAt:
+          type: string
+          format: date-time
+
+    CardModeInput:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          $ref: "#/components/schemas/CardMode"
+
+    CardConnectionInput:
+      type: object
+      required: [secretKey]
+      properties:
+        secretKey:
+          type: string
+          minLength: 16
+          maxLength: 200
+          description: A Payments.lk secret key, sk_live_... or sk_test_...
+
+    PayoutProfile:
+      type: object
+      required: [legalName, nicLast4, bankName, branch, accountName, accountLast4, termsVersion, acceptedAt, bankChangedAt]
+      properties:
+        legalName:
+          type: string
+        nicLast4:
+          type: string
+        bankName:
+          type: string
+        branch:
+          type: string
+        accountName:
+          type: string
+        accountLast4:
+          type: string
+        termsVersion:
+          type: string
+        acceptedAt:
+          type: string
+          format: date-time
+        bankChangedAt:
+          type: string
+          format: date-time
+        heldUntil:
+          type: string
+          format: date-time
+          description: Set while a recent change of bank account holds payouts.
+
+    PayoutProfileInput:
+      type: object
+      required: [legalName, nic, bankName, branch, accountName, accountNumber, acceptTerms]
+      properties:
+        legalName:
+          type: string
+          maxLength: 120
+          description: As on the NIC.
+        nic:
+          type: string
+          maxLength: 20
+          description: 9 digits and V or X, or 12 digits.
+        bankName:
+          type: string
+          maxLength: 80
+        branch:
+          type: string
+          maxLength: 80
+        accountName:
+          type: string
+          maxLength: 120
+          description: The name on the bank account, which must be the owner's own.
+        accountNumber:
+          type: string
+          maxLength: 30
+        acceptTerms:
+          type: string
+          maxLength: 40
+          description: The version of the payout terms accepted, which must be the current one.
+
+    PayoutStatus:
+      type: string
+      enum: [prepared, paid, failed]
+
+    Payout:
+      type: object
+      required: [id, periodEnd, amount, status, preparedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        periodEnd:
+          $ref: "#/components/schemas/Day"
+        amount:
+          type: integer
+          format: int64
+          description: Rupee cents.
+        status:
+          $ref: "#/components/schemas/PayoutStatus"
+        reason:
+          type: string
+          description: Why a failed payout didn't go through.
+        preparedAt:
+          type: string
+          format: date-time
+        paidAt:
+          type: string
+          format: date-time
+        failedAt:
+          type: string
+          format: date-time
+
+    Payouts:
+      type: object
+      required: [available, pending, onTheWay, nextPayoutOn, minimum, payouts]
+      properties:
+        available:
+          type: integer
+          format: int64
+        pending:
+          type: integer
+          format: int64
+        onTheWay:
+          type: integer
+          format: int64
+        nextPayoutOn:
+          $ref: "#/components/schemas/Day"
+        minimum:
+          type: integer
+          format: int64
+          description: The smallest payout; smaller balances roll over.
+        heldUntil:
+          type: string
+          format: date-time
+        payouts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payout"
+
+    PayoutEntryKind:
+      type: string
+      enum: [payment, processing, refund, refund_returned, adjustment, payout_returned]
+
+    PayoutLine:
+      type: object
+      required: [id, kind, amount, availableOn, note]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/PayoutEntryKind"
+        amount:
+          type: integer
+          format: int64
+          description: Rupee cents, negative for money taken out.
+        availableOn:
+          $ref: "#/components/schemas/Day"
+        note:
+          type: string
+        bookingId:
+          type: string
+          format: uuid
+        bookingRef:
+          type: string
+        guestName:
+          type: string
+        checkIn:
+          $ref: "#/components/schemas/Day"
+
+    PayoutStatement:
+      type: object
+      required: [payout, lines]
+      properties:
+        payout:
+          $ref: "#/components/schemas/Payout"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayoutLine"
 
     WebCheckout:
       type: object

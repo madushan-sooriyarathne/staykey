@@ -73,18 +73,18 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [x] Email as an alert channel for the team, beside push and WhatsApp, morning summary included
 - [ ] **Gate:** a guest who books on the page gets the confirmation email, and a bounced address is not emailed again (done with the log sender and a test SNS certificate; waits for SES sandbox credentials)
 
-### Phase 9 Guest card payments through Payments.lk (next, see `docs/phase-9-plan.md`)
+### Phase 9 Guest card payments through Payments.lk (built, see `docs/phase-9-plan.md`)
 
 - [x] Decide how owners are paid: both, chosen per account. Their own Payments.lk account (no StayKey charge), or StayKey collects and pays out every two weeks less a 3% processing charge
-- [ ] Card payments per property (`cards_status`), on only once the account's card mode is ready (a connected key, or a payout profile) and non-LKR properties have a rupee rate
-- [ ] Booking page checkout by card for the deposit, the full amount or a later balance, through a Payments.lk hosted checkout
-- [ ] Payments.lk events, polled each minute, record the payment on the booking and confirm it, once per event
-- [ ] Refunds by card through Payments.lk's refunds API from the cancel screen
-- [ ] StayKey payouts: a ledger per account, a payout every other Monday for money available after check-in, `cmd/payouts` for the bank batch, and payout statements in the app
+- [x] Card payments per property (`cards_status`), on only once the account's card mode is ready (a connected key, or a payout profile) and non-LKR properties have a rupee rate
+- [x] Booking page checkout by card for the deposit, the full amount or a later balance, through a Payments.lk hosted checkout
+- [x] Payments.lk events, polled each minute, record the payment on the booking and confirm it, once per event
+- [x] Refunds by card through Payments.lk's refunds API from the cancel screen
+- [x] StayKey payouts: a ledger per account, a payout every other Monday for money available after check-in, `cmd/payouts` for the bank batch, and payout statements in the app
 - [ ] Legal advice and Payable's approval before `STAYKEY_PAYOUTS_ENABLED` is turned on in production
 - [ ] **Gate:** a sandbox card payment on the booking page confirms the stay, and a cancellation refunds it
 
-### Phase 10 Marketing site
+### Phase 10 Marketing site (next)
 
 - [ ] Pricing from `GET /v1/public/plans`, features, how it works, and links to the App Store and Google Play
 - [ ] Support contact, and terms of service and privacy policy pages

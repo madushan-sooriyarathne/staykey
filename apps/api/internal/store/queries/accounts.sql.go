@@ -44,7 +44,7 @@ func (q *Queries) CloseAccount(ctx context.Context, arg CloseAccountParams) erro
 
 const createAccount = `-- name: CreateAccount :one
 INSERT INTO accounts (id, name) VALUES ($1, $2)
-RETURNING id, name, status, trial_started_at, first_direct_booking_at, created_at, updated_at, booking_seq, closed_at
+RETURNING id, name, status, trial_started_at, first_direct_booking_at, created_at, updated_at, booking_seq, closed_at, card_mode
 `
 
 type CreateAccountParams struct {
@@ -65,6 +65,7 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (A
 		&i.UpdatedAt,
 		&i.BookingSeq,
 		&i.ClosedAt,
+		&i.CardMode,
 	)
 	return i, err
 }
@@ -280,7 +281,7 @@ func (q *Queries) OwnedAccountIDs(ctx context.Context, userID uuid.UUID) ([]uuid
 }
 
 const renameAccount = `-- name: RenameAccount :one
-UPDATE accounts SET name = $1 WHERE id = $2 RETURNING id, name, status, trial_started_at, first_direct_booking_at, created_at, updated_at, booking_seq, closed_at
+UPDATE accounts SET name = $1 WHERE id = $2 RETURNING id, name, status, trial_started_at, first_direct_booking_at, created_at, updated_at, booking_seq, closed_at, card_mode
 `
 
 type RenameAccountParams struct {
@@ -301,6 +302,7 @@ func (q *Queries) RenameAccount(ctx context.Context, arg RenameAccountParams) (A
 		&i.UpdatedAt,
 		&i.BookingSeq,
 		&i.ClosedAt,
+		&i.CardMode,
 	)
 	return i, err
 }

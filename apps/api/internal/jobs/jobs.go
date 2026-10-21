@@ -19,6 +19,7 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
+	"staykey.direct/api/internal/cards"
 	"staykey.direct/api/internal/domain"
 	"staykey.direct/api/internal/email"
 	"staykey.direct/api/internal/files"
@@ -54,8 +55,8 @@ type sweep struct {
 }
 
 // Start runs the sweeps until ctx is done. Stop the returned client to wait for running jobs.
-func Start(ctx context.Context, pool *pgxpool.Pool, st *store.Postgres, fs files.Store, alerts Alerts, feeds *ical.Fetcher, log *slog.Logger) (*river.Client[pgx.Tx], error) {
-	all := sweeps(st, fs, alerts, feeds, log)
+func Start(ctx context.Context, pool *pgxpool.Pool, st *store.Postgres, fs files.Store, alerts Alerts, feeds *ical.Fetcher, cardService *cards.Service, log *slog.Logger) (*river.Client[pgx.Tx], error) {
+	all := sweeps(st, fs, alerts, feeds, cardService, log)
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &sweeper{sweeps: all, now: time.Now})
 	periodic := make([]*river.PeriodicJob, 0, len(all))
@@ -82,8 +83,33 @@ func Start(ctx context.Context, pool *pgxpool.Pool, st *store.Postgres, fs files
 }
 
 // sweeps are the periodic jobs by name.
-func sweeps(st *store.Postgres, fs files.Store, alerts Alerts, feeds *ical.Fetcher, log *slog.Logger) map[string]sweep {
+func sweeps(st *store.Postgres, fs files.Store, alerts Alerts, feeds *ical.Fetcher, cardService *cards.Service, log *slog.Logger) map[string]sweep {
 	return map[string]sweep{
+		// Reads card payments, expiries and refunds from Payments.lk, for StayKey's collection
+		// account and every owner connection.
+		"card_events": {time.Minute, func(ctx context.Context, _ time.Time) error {
+			return cardService.PollEvents(ctx)
+		}},
+		// Sends card refunds the cancel screen recorded and Payments.lk hasn't accepted yet.
+		"send_card_refunds": {time.Minute, func(ctx context.Context, _ time.Time) error {
+			n, err := cardService.SendRefunds(ctx, nil)
+			if n > 0 {
+				log.Info("card refunds sent", "count", n)
+			}
+			return err
+		}},
+		// Prepares the batch of StayKey payouts on each payout Monday, once. It runs hourly so an
+		// API that was down at midnight still prepares it that day.
+		"prepare_payouts": {time.Hour, func(ctx context.Context, now time.Time) error {
+			if !st.PayoutsAvailable() {
+				return nil
+			}
+			b, prepared, err := st.PreparePayouts(ctx, now)
+			if prepared {
+				log.Info("payouts prepared", "batch", b.ID, "period_end", b.PeriodEnd.Format(time.DateOnly), "payouts", b.Payouts)
+			}
+			return err
+		}},
 		"expire_requests": {time.Minute, func(ctx context.Context, now time.Time) error {
 			n, err := st.DeclineExpiredRequests(ctx, now)
 			if n > 0 {

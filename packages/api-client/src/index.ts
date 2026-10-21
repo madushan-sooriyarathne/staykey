@@ -65,6 +65,24 @@ export type PlanId = Schemas["PlanId"];
 export type BillingPeriod = Schemas["BillingPeriod"];
 export type Plan = Schemas["Plan"];
 export type WebCheckout = Schemas["WebCheckout"];
+export type Payment = Schemas["Payment"];
+export type PaymentSettings = Schemas["PaymentSettings"];
+export type PublicCard = Schemas["PublicCard"];
+export type GuestCard = Schemas["GuestCard"];
+export type CardOption = Schemas["CardOption"];
+export type CardPurpose = Schemas["CardPurpose"];
+export type CardCheckout = Schemas["CardCheckout"];
+export type CardMode = Schemas["CardMode"];
+export type CardPayments = Schemas["CardPayments"];
+export type CardConnection = Schemas["CardConnection"];
+export type PayoutProfile = Schemas["PayoutProfile"];
+export type PayoutProfileInput = Schemas["PayoutProfileInput"];
+export type Payouts = Schemas["Payouts"];
+export type Payout = Schemas["Payout"];
+export type PayoutStatus = Schemas["PayoutStatus"];
+export type PayoutStatement = Schemas["PayoutStatement"];
+export type PayoutLine = Schemas["PayoutLine"];
+export type PayoutEntryKind = Schemas["PayoutEntryKind"];
 
 /** Header that names the account an owner route acts on. */
 export const ACCOUNT_HEADER = "X-Account-Id";
@@ -97,6 +115,15 @@ export function forwardVisitor(
       return request;
     },
   };
+}
+
+/**
+ * What a card is charged in rupee cents for an amount in minor units, at a rate in rupee cents
+ * per 1.00 of the currency. Rounds up, like the API. No rate means the amount is in rupees.
+ */
+export function toRupees(amountMinor: number, rate?: number): number {
+  if (!rate || rate <= 0) return amountMinor;
+  return Math.ceil((amountMinor * rate) / 100);
 }
 
 /** Formats an amount in minor units, for example 18000 USD as "$180". */

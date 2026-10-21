@@ -37,7 +37,8 @@ func URL() string {
 }
 
 // New returns a store on a fresh, fully migrated schema that is dropped when the test ends.
-func New(t testing.TB) *store.Postgres {
+// opts are applied after the test's secret box.
+func New(t testing.TB, opts ...store.Option) *store.Postgres {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -80,7 +81,7 @@ func New(t testing.TB) *store.Postgres {
 		cfg.ConnConfig.User, cfg.ConnConfig.Password = role, role
 	}
 	cfg.MaxConns = 8
-	s, err := store.NewPostgresWithConfig(ctx, cfg, store.WithSecrets(secret.FromPassphrase("storetest")))
+	s, err := store.NewPostgresWithConfig(ctx, cfg, append([]store.Option{store.WithSecrets(secret.FromPassphrase("storetest"))}, opts...)...)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}

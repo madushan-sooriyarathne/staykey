@@ -291,8 +291,10 @@ func (s *Server) CancelBooking(ctx context.Context, req oapi.CancelBookingReques
 		refund = &domain.Payment{Method: string(r.Method), Amount: r.Amount}
 	}
 
+	var cancelled domain.Booking
 	out, err := idempotent(ctx, s, t, cur.ID, req.Params.IdempotencyKey, http.StatusOK, b, func(ctx context.Context) (oapi.Booking, error) {
-		cancelled, err := s.store.CancelBooking(ctx, t, cur.ID, b.Version, reason, refund, time.Now())
+		var err error
+		cancelled, err = s.store.CancelBooking(ctx, t, cur.ID, b.Version, reason, refund, time.Now())
 		if err != nil {
 			return oapi.Booking{}, err
 		}
@@ -300,6 +302,12 @@ func (s *Server) CancelBooking(ctx context.Context, req oapi.CancelBookingReques
 	})
 	if err != nil {
 		return nil, apiErr(err, "booking")
+	}
+	if cancelled.ID == cur.ID {
+		s.sendCardRefunds(ctx, cancelled)
+		if after, err := s.store.GetBooking(ctx, t, cur.ID); err == nil {
+			out = s.stayToAPI(ctx, after, true)
+		}
 	}
 	return oapi.CancelBooking200JSONResponse(out), nil
 }
@@ -533,8 +541,7 @@ func (s *Server) stayToAPI(ctx context.Context, b domain.Booking, money bool) oa
 	lines := linesToAPI(b.Lines)
 	payments := make([]oapi.Payment, len(b.Payments))
 	for i, p := range b.Payments {
-		payments[i] = oapi.Payment{Id: p.ID, Kind: oapi.PaymentKind(p.Kind), Method: oapi.PaymentMethod(p.Method),
-			Amount: p.Amount, Note: p.Note, ReceivedAt: p.ReceivedAt}
+		payments[i] = paymentToAPI(p)
 	}
 	slips := make([]oapi.Slip, len(b.Slips))
 	for i, sl := range b.Slips {
