@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
+import { reportError } from "@/lib/sentry";
 import { setOnSessionEnded } from "./client";
 import { ApiError } from "./errors";
 
@@ -12,6 +13,9 @@ const WEEK = 7 * 24 * 60 * 60 * 1000;
  * the device, so properties open instantly and stay readable offline.
  */
 export const queryClient = new QueryClient({
+  // Called once a query has used up its retries, so a flaky moment isn't reported.
+  queryCache: new QueryCache({ onError: reportError }),
+  mutationCache: new MutationCache({ onError: reportError }),
   defaultOptions: {
     queries: {
       staleTime: 30_000,

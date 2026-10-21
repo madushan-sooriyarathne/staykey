@@ -6,14 +6,17 @@ export class ApiError extends Error {
   readonly code: string;
   readonly field?: string;
   readonly retryAfter?: number;
+  /** The API's X-Request-Id, which finds the request in the server logs. */
+  readonly requestId?: string;
 
-  constructor(status: number, body?: Partial<ApiErrorBody>) {
+  constructor(status: number, body?: Partial<ApiErrorBody>, requestId?: string) {
     super(body?.message ?? fallbackMessage(status));
     this.name = "ApiError";
     this.status = status;
     this.code = body?.code ?? `http_${status}`;
     this.field = body?.field;
     this.retryAfter = body?.retryAfter;
+    this.requestId = requestId;
   }
 }
 
@@ -45,7 +48,20 @@ export async function unwrap<T>(call: Promise<Result<T>>): Promise<T> {
     throw new OfflineError();
   }
   if (result.response.ok) return result.data as T;
-  throw new ApiError(result.response.status, result.error as Partial<ApiErrorBody> | undefined);
+  throw new ApiError(
+    result.response.status,
+    result.error as Partial<ApiErrorBody> | undefined,
+    result.response.headers.get("X-Request-Id") ?? undefined,
+  );
+}
+
+/**
+ * True for errors worth reporting: server errors, and anything that isn't an API answer at all.
+ * Refusals, validation errors and being offline are the owner's to fix or wait out.
+ */
+export function isReportable(error: unknown): boolean {
+  if (error instanceof ApiError) return error.status >= 500;
+  return error instanceof Error && !(error instanceof OfflineError);
 }
 
 /** A message fit to show the owner for any error a call can throw. */

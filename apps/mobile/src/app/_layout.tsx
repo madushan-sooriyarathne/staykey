@@ -15,6 +15,7 @@ import { persistOptions, queryClient } from "@/api/query-client";
 import { SessionCheck } from "@/features/auth/session-check";
 import { useOnboarding } from "@/features/onboarding/store";
 import { usePushAlerts } from "@/lib/push";
+import { wrap } from "@/lib/sentry";
 import { useSession } from "@/lib/session";
 
 export { ErrorBoundary } from "expo-router";
@@ -54,7 +55,10 @@ function sheet(detents: number[]) {
   };
 }
 
-export default function RootLayout() {
+// Wrapped so render errors and crashes reach Sentry in production builds.
+export default wrap(RootLayout);
+
+function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     DMSans_400Regular,
     DMSans_500Medium,
