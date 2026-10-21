@@ -6,10 +6,14 @@
 // Usage:
 //
 //	go run ./cmd/payouts list
+//	go run ./cmd/payouts prepare [-at 2026-11-02T08:00:00+05:30]
 //	go run ./cmd/payouts export <batch> > batch.csv
 //	go run ./cmd/payouts paid <batch> -ref <bank reference>
 //	go run ./cmd/payouts failed <payout> -reason "Account closed"
 //	go run ./cmd/payouts adjust <account> <rupees> -reason "Chargeback on KV-2041"
+//
+// The API prepares each batch on its own; prepare is for a batch it missed, and -at, refused in
+// production, tries a payout Monday on a development database.
 //
 // The routine: list, export, check the file by eye, upload it to the bank, then mark the batch
 // paid. A payout export marks as held (bank details changed after it was prepared) is left out
@@ -40,6 +44,7 @@ import (
 
 const usage = `usage:
   payouts list
+  payouts prepare [-at <RFC 3339 time>]
   payouts export <batch>
   payouts paid <batch> -ref <bank reference>
   payouts failed <payout> -reason <why>
@@ -74,6 +79,31 @@ func run(ctx context.Context, args []string, out, info io.Writer) error {
 	switch cmd {
 	case "list":
 		return list(ctx, st, out)
+	case "prepare":
+		_, fs, err := idAndFlags(rest, 0, "at")
+		if err != nil {
+			return err
+		}
+		at := time.Now()
+		if fs["at"] != "" {
+			if cfg.IsProduction() {
+				return errors.New("-at only works outside production")
+			}
+			if at, err = time.Parse(time.RFC3339, fs["at"]); err != nil {
+				return fmt.Errorf("-at: %w", err)
+			}
+		}
+		b, prepared, err := st.PreparePayouts(ctx, at)
+		if err != nil {
+			return err
+		}
+		if !prepared {
+			fmt.Fprintln(out, "Nothing to prepare: the latest payout Monday's batch is already prepared, or none has come yet.")
+			return nil
+		}
+		fmt.Fprintf(out, "Prepared batch %s for card payments up to %s: %d payouts, %s in all.\n",
+			b.ID, b.PeriodEnd.Format(time.DateOnly), b.Payouts, domain.FormatMoney(b.Total, domain.CardCurrency))
+		return nil
 	case "export":
 		id, _, err := idAndFlags(rest, 1)
 		if err != nil {
@@ -232,7 +262,9 @@ func export(ctx context.Context, st *store.Postgres, batchID uuid.UUID, out, inf
 			continue
 		}
 		amount := fmt.Sprintf("%d.%02d", t.Amount/100, t.Amount%100)
-		ref := "STAYKEY " + strings.ToUpper(t.PayoutID.String()[:8])
+		// Payout ids start with their time, so the random tail tells a batch's payouts apart.
+		id := t.PayoutID.String()
+		ref := "STAYKEY " + strings.ToUpper(id[len(id)-8:])
 		if err := w.Write([]string{t.AccountName, t.BankName, t.Branch, t.AccountNumber, amount, ref}); err != nil {
 			return err
 		}
