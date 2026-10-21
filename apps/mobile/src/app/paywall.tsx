@@ -24,6 +24,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRefreshSubscription, useSubscription } from "@/api/subscription";
 import { IconBox, Tag } from "@/components/brand";
 import { Button, PressScale, Radio, TextLink } from "@/components/controls";
+import { LegalLinks } from "@/components/legal-links";
 import { font } from "@/components/ui";
 import { formatDay, toISO } from "@/data/dates";
 import { useCan } from "@/data/hooks";
@@ -267,6 +268,9 @@ function Purchase({
         ) : (
           <TextLink title="Restore purchases" onPress={onRestore} />
         )}
+      </View>
+      <View style={{ paddingTop: 12 }}>
+        <LegalLinks />
       </View>
     </>
   );
