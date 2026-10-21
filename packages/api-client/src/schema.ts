@@ -971,6 +971,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/card-payments/payout-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The owner's payout details for StayKey payouts
+         * @description The NIC and account number come back as their last four characters only. 404 when no
+         *     details have been given. Owners only.
+         */
+        get: operations["getPayoutProfile"];
+        /**
+         * Give or change the payout details
+         * @description A legal name, NIC, and a bank account in the owner's own name, with the current payout
+         *     terms accepted. Changing the bank, branch or account number holds the next payout for
+         *     72 hours and tells the owner by email and in Activity. Owners only.
+         */
+        put: operations["setPayoutProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * StayKey payout balances and past payouts
+         * @description Rupee cents. available is in the next payout, pending waits for stays to start, and
+         *     onTheWay is in payouts prepared but not yet paid. Owners only.
+         */
+        get: operations["getPayouts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/payouts/{payoutId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A payout's statement
+         * @description Each stay's payment, StayKey's processing charge, refunds and adjustments it paid. Owners only.
+         */
+        get: operations["getPayout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks/revenuecat": {
         parameters: {
             query?: never;
@@ -2597,6 +2665,7 @@ export interface components {
             connection?: components["schemas"]["CardConnection"];
             /** @description This server offers StayKey payouts. */
             payoutsAvailable: boolean;
+            payoutProfile?: components["schemas"]["PayoutProfile"];
         };
         CardConnection: {
             /** @description The last four characters of the key. */
@@ -2617,6 +2686,98 @@ export interface components {
         CardConnectionInput: {
             /** @description A Payments.lk secret key, sk_live_... or sk_test_... */
             secretKey: string;
+        };
+        PayoutProfile: {
+            legalName: string;
+            nicLast4: string;
+            bankName: string;
+            branch: string;
+            accountName: string;
+            accountLast4: string;
+            termsVersion: string;
+            /** Format: date-time */
+            acceptedAt: string;
+            /** Format: date-time */
+            bankChangedAt: string;
+            /**
+             * Format: date-time
+             * @description Set while a recent change of bank account holds payouts.
+             */
+            heldUntil?: string;
+        };
+        PayoutProfileInput: {
+            /** @description As on the NIC. */
+            legalName: string;
+            /** @description 9 digits and V or X, or 12 digits. */
+            nic: string;
+            bankName: string;
+            branch: string;
+            /** @description The name on the bank account, which must be the owner's own. */
+            accountName: string;
+            accountNumber: string;
+            /** @description The version of the payout terms accepted, which must be the current one. */
+            acceptTerms: string;
+        };
+        /** @enum {string} */
+        PayoutStatus: "prepared" | "paid" | "failed";
+        Payout: {
+            /** Format: uuid */
+            id: string;
+            periodEnd: components["schemas"]["Day"];
+            /**
+             * Format: int64
+             * @description Rupee cents.
+             */
+            amount: number;
+            status: components["schemas"]["PayoutStatus"];
+            /** @description Why a failed payout didn't go through. */
+            reason?: string;
+            /** Format: date-time */
+            preparedAt: string;
+            /** Format: date-time */
+            paidAt?: string;
+            /** Format: date-time */
+            failedAt?: string;
+        };
+        Payouts: {
+            /** Format: int64 */
+            available: number;
+            /** Format: int64 */
+            pending: number;
+            /** Format: int64 */
+            onTheWay: number;
+            nextPayoutOn: components["schemas"]["Day"];
+            /**
+             * Format: int64
+             * @description The smallest payout; smaller balances roll over.
+             */
+            minimum: number;
+            /** Format: date-time */
+            heldUntil?: string;
+            payouts: components["schemas"]["Payout"][];
+        };
+        /** @enum {string} */
+        PayoutEntryKind: "payment" | "processing" | "refund" | "refund_returned" | "adjustment" | "payout_returned";
+        PayoutLine: {
+            /** Format: uuid */
+            id: string;
+            kind: components["schemas"]["PayoutEntryKind"];
+            /**
+             * Format: int64
+             * @description Rupee cents, negative for money taken out.
+             */
+            amount: number;
+            availableOn: components["schemas"]["Day"];
+            note: string;
+            /** Format: uuid */
+            bookingId?: string;
+            bookingRef?: string;
+            guestName?: string;
+            checkIn?: components["schemas"]["Day"];
+        };
+        PayoutStatement: {
+            payout: components["schemas"]["Payout"];
+            lines: components["schemas"]["PayoutLine"][];
         };
         WebCheckout: {
             /** @description The hosted checkout to send the owner to. */
@@ -2734,6 +2895,7 @@ export interface components {
     parameters: {
         Id: string;
         BookingId: string;
+        PayoutId: string;
         SlipId: string;
         BlockId: string;
         InviteId: string;
@@ -4182,6 +4344,105 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CardPayments"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPayoutProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The payout details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutProfile"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setPayoutProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayoutProfileInput"];
+            };
+        };
+        responses: {
+            /** @description The payout details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutProfile"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPayouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account's payouts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payouts"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payoutId: components["parameters"]["PayoutId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The payout and its statement */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutStatement"];
                 };
             };
             401: components["responses"]["Unauthorized"];
