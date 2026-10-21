@@ -92,7 +92,7 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [x] Metadata, sitemap and social images for search and sharing
 - [ ] **Gate:** a visitor finds the price, installs the app and reaches support from the site
 
-### Phase 11 Error tracking (next)
+### Phase 11 Error tracking (next, see `docs/phase-11-plan.md`)
 
 - [ ] Error tracking in the API, booking app, marketing site and owner app (Sentry by default), with releases and no personal data in reports
 - [ ] Uptime monitoring for the API, booking pages and marketing site, with alerts to the owner of StayKey
