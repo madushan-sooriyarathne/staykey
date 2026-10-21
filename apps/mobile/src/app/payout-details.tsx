@@ -4,12 +4,13 @@ import { View } from "react-native";
 import { useCardPayments } from "@/api/cards";
 import { messageFor } from "@/api/errors";
 import { useSetPayoutProfile } from "@/api/payouts";
-import { Button, Checkbox, Field, InfoNote } from "@/components/controls";
+import { Button, Checkbox, Field, InfoNote, TextLink } from "@/components/controls";
 import { I } from "@/components/icons";
 import { Page, SectionHeader } from "@/components/kit";
 import { useCan } from "@/data/hooks";
 import { isValidAccountNumber, isValidNIC, PAYOUT_TERMS_VERSION } from "@/features/payouts/payouts";
 import { haptics } from "@/lib/haptics";
+import { openSite, SITE_LINKS } from "@/lib/site";
 
 /**
  * Where StayKey pays out card money: the owner's legal name, NIC and a bank account in their own
@@ -158,6 +159,11 @@ export default function PayoutDetailsScreen() {
         for stays that have started, less a 3% processing charge. Payouts under Rs 1,000 wait for
         the next one. Refunds come out of your balance, and the charge isn't returned on a refund.
       </InfoNote>
+      <TextLink
+        testID="payout-terms"
+        title="Read the payout terms"
+        onPress={() => openSite(SITE_LINKS.payoutTerms)}
+      />
       <Checkbox
         checked={accepted}
         onChange={setAccepted}
