@@ -160,6 +160,14 @@ type OtpChallenge struct {
 	UpdatedAt  time.Time
 }
 
+type PayoutBatch struct {
+	ID         uuid.UUID
+	PeriodEnd  time.Time
+	PreparedAt time.Time
+	PaidAt     *time.Time
+	BankRef    *string
+}
+
 type Session struct {
 	ID                  uuid.UUID
 	UserID              uuid.UUID
