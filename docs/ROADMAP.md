@@ -84,10 +84,11 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [ ] Legal advice and Payable's approval before `STAYKEY_PAYOUTS_ENABLED` is turned on in production
 - [ ] **Gate:** a sandbox card payment on the booking page confirms the stay, and a cancellation refunds it
 
-### Phase 10 Marketing site (next)
+### Phase 10 Marketing site (next, see `docs/phase-10-plan.md`)
 
 - [ ] Pricing from `GET /v1/public/plans`, features, how it works, and links to the App Store and Google Play
 - [ ] Support contact, and terms of service and privacy policy pages
+- [ ] Account deletion page and payout terms page, linked from the app with terms and privacy (store review needs them)
 - [ ] Metadata, sitemap and social images for search and sharing
 - [ ] **Gate:** a visitor finds the price, installs the app and reaches support from the site
 
