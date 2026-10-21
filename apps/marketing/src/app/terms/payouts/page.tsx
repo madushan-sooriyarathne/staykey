@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Clause, LegalPage } from "@/components/legal-page";
 import { COMPANY, LEGAL, SUPPORT } from "@/lib/company";
+import { pageMetadata } from "@/lib/metadata";
 
 // Not linked from the site and never indexed: the app links here from its payout details, which
 // only show once StayKey payouts are offered.
 export const metadata: Metadata = {
-  title: "Payout terms",
-  description: "The terms for StayKey payouts.",
-  alternates: { canonical: "/terms/payouts" },
+  ...pageMetadata({
+    title: "Payout terms",
+    description: "The terms for StayKey payouts, which aren't available yet.",
+    path: "/terms/payouts",
+  }),
   robots: { index: false, follow: false },
 };
 

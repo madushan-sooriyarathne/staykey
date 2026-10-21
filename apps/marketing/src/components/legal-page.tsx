@@ -23,7 +23,7 @@ export function LegalPage({
       <SiteHeader />
       <main className="mx-auto max-w-3xl px-5 pt-10 pb-20 md:px-6 md:pt-16">
         <h1 className="font-semibold text-4xl text-obsidian leading-tight md:text-5xl">{title}</h1>
-        <p className="mt-3 text-fog">
+        <p className="mt-3 text-steel">
           Version {version}, last updated {formatDate(updated)}
         </p>
         {LEGAL_REVIEWED ? null : (

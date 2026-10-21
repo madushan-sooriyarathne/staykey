@@ -10,7 +10,7 @@ export function Questions({ items }: { items: readonly Question[] }) {
         <details key={item.q} className="group px-6 py-1 md:px-8">
           <summary className="focus-ring flex cursor-pointer list-none items-center justify-between gap-4 rounded-badge py-4 font-medium text-obsidian [&::-webkit-details-marker]:hidden">
             {item.q}
-            <span aria-hidden className="text-fog transition-transform group-open:rotate-45">
+            <span aria-hidden className="text-steel transition-transform group-open:rotate-45">
               +
             </span>
           </summary>

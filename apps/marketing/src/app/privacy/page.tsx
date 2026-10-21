@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Clause, LegalPage } from "@/components/legal-page";
 import { COMPANY, LEGAL, LEGAL_REVIEWED, SUPPORT } from "@/lib/company";
+import { pageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Privacy policy",
   description:
     "What StayKey collects about owners, their teams and their guests, why, who it is shared with, and your rights under Sri Lanka's Personal Data Protection Act.",
-  alternates: { canonical: "/privacy" },
-  robots: LEGAL_REVIEWED ? undefined : { index: false, follow: true },
-};
+  path: "/privacy",
+  index: LEGAL_REVIEWED,
+});
 
 export default function PrivacyPage() {
   return (

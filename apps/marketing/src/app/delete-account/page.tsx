@@ -3,13 +3,14 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { SUPPORT } from "@/lib/company";
+import { pageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Delete your account",
   description:
     "How to delete your StayKey account and data, what is deleted, and how to ask us if you can't open the app.",
-  alternates: { canonical: "/delete-account" },
-};
+  path: "/delete-account",
+});
 
 const requestMail = `mailto:${SUPPORT.email}?subject=${encodeURIComponent(
   "Delete my StayKey account",

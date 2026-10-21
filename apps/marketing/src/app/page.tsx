@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { connection } from "next/server";
 import { PhoneFrame } from "@/components/phone-frame";
 import { Prices } from "@/components/prices";
 import { type Question, Questions } from "@/components/questions";
@@ -14,6 +13,10 @@ import { structuredData } from "@/lib/structured-data";
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
+
+// Prerendered and refreshed every 10 minutes, so visitors get it straight from the cache. A
+// build without the API shows "See prices in the app" until the first refresh.
+export const revalidate = 600;
 
 const steps = [
   {
@@ -100,7 +103,6 @@ const questions: Question[] = [
 ];
 
 export default async function Home() {
-  await connection();
   const plans = await cachedPlans();
   return (
     <>
@@ -123,7 +125,7 @@ export default async function Home() {
               website widget and one calendar for every booking, all set up from your phone.
             </p>
             <StoreButtons />
-            <p className="text-fog text-sm">
+            <p className="text-steel text-sm">
               Free until your first direct booking. No commission, ever.
             </p>
           </div>
@@ -134,7 +136,7 @@ export default async function Home() {
               eager
             />
             <div className="absolute bottom-10 left-0 hidden max-w-[240px] rounded-card border border-cloud bg-snow p-4 md:block lg:-left-6">
-              <p className="text-caption text-fog">Your booking page</p>
+              <p className="text-caption text-steel">Your booking page</p>
               <p className="mt-1 font-medium text-obsidian">kingfisher.staykey.direct</p>
               <p className="mt-2 flex items-center gap-2 text-caption text-ember-ink">
                 <span aria-hidden className="size-2 rounded-full bg-ember" />

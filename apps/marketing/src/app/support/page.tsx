@@ -4,13 +4,14 @@ import { type Question, Questions } from "@/components/questions";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { SUPPORT } from "@/lib/company";
+import { pageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: "Support",
+export const metadata: Metadata = pageMetadata({
+  title: "Help and support",
   description:
     "Help with StayKey: connect Airbnb, add the widget, take card payments, invite your team. Reach us on WhatsApp or by email.",
-  alternates: { canonical: "/support" },
-};
+  path: "/support",
+});
 
 const topics: Question[] = [
   {
@@ -95,7 +96,7 @@ export default function SupportPage() {
             <span className="mt-2 text-iron text-sm underline underline-offset-4">Write to us</span>
           </a>
         </div>
-        <p className="mt-4 text-fog text-sm">
+        <p className="mt-4 text-steel text-sm">
           Include the phone number you sign in with, so we can find your account. We never ask for
           your sign-in code.
         </p>

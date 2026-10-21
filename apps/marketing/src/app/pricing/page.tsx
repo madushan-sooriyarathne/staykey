@@ -5,14 +5,15 @@ import { type Question, Questions } from "@/components/questions";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { cachedPlans } from "@/lib/api";
+import { pageMetadata } from "@/lib/metadata";
 import { parsePeriod } from "@/lib/plans";
 
-export const metadata: Metadata = {
-  title: "Pricing",
+export const metadata: Metadata = pageMetadata({
+  title: "Pricing for villas and guesthouses",
   description:
     "One flat plan for your villa or guesthouse, with no commission on bookings. Free until your first direct booking, for up to 60 days.",
-  alternates: { canonical: "/pricing" },
-};
+  path: "/pricing",
+});
 
 const questions: Question[] = [
   {
@@ -68,12 +69,13 @@ export default async function PricingPage({ searchParams }: PageProps<"/pricing"
           </p>
         </div>
         <div className="mt-12">
+          <h2 className="sr-only">Plans</h2>
           <Prices
             plans={plans}
             period={period}
             switchHref={(p) => (p === "yearly" ? "/pricing?period=yearly" : "/pricing")}
           />
-          <p className="mt-4 text-fog text-sm">
+          <p className="mt-4 text-steel text-sm">
             Web prices in Sri Lankan rupees. In the app, the App Store and Google Play show their
             own price in your currency.
           </p>
