@@ -1,8 +1,9 @@
 -- StayKey payouts: the ledger of card money StayKey collects for owners, and the payouts that
 -- pay it out.
 --
--- An entry is payable on a date when its own available_on has come and, if it belongs to a
--- stay, the stay checked in before that date. Every query below uses the same test.
+-- An entry is payable on a date when the stay it belongs to checked in before that date, so a
+-- stay whose dates move takes its money with it. An entry with no stay is payable from its own
+-- available_on. Every query below uses the same test.
 
 -- Payout details ----------------------------------------------------------------------------
 
@@ -58,8 +59,8 @@ ON CONFLICT DO NOTHING;
 -- prepared payouts.
 -- name: PayoutBalance :one
 SELECT
-    coalesce(sum(e.amount) FILTER (WHERE e.available_on <= @payable_on AND (b.check_in IS NULL OR b.check_in < @payable_on)), 0)::bigint AS available,
-    coalesce(sum(e.amount) FILTER (WHERE NOT (e.available_on <= @payable_on AND (b.check_in IS NULL OR b.check_in < @payable_on))), 0)::bigint AS pending,
+    coalesce(sum(e.amount) FILTER (WHERE CASE WHEN b.id IS NULL THEN e.available_on <= @payable_on ELSE b.check_in < @payable_on END), 0)::bigint AS available,
+    coalesce(sum(e.amount) FILTER (WHERE NOT CASE WHEN b.id IS NULL THEN e.available_on <= @payable_on ELSE b.check_in < @payable_on END), 0)::bigint AS pending,
     (SELECT coalesce(sum(p.amount), 0) FROM payouts p
      WHERE p.account_id = @account_id AND p.status = 'prepared')::bigint AS on_the_way
 FROM payout_entries e
@@ -83,7 +84,7 @@ JOIN payout_profiles pp ON pp.account_id = e.account_id
 JOIN accounts a ON a.id = e.account_id
 LEFT JOIN bookings b ON b.id = e.booking_id AND b.account_id = e.account_id
 WHERE e.payout_id IS NULL
-  AND e.available_on <= @period_end AND (b.check_in IS NULL OR b.check_in < @period_end)
+  AND CASE WHEN b.id IS NULL THEN e.available_on <= @period_end ELSE b.check_in < @period_end END
   AND a.status <> 'closed'
   AND pp.bank_changed_at <= @held_before
 GROUP BY e.account_id
@@ -102,7 +103,7 @@ WITH moved AS (
         SELECT e.id FROM payout_entries e
         LEFT JOIN bookings b ON b.id = e.booking_id AND b.account_id = e.account_id
         WHERE e.account_id = @account_id AND e.payout_id IS NULL
-          AND e.available_on <= @period_end AND (b.check_in IS NULL OR b.check_in < @period_end)
+          AND CASE WHEN b.id IS NULL THEN e.available_on <= @period_end ELSE b.check_in < @period_end END
         FOR UPDATE OF e
     )
     RETURNING amount
@@ -178,3 +179,10 @@ SELECT EXISTS (SELECT 1 FROM payout_batches WHERE period_end = @period_end);
 -- name: CollectedRefund :one
 SELECT account_id, booking_id, charged_cents FROM payments
 WHERE id = @id AND kind = 'refund' AND collected_by = 'staykey' AND charged_cents IS NOT NULL;
+
+-- Prepared payouts of a batch whose bank details changed after they were prepared. The export
+-- leaves them out, so they must be failed before the batch is marked paid.
+-- name: HeldBatchPayouts :one
+SELECT count(*) FROM payouts p
+JOIN payout_profiles pp ON pp.account_id = p.account_id
+WHERE p.batch_id = @batch_id AND p.status = 'prepared' AND pp.bank_changed_at > p.prepared_at;

@@ -3,9 +3,9 @@
 --
 -- payout_entries is the ledger, one row per money movement in rupee cents, signed: a guest
 -- payment is a credit, StayKey's processing charge and refunds are debits. A balance is always
--- a sum of entries. An entry tied to a stay becomes payable the day after the stay's check-in,
--- whatever its own available_on says, so a cancellation before then nets out of money StayKey
--- still holds.
+-- a sum of entries. An entry tied to a stay becomes payable the day after the stay's current
+-- check-in, whatever its own available_on says, so a cancellation before then nets out of money
+-- StayKey still holds and a stay that moves takes its money with it.
 --
 -- Preparing a payout attaches every payable entry to it and adds a payout entry for minus their
 -- sum. A failed payout keeps its entries for the statement and adds a payout_returned entry

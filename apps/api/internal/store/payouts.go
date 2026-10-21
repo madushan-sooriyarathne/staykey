@@ -21,6 +21,10 @@ import (
 // ErrBatchPaid means a payout batch was already marked paid, or doesn't exist.
 var ErrBatchPaid = errors.New("that batch doesn't exist or is already paid")
 
+// ErrHeldPayouts means a batch still has payouts the export left out because their bank details
+// changed; fail them before marking the batch paid.
+var ErrHeldPayouts = errors.New("the batch has held payouts the export left out; fail them first")
+
 // ErrPayoutClosed means a payout doesn't exist or has already failed.
 var ErrPayoutClosed = errors.New("that payout doesn't exist or has already failed")
 
@@ -425,11 +429,18 @@ func (s *Postgres) BatchTransfers(ctx context.Context, batchID uuid.UUID) ([]Pay
 }
 
 // MarkBatchPaid records that StayKey's team paid a batch, marks its prepared payouts paid, and
-// tells each owner. It returns how many payouts it marked.
+// tells each owner. A batch with held payouts still prepared is refused. It returns how many payouts it marked.
 func (s *Postgres) MarkBatchPaid(ctx context.Context, batchID uuid.UUID, bankRef string, now time.Time) (int, error) {
 	n := 0
 	err := s.InTx(ctx, func(ctx context.Context) error {
 		q := s.db(ctx)
+		held, err := q.HeldBatchPayouts(ctx, batchID)
+		if err != nil {
+			return fmt.Errorf("held payouts: %w", err)
+		}
+		if held > 0 {
+			return ErrHeldPayouts
+		}
 		rows, err := q.MarkBatchPaid(ctx, queries.MarkBatchPaidParams{ID: batchID, PaidAt: &now, BankRef: &bankRef})
 		if err != nil {
 			return fmt.Errorf("mark batch paid: %w", err)
