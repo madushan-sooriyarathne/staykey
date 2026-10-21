@@ -1,6 +1,7 @@
 import { formatMoney, type GuestBooking } from "@staykey/api-client";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { PrivacyNote } from "@/components/privacy-note";
 import { checkCardCheckout, getGuestBooking, getPublicProperty } from "@/lib/api";
 import { cx } from "@/lib/cx";
 import { formatRange } from "@/lib/dates";
@@ -143,6 +144,8 @@ export default async function StayPage(props: PageProps<"/p/[slug]/stay/[booking
       {b.card && <CardForm bookingId={b.id} token={token} currency={b.currency} card={b.card} />}
 
       {takesSlips && <SlipForm bookingId={b.id} token={token} currency={b.currency} />}
+
+      <PrivacyNote propertyName={b.propertyName} />
     </main>
   );
 }
