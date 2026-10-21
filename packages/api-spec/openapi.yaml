@@ -1543,6 +1543,113 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /v1/card-payments/payout-profile:
+    get:
+      tags: [cards]
+      operationId: getPayoutProfile
+      summary: The owner's payout details for StayKey payouts
+      description: |
+        The NIC and account number come back as their last four characters only. 404 when no
+        details have been given. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The payout details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [cards]
+      operationId: setPayoutProfile
+      summary: Give or change the payout details
+      description: |
+        A legal name, NIC, and a bank account in the owner's own name, with the current payout
+        terms accepted. Changing the bank, branch or account number holds the next payout for
+        72 hours and tells the owner by email and in Activity. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayoutProfileInput"
+      responses:
+        "200":
+          description: The payout details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutProfile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/payouts:
+    get:
+      tags: [cards]
+      operationId: getPayouts
+      summary: StayKey payout balances and past payouts
+      description: |
+        Rupee cents. available is in the next payout, pending waits for stays to start, and
+        onTheWay is in payouts prepared but not yet paid. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      responses:
+        "200":
+          description: The account's payouts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payouts"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/payouts/{payoutId}:
+    get:
+      tags: [cards]
+      operationId: getPayout
+      summary: A payout's statement
+      description: Each stay's payment, StayKey's processing charge, refunds and adjustments it paid. Owners only.
+      security:
+        - bearerAuth: []
+          accountHeader: []
+      parameters:
+        - $ref: "#/components/parameters/PayoutId"
+      responses:
+        "200":
+          description: The payout and its statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutStatement"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /webhooks/revenuecat:
     post:
       tags: [billing]
@@ -2040,6 +2147,13 @@ components:
         format: uuid
     BookingId:
       name: bookingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PayoutId:
+      name: payoutId
       in: path
       required: true
       schema:
@@ -4635,6 +4749,8 @@ components:
         payoutsAvailable:
           type: boolean
           description: This server offers StayKey payouts.
+        payoutProfile:
+          $ref: "#/components/schemas/PayoutProfile"
 
     CardConnection:
       type: object
@@ -4670,6 +4786,166 @@ components:
           minLength: 16
           maxLength: 200
           description: A Payments.lk secret key, sk_live_... or sk_test_...
+
+    PayoutProfile:
+      type: object
+      required: [legalName, nicLast4, bankName, branch, accountName, accountLast4, termsVersion, acceptedAt, bankChangedAt]
+      properties:
+        legalName:
+          type: string
+        nicLast4:
+          type: string
+        bankName:
+          type: string
+        branch:
+          type: string
+        accountName:
+          type: string
+        accountLast4:
+          type: string
+        termsVersion:
+          type: string
+        acceptedAt:
+          type: string
+          format: date-time
+        bankChangedAt:
+          type: string
+          format: date-time
+        heldUntil:
+          type: string
+          format: date-time
+          description: Set while a recent change of bank account holds payouts.
+
+    PayoutProfileInput:
+      type: object
+      required: [legalName, nic, bankName, branch, accountName, accountNumber, acceptTerms]
+      properties:
+        legalName:
+          type: string
+          maxLength: 120
+          description: As on the NIC.
+        nic:
+          type: string
+          maxLength: 20
+          description: 9 digits and V or X, or 12 digits.
+        bankName:
+          type: string
+          maxLength: 80
+        branch:
+          type: string
+          maxLength: 80
+        accountName:
+          type: string
+          maxLength: 120
+          description: The name on the bank account, which must be the owner's own.
+        accountNumber:
+          type: string
+          maxLength: 30
+        acceptTerms:
+          type: string
+          maxLength: 40
+          description: The version of the payout terms accepted, which must be the current one.
+
+    PayoutStatus:
+      type: string
+      enum: [prepared, paid, failed]
+
+    Payout:
+      type: object
+      required: [id, periodEnd, amount, status, preparedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        periodEnd:
+          $ref: "#/components/schemas/Day"
+        amount:
+          type: integer
+          format: int64
+          description: Rupee cents.
+        status:
+          $ref: "#/components/schemas/PayoutStatus"
+        reason:
+          type: string
+          description: Why a failed payout didn't go through.
+        preparedAt:
+          type: string
+          format: date-time
+        paidAt:
+          type: string
+          format: date-time
+        failedAt:
+          type: string
+          format: date-time
+
+    Payouts:
+      type: object
+      required: [available, pending, onTheWay, nextPayoutOn, minimum, payouts]
+      properties:
+        available:
+          type: integer
+          format: int64
+        pending:
+          type: integer
+          format: int64
+        onTheWay:
+          type: integer
+          format: int64
+        nextPayoutOn:
+          $ref: "#/components/schemas/Day"
+        minimum:
+          type: integer
+          format: int64
+          description: The smallest payout; smaller balances roll over.
+        heldUntil:
+          type: string
+          format: date-time
+        payouts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payout"
+
+    PayoutEntryKind:
+      type: string
+      enum: [payment, processing, refund, refund_returned, adjustment, payout_returned]
+
+    PayoutLine:
+      type: object
+      required: [id, kind, amount, availableOn, note]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/PayoutEntryKind"
+        amount:
+          type: integer
+          format: int64
+          description: Rupee cents, negative for money taken out.
+        availableOn:
+          $ref: "#/components/schemas/Day"
+        note:
+          type: string
+        bookingId:
+          type: string
+          format: uuid
+        bookingRef:
+          type: string
+        guestName:
+          type: string
+        checkIn:
+          $ref: "#/components/schemas/Day"
+
+    PayoutStatement:
+      type: object
+      required: [payout, lines]
+      properties:
+        payout:
+          $ref: "#/components/schemas/Payout"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayoutLine"
 
     WebCheckout:
       type: object
