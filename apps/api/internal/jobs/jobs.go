@@ -25,6 +25,7 @@ import (
 	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/ical"
 	"staykey.direct/api/internal/notify"
+	"staykey.direct/api/internal/observe"
 	"staykey.direct/api/internal/store"
 )
 
@@ -55,10 +56,10 @@ type sweep struct {
 }
 
 // Start runs the sweeps until ctx is done. Stop the returned client to wait for running jobs.
-func Start(ctx context.Context, pool *pgxpool.Pool, st *store.Postgres, fs files.Store, alerts Alerts, feeds *ical.Fetcher, cardService *cards.Service, log *slog.Logger) (*river.Client[pgx.Tx], error) {
+func Start(ctx context.Context, pool *pgxpool.Pool, st *store.Postgres, fs files.Store, alerts Alerts, feeds *ical.Fetcher, cardService *cards.Service, beats *observe.Heartbeats, log *slog.Logger) (*river.Client[pgx.Tx], error) {
 	all := sweeps(st, fs, alerts, feeds, cardService, log)
 	workers := river.NewWorkers()
-	river.AddWorker(workers, &sweeper{sweeps: all, now: time.Now})
+	river.AddWorker(workers, &sweeper{sweeps: all, now: time.Now, beats: beats, reporter: &observe.JobReporter{}})
 	periodic := make([]*river.PeriodicJob, 0, len(all))
 	for name, sw := range all {
 		periodic = append(periodic, river.NewPeriodicJob(
@@ -85,6 +86,8 @@ func Start(ctx context.Context, pool *pgxpool.Pool, st *store.Postgres, fs files
 // sweeps are the periodic jobs by name.
 func sweeps(st *store.Postgres, fs files.Store, alerts Alerts, feeds *ical.Fetcher, cardService *cards.Service, log *slog.Logger) map[string]sweep {
 	return map[string]sweep{
+		// Does nothing but prove the scheduler runs: its heartbeat stops when jobs do.
+		"heartbeat": {time.Minute, func(context.Context, time.Time) error { return nil }},
 		// Reads card payments, expiries and refunds from Payments.lk, for StayKey's collection
 		// account and every owner connection.
 		"card_events": {time.Minute, func(ctx context.Context, _ time.Time) error {
@@ -338,8 +341,19 @@ func SweepUploads(ctx context.Context, st *store.Postgres, fs files.Store, now t
 
 type sweeper struct {
 	river.WorkerDefaults[SweepArgs]
-	sweeps map[string]sweep
-	now    func() time.Time
+	sweeps   map[string]sweep
+	now      func() time.Time
+	beats    *observe.Heartbeats
+	reporter *observe.JobReporter
+}
+
+// heartbeatName is the Better Stack heartbeat a sweep pings after it runs; the heartbeat
+// sweep stands for the scheduler as a whole.
+func heartbeatName(sweep string) string {
+	if sweep == "heartbeat" {
+		return "jobs"
+	}
+	return sweep
 }
 
 // Timeout gives the calendar import longer than river's default minute: it reads up to
@@ -356,5 +370,11 @@ func (w *sweeper) Work(ctx context.Context, job *river.Job[SweepArgs]) error {
 	if !ok {
 		return river.JobCancel(fmt.Errorf("unknown sweep %q", job.Args.Name))
 	}
-	return sw.run(ctx, w.now())
+	err := sw.run(ctx, w.now())
+	if err != nil {
+		w.reporter.Report(ctx, job.Args.Name, err)
+		return err
+	}
+	w.beats.Ping(ctx, heartbeatName(job.Args.Name))
+	return nil
 }
