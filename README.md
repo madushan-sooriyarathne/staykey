@@ -155,12 +155,13 @@ Built:
 - Guest card payments through Payments.lk hosted checkouts, in rupees: owners connect their own Payments.lk account (no StayKey charge) or choose StayKey payouts (StayKey collects and pays out every other Monday, less 3%). Payments confirm the stay once, refunds go back to the card from the cancel screen, and `cmd/payouts` runs the payout batch. Payouts stay off in production (`STAYKEY_PAYOUTS_ENABLED`) until there is legal advice and Payable's approval
 - Email through AWS SES: guest emails from templates, account emails with email confirmation, team alerts by email, and bounces and complaints suppressed through SNS
 - Hardening: Postgres row-level security behind the tenant scoping, rate limits on public and owner routes, and `bun run db:backup-check` to prove a backup restores
-- Marketing site landing page, the invite page, the web billing page and the email confirmation page
+- Marketing site: the landing page, pricing from the API, support, draft terms, privacy and payout terms for Advertaro (Private) Limited, account deletion, a `/download` link that picks the store, the invite, web billing and email confirmation pages, and metadata, sitemap and social images; the app and booking page link to the legal and support pages
 
 How the app gets its data today: sign-in, accounts, properties, every property setting, bookings, payments, blocks and rate overrides go through the API, with tokens in the secure store and server data through TanStack Query, cached on the device for offline reads (`apps/mobile/src/api`). So do the team, activity, templates, alert preferences and the profile; there is no on-device data store any more. The app keeps its own copy of the pricing rules for instant previews; the server's total is the one stored. In development builds More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
 
 Next (the full checklist to launch is `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`):
-- Phase 10: the marketing site, then error tracking, and end-to-end and load tests
+- Phase 11: error tracking, then end-to-end and load tests
+- The phase 10 gate: the store listings, then their links on the site; a lawyer's review of the legal pages
 - The phase 9 gate: a sandbox card payment and refund with Payments.lk keys; legal advice and Payable's approval before payouts
 - The phase 8 gate: SES sandbox credentials, then production access and the sending domain's DNS records
 - The phase 6 gate: a sandbox purchase in the stores and a Payments.lk sandbox payment, once those accounts exist

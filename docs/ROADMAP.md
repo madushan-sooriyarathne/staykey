@@ -84,14 +84,15 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [ ] Legal advice and Payable's approval before `STAYKEY_PAYOUTS_ENABLED` is turned on in production
 - [ ] **Gate:** a sandbox card payment on the booking page confirms the stay, and a cancellation refunds it
 
-### Phase 10 Marketing site (next)
+### Phase 10 Marketing site (built, see `docs/phase-10-plan.md`)
 
-- [ ] Pricing from `GET /v1/public/plans`, features, how it works, and links to the App Store and Google Play
-- [ ] Support contact, and terms of service and privacy policy pages
-- [ ] Metadata, sitemap and social images for search and sharing
+- [x] Pricing from `GET /v1/public/plans`, features, how it works, and links to the App Store and Google Play ("Coming soon" until the listings exist)
+- [x] Support contact, and terms of service and privacy policy pages (drafts until a lawyer reviews them)
+- [x] Account deletion page and payout terms page, linked from the app with terms and privacy (store review needs them)
+- [x] Metadata, sitemap and social images for search and sharing
 - [ ] **Gate:** a visitor finds the price, installs the app and reaches support from the site
 
-### Phase 11 Error tracking
+### Phase 11 Error tracking (next)
 
 - [ ] Error tracking in the API, booking app, marketing site and owner app (Sentry by default), with releases and no personal data in reports
 - [ ] Uptime monitoring for the API, booking pages and marketing site, with alerts to the owner of StayKey
@@ -129,8 +130,10 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [ ] Production secrets set: `STAYKEY_AUTH_SECRET`, `STAYKEY_DATA_KEY`, `STAYKEY_SMS_PROVIDER` with the `STAYKEY_OZONE_*` credentials, the R2 keys. Keep a safe copy of the data key, since losing it makes stored bank details unreadable
 - [ ] EAS builds for iOS and Android, store listings, screenshots, app privacy details
 - [ ] A reviewer test account with a working sign-in for Apple and Google review
-- [ ] Terms of service and privacy policy, reviewed against Sri Lanka's Personal Data Protection Act
-- [ ] Support channel and a plan for onboarding the first owners
+- [ ] Terms of service, privacy policy and payout terms, reviewed against Sri Lanka's Personal Data Protection Act; then set `LEGAL_REVIEWED` in `apps/marketing/src/lib/company.ts`
+- [ ] Support channel and a plan for onboarding the first owners (support@staykey.direct and WhatsApp +94 71 688 0657 are on the site and in the app)
+- [ ] App Store and Google Play listing links on the site (`STAYKEY_APP_STORE_URL`, `STAYKEY_PLAY_STORE_URL`, `STAYKEY_APP_STORE_ID`), with the stores' official badges
+- [ ] The app's real icon and splash screen (both are still Expo's placeholders)
 
 ## After launch (not needed to go live)
 

@@ -17,6 +17,7 @@ import { font } from "@/components/ui";
 import { afterSignIn, useJoining } from "@/features/auth/enter";
 import { requestCode, useDevCode, verifyCode } from "@/lib/auth";
 import { haptics } from "@/lib/haptics";
+import { openSite, SITE_LINKS } from "@/lib/site";
 import { COUNTRIES, type Country, useOnboarding } from "../store";
 import type { StepProps } from "../types";
 import { isOptionalEmail } from "../validate";
@@ -101,6 +102,18 @@ export function PhoneStep() {
           label="Also send booking alerts to this number on WhatsApp"
         />
       </Animated.View>
+
+      <Text style={c.muted}>
+        By continuing you agree to StayKey's{" "}
+        <Text style={s.inlineLink} onPress={() => openSite(SITE_LINKS.terms)}>
+          Terms
+        </Text>{" "}
+        and{" "}
+        <Text style={s.inlineLink} onPress={() => openSite(SITE_LINKS.privacy)}>
+          Privacy Policy
+        </Text>
+        .
+      </Text>
     </View>
   );
 }

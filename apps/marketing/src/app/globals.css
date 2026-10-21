@@ -6,3 +6,30 @@
     @apply bg-paper font-sans text-body text-graphite antialiased;
   }
 }
+
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    outline: 2px solid var(--color-ember);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@layer components {
+  .legal ul {
+    @apply flex list-disc flex-col gap-2 pl-5;
+  }
+  .legal a {
+    @apply text-obsidian underline underline-offset-4;
+  }
+}
