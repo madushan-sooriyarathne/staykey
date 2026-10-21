@@ -10,6 +10,7 @@ require (
 	github.com/aws/smithy-go v1.28.5
 	github.com/emersion/go-ical v0.0.0-20250609112844-439c63cef608
 	github.com/getkin/kin-openapi v0.142.0
+	github.com/getsentry/sentry-go v0.50.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
@@ -56,6 +57,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/tools v0.49.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
