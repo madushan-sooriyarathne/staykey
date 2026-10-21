@@ -67,7 +67,7 @@ export function Prices({
                 <span className="font-semibold text-4xl text-obsidian">
                   {formatRupees(priceFor(plan, period), plan.currency)}
                 </span>
-                <span className="text-fog">{period === "yearly" ? "a year" : "a month"}</span>
+                <span className="text-steel">{period === "yearly" ? "a year" : "a month"}</span>
               </p>
               {saving ? (
                 <span className="w-fit rounded-badge bg-ember-tint px-2 py-1 text-caption text-ember-ink">

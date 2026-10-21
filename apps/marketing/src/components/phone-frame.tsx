@@ -8,7 +8,8 @@ export function PhoneFrame({
 }: {
   src: string;
   alt: string;
-  /** For the screen above the fold: loaded straight away, at high priority. */
+  /** For the screen in the hero: loaded straight away, without waiting to scroll. It stays at
+   * normal priority, since on phones it sits below the headline. */
   eager?: boolean;
 }) {
   return (
@@ -20,8 +21,7 @@ export function PhoneFrame({
           width={400}
           height={860}
           loading={eager ? "eager" : "lazy"}
-          fetchPriority={eager ? "high" : "auto"}
-          sizes="(min-width: 768px) 300px, 80vw"
+          sizes="280px"
           className="h-auto w-full"
         />
       </div>

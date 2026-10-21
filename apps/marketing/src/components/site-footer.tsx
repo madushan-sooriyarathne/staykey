@@ -15,7 +15,7 @@ export function SiteFooter() {
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="flex max-w-sm flex-col gap-2">
           <span className="font-semibold text-obsidian">StayKey</span>
-          <p className="text-fog">
+          <p className="text-steel">
             StayKey is a product of {COMPANY.name}, {COMPANY.registration}, {COMPANY.address}.
           </p>
           <a
@@ -40,7 +40,7 @@ export function SiteFooter() {
           </ul>
         </nav>
       </div>
-      <p className="mt-8 text-fog">
+      <p className="mt-8 text-steel">
         © {new Date().getFullYear()} {COMPANY.name}
       </p>
     </footer>
