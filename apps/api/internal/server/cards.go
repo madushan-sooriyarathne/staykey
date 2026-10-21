@@ -182,6 +182,10 @@ func (s *Server) cardPaymentsToAPI(st domain.CardState) oapi.CardPayments {
 			Last4: c.Last4, Mode: oapi.CardConnectionMode(c.Mode), Status: oapi.CardConnectionStatus(c.Status), CheckedAt: c.CheckedAt,
 		}
 	}
+	if p := st.PayoutProfile; p != nil {
+		profile := payoutProfileToAPI(*p, time.Now())
+		out.PayoutProfile = &profile
+	}
 	return out
 }
 

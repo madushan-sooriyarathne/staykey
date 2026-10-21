@@ -102,6 +102,10 @@ type Store interface {
 	ConnectCards(ctx context.Context, t tenant.Tenant, key, mode string, now time.Time) (domain.CardState, error)
 	DisconnectCards(ctx context.Context, t tenant.Tenant) (domain.CardState, error)
 	PayoutsAvailable() bool
+	PayoutProfile(ctx context.Context, accountID uuid.UUID) (domain.PayoutProfile, error)
+	SetPayoutProfile(ctx context.Context, t tenant.Tenant, in domain.PayoutProfileInput, now time.Time) (domain.PayoutProfile, error)
+	Payouts(ctx context.Context, accountID uuid.UUID, now time.Time) (domain.Payouts, error)
+	PayoutStatement(ctx context.Context, accountID, payoutID uuid.UUID) (domain.PayoutStatement, error)
 }
 
 // Options configures a Server.
