@@ -34,7 +34,7 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
   - API, booking and marketing take the git commit (`STAYKEY_RELEASE`, set at deploy; `dev` locally);
   - the app takes `direct.staykey.app@<version>+<build>` with a dist, which the Sentry Expo plugin sets;
   - source maps upload during the Next builds and EAS builds when `SENTRY_AUTH_TOKEN` is present, and are skipped quietly when it isn't.
-- **Environments:** `development`, `staging` and `production`, from `APP_ENV` and its equivalents. With no DSN set, the SDKs are off, which is the default in development and in CI.
+- **Production only.** Events go to Sentry only from production, to keep the free plan's quota for real errors. Development, staging, CI and tests never send one, even with a DSN set; the SDKs are switched off unless the environment is `production` and a DSN is present. The environment comes from `APP_ENV` (API), `STAYKEY_ENVIRONMENT` (web) and `EXPO_PUBLIC_APP_ENV` (app), and an app build counts as production only when it isn't a development build (`__DEV__` is false).
 - **Floods are capped.** A periodic job that fails every minute would use the month's quota in days, so each job reports a given error at most once an hour, grouped by job and error.
 - **Web events go through the sites' own tunnel** (`/monitoring`), so ad blockers don't hide guests' errors. The marketing proxy's matcher already excludes it; the booking app has no proxy.
 
@@ -72,7 +72,7 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 - **Web:** Next 16 apps with `src/` folders. The marketing site has `src/proxy.ts` (matcher `/billing`); the booking app has server actions and subdomain routing. Neither has `instrumentation.ts`, `global-error.tsx` or a health route.
 - **App:** Expo SDK 57; root `src/app/_layout.tsx` exports `RootLayout`; there is no `metro.config.js` yet. `src/api/errors.ts` has `ApiError` and `OfflineError`. Help shows the version with `Constants.expoConfig?.version`.
 - **Privacy:** `apps/marketing/src/app/privacy/page.tsx` lists processors; Sentry, Better Stack and Grafana Labs join that list.
-- **Hosting** is still the default, Fly.io in Singapore, and staging doesn't exist yet. The gate runs on the first staging deploy, or locally with real DSNs and monitors pointed at a tunnel.
+- **Hosting** is still the default, Fly.io in Singapore, and staging doesn't exist yet. Since Sentry only takes production events, the error part of the gate runs on the first production deploy, through the test routes behind the ops secret; uptime and logs can be checked on any deployed environment.
 
 ## Constraints
 
@@ -200,14 +200,14 @@ Each one is a call made without asking. Record them in `docs/HANDOVER.md` under 
 ## Validate
 
 - `cd apps/api && go vet ./... && CI=true go test -race ./...`; `bunx biome check . && bun run typecheck`; `bun run generate && git diff --exit-code`; `cd apps/booking && bun test src && bun run build`; `cd apps/marketing && bun test src && bun run build`; `cd apps/mobile && bun test src && bunx expo export --platform ios`.
-- Locally with real DSNs for a development environment:
+- Locally, with the environment forced to production and real DSNs, once:
   - each test route and the app's seven taps create one event in the right Sentry project, with the release and environment;
   - the API's event carries the request id, which matches the API log line.
 - Send a request with a phone, an email and a `?t=` token in the query and a bearer header to the test route. The Sentry event shows none of them.
 - `/healthz` on the booking app answers 503 when the API is stopped, and 200 again when it starts.
 - With heartbeat URLs pointed at a local `httptest` stand-in, each heartbeat is pinged after its job runs, at most once a minute.
 - Lighthouse on mobile for the marketing home and pricing pages stays at 90 or more for performance.
-- **Gate (on staging):** a test error from each surface shows up in Sentry with its release; stopping the API raises Better Stack's alert email within 3 minutes and the recovery email when it starts; the API's logs for the last hour can be searched by request id in Grafana.
+- **Gate (on the first production deploy):** a test error from each surface shows up in Sentry with its release; stopping the API raises Better Stack's alert email within 3 minutes and the recovery email when it starts; the API's logs for the last hour can be searched by request id in Grafana.
 
 ## Risks
 

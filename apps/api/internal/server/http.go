@@ -1,6 +1,8 @@
 package server
 
 import (
+	"crypto/subtle"
+	"errors"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -9,6 +11,7 @@ import (
 
 	"staykey.direct/api/internal/files"
 	"staykey.direct/api/internal/oapi"
+	"staykey.direct/api/internal/observe"
 )
 
 // Handler returns the API's http.Handler with routing, error handling and middleware.
@@ -19,12 +22,16 @@ func (s *Server) Handler() http.Handler {
 		},
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			if !writeAPIError(w, err) {
-				s.log.Error("request failed", "method", r.Method, "path", r.Pattern, "error", err)
+				s.log.ErrorContext(r.Context(), "request failed", "method", r.Method, "path", r.Pattern, "error", err)
+				observe.Report(r.Context(), err, map[string]string{"route": r.Method + " " + r.Pattern})
 			}
 		},
 	})
 
 	mux := http.NewServeMux()
+	if s.opts.OpsSecret != "" {
+		mux.HandleFunc("POST /internal/test-error", s.testError)
+	}
 	if s.opts.Media != nil {
 		mux.Handle(files.MediaPrefix, s.opts.Media)
 	}
@@ -39,7 +46,7 @@ func (s *Server) Handler() http.Handler {
 	})
 
 	handler := withBaseURL(withClientIP(routes, s.opts.ClientIPHeader, s.opts.ForwardSecret), s.opts.PublicURL)
-	return s.logRequests(s.recoverPanics(cors(handler, s.opts.AllowAllOrigins)))
+	return observe.RequestIDs(s.logRequests(s.recoverPanics(cors(handler, s.opts.AllowAllOrigins))), s.forwarded)
 }
 
 // cors lets booking pages and the embed widget call /v1/public from any origin. With
@@ -65,7 +72,8 @@ func (s *Server) recoverPanics(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if v := recover(); v != nil {
-				s.log.Error("panic", "value", v, "stack", string(debug.Stack()))
+				s.log.ErrorContext(r.Context(), "panic", "value", v, "stack", string(debug.Stack()))
+				observe.ReportPanic(r.Context(), v)
 				writeError(w, http.StatusInternalServerError, "internal_error", "Something went wrong on our side.")
 			}
 		}()
@@ -100,4 +108,26 @@ type statusRecorder struct {
 func (r *statusRecorder) WriteHeader(status int) {
 	r.status = status
 	r.ResponseWriter.WriteHeader(status)
+}
+
+// forwarded reports whether a request comes from one of StayKey's own sites, which share the
+// forward secret and may pass their request id on.
+func (s *Server) forwarded(r *http.Request) bool {
+	key := r.Header.Get(headerForwardKey)
+	return s.opts.ForwardSecret != "" && key != "" &&
+		subtle.ConstantTimeCompare([]byte(key), []byte(s.opts.ForwardSecret)) == 1
+}
+
+// testError lets StayKey's team check error reporting on a deployed API: with the ops secret it
+// reports an error and answers 500; without it, it is a 404 like any unknown route.
+func (s *Server) testError(w http.ResponseWriter, r *http.Request) {
+	got := r.Header.Get("X-Ops-Secret")
+	if got == "" || subtle.ConstantTimeCompare([]byte(got), []byte(s.opts.OpsSecret)) != 1 {
+		http.NotFound(w, r)
+		return
+	}
+	err := errors.New("test error from POST /internal/test-error")
+	s.log.ErrorContext(r.Context(), "test error", "error", err, "reported", observe.Enabled())
+	observe.Report(r.Context(), err, map[string]string{"route": "POST /internal/test-error", "test": "true"})
+	writeError(w, http.StatusInternalServerError, "internal_error", "Test error reported.")
 }

@@ -1,0 +1,31 @@
+# Ships the logs of every app in the StayKey Fly organization to Grafana Cloud Logs (Loki),
+# where they are kept for 14 days and searched with LogQL. See docs/RUNBOOK.md.
+#
+# One-time setup, from this folder:
+#   fly apps create staykey-log-shipper
+#   fly secrets set ORG=<fly org slug> ACCESS_TOKEN="$(fly tokens create readonly <fly org slug>)"
+#   fly secrets set LOKI_URL=<Grafana Loki URL> LOKI_USERNAME=<Grafana user id> LOKI_PASSWORD=<Grafana access policy token>
+#   fly deploy
+#
+# Nothing secret lives in this file. The Grafana token needs only the logs:write scope.
+
+app = "staykey-log-shipper"
+primary_region = "sin"
+
+[build]
+  image = "flyio/log-shipper:latest"
+
+# Every app's lines, from one queue so a second machine wouldn't ship them twice.
+[env]
+  SUBJECT = "logs.>"
+  QUEUE = "staykey-log-shipper"
+
+# Vector's API port, which Fly's health check reaches. The shipper takes no public traffic.
+[[services]]
+  internal_port = 8686
+  protocol = "tcp"
+  http_checks = []
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

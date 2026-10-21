@@ -11,6 +11,7 @@ import (
 
 	"staykey.direct/api/internal/domain"
 	"staykey.direct/api/internal/domain/pricing"
+	"staykey.direct/api/internal/observe"
 	"staykey.direct/api/internal/store/queries"
 	"staykey.direct/api/internal/tenant"
 )
@@ -585,6 +586,7 @@ func (s *Postgres) refundFailed(ctx context.Context, accountID, bookingID, refun
 	if err := s.cardRefundReturned(ctx, accountID, refundID, now); err != nil {
 		return err
 	}
+	observe.Warn(ctx, "card refund failed", map[string]string{"refund_id": refundID.String(), "account_id": accountID.String()})
 	return s.addActivity(ctx, accountID, domain.CardRefundFailed(booking(r), amount), nil, now)
 }
 

@@ -9,11 +9,13 @@
     "test": "bun test src"
   },
   "dependencies": {
+    "@sentry/nextjs": "^11.8.0",
+    "@staykey/api-client": "workspace:*",
+    "@staykey/observe": "workspace:*",
+    "@staykey/tokens": "workspace:*",
     "next": "16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "@staykey/tokens": "workspace:*",
-    "@staykey/api-client": "workspace:*",
     "server-only": "^0.0.1"
   },
   "devDependencies": {

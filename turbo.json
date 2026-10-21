@@ -5,7 +5,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "env": ["NEXT_PUBLIC_*", "STAYKEY_*"],
+      "env": ["NEXT_PUBLIC_*", "STAYKEY_*", "SENTRY_ORG", "SENTRY_PROJECT"],
+      "passThroughEnv": ["CI", "SENTRY_AUTH_TOKEN"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", "bin/**"]
     },
     "typecheck": {
@@ -74,6 +75,10 @@
         "STAYKEY_COLLECT_PAYMENTSLK_SECRET_KEY",
         "STAYKEY_PAYOUTS_ENABLED",
         "STAYKEY_PAYOUT_FEE_BPS",
+        "STAYKEY_SENTRY_DSN",
+        "STAYKEY_RELEASE",
+        "STAYKEY_HEARTBEAT_URLS",
+        "STAYKEY_OPS_SECRET",
         "STAYKEY_BILLING_URL",
         "STAYKEY_EMAIL_PROVIDER",
         "STAYKEY_EMAIL_FROM",
