@@ -100,6 +100,8 @@ type CardState struct {
 	// CollectMode is the mode of StayKey's own collection key: test or live, or "" when the
 	// server has none.
 	CollectMode string
+	// PayoutProfile is the account's payout details, if it has given them.
+	PayoutProfile *PayoutProfile
 }
 
 // CardConnection is an owner's own Payments.lk account, without its key.

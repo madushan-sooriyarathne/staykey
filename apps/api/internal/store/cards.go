@@ -30,6 +30,9 @@ type CardConfig struct {
 	CollectMode string
 	// PayoutsEnabled lets accounts choose StayKey payouts.
 	PayoutsEnabled bool
+	// PayoutFeeBPS is StayKey's processing charge on payments it collects, in basis points;
+	// 0 means the default of 3%.
+	PayoutFeeBPS int
 }
 
 // WithCards sets what the server offers for card payments.
@@ -65,6 +68,13 @@ func (s *Postgres) CardState(ctx context.Context, accountID uuid.UUID) (domain.C
 	}
 	st.PayoutsReady, err = s.payoutsReady(ctx, accountID)
 	if err != nil {
+		return domain.CardState{}, err
+	}
+	p, err := s.PayoutProfile(ctx, accountID)
+	switch {
+	case err == nil:
+		st.PayoutProfile = &p
+	case !errors.Is(err, domain.ErrNotFound):
 		return domain.CardState{}, err
 	}
 	return st, nil
@@ -552,6 +562,12 @@ func (s *Postgres) settleCardRefund(ctx context.Context, ev CardEvent, now time.
 		if err := s.refundFailed(ctx, r.AccountID, r.BookingID, r.ID, now); err != nil {
 			return "", err
 		}
+		return CardApplied, nil
+	}
+	// The send usually took the refund out of the payout ledger already; this covers a send
+	// whose answer was lost before it was recorded.
+	if err := s.cardRefundSent(ctx, r.ID, now); err != nil {
+		return "", err
 	}
 	return CardApplied, nil
 }
