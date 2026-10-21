@@ -82,6 +82,14 @@ describe("cleanEvent", () => {
     const e = cleanEvent({ exception: { values: [{ value: "no guest +94771234567" }] } });
     expect(e.exception?.values?.[0]?.value).toBe("no guest [removed]");
   });
+  test("drops the query from a request path in contexts", () => {
+    const e = cleanEvent({ contexts: { nextjs: { request_path: "/stay/1?t=guest-token" } } });
+    expect(e.contexts).toEqual({ nextjs: { request_path: "/stay/1" } });
+  });
+  test("scrubs other strings in contexts", () => {
+    const e = cleanEvent({ contexts: { app: { note: "for emma@example.com" } } });
+    expect(e.contexts).toEqual({ app: { note: "for [removed]" } });
+  });
 });
 
 describe("cleanBreadcrumb", () => {

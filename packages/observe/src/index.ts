@@ -57,6 +57,8 @@ export type EventLike = {
   exception?: { values?: { value?: string; [k: string]: unknown }[] };
   breadcrumbs?: BreadcrumbLike[];
   tags?: Record<string, unknown>;
+  contexts?: Dict;
+  extra?: Dict;
   transaction?: string;
   [k: string]: unknown;
 };
@@ -88,6 +90,9 @@ export function cleanEvent<T extends object>(input: T): T {
       if (typeof v === "string") event.tags[k] = scrub(v);
     }
   }
+  // The SDKs put the request path, query string included, in contexts such as nextjs.
+  if (event.contexts) event.contexts = cleanValues(event.contexts);
+  if (event.extra) event.extra = cleanValues(event.extra);
   if (event.breadcrumbs) {
     event.breadcrumbs = event.breadcrumbs.map((b) => cleanBreadcrumb(b));
   }
@@ -109,4 +114,19 @@ export function cleanBreadcrumb<T extends object>(input: T): T {
     crumb.data = data;
   }
   return input;
+}
+
+function isPlainObject(v: unknown): v is Dict {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+// Paths and URLs lose their query and token segments; any other string is scrubbed.
+function cleanValues(dict: Dict): Dict {
+  const out: Dict = {};
+  for (const [k, v] of Object.entries(dict)) {
+    if (typeof v === "string") out[k] = /^(?:\/|https?:\/\/)/.test(v) ? cleanUrl(v) : scrub(v);
+    else if (isPlainObject(v)) out[k] = cleanValues(v);
+    else out[k] = v;
+  }
+  return out;
 }
