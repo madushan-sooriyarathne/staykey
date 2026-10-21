@@ -156,11 +156,13 @@ Built:
 - Email through AWS SES: guest emails from templates, account emails with email confirmation, team alerts by email, and bounces and complaints suppressed through SNS
 - Hardening: Postgres row-level security behind the tenant scoping, rate limits on public and owner routes, and `bun run db:backup-check` to prove a backup restores
 - Marketing site: the landing page, pricing from the API, support, draft terms, privacy and payout terms for Advertaro (Private) Limited, account deletion, a `/download` link that picks the store, the invite, web billing and email confirmation pages, and metadata, sitemap and social images; the app and booking page link to the legal and support pages
+- Error tracking, uptime and logs: unexpected errors from the API, booking pages, marketing site and app go to Sentry from production only, with personal details scrubbed and a request id that matches the API's log lines; health routes and job heartbeats for Better Stack; a log shipper to Grafana Cloud; and `docs/RUNBOOK.md` for when an alert fires
 
 How the app gets its data today: sign-in, accounts, properties, every property setting, bookings, payments, blocks and rate overrides go through the API, with tokens in the secure store and server data through TanStack Query, cached on the device for offline reads (`apps/mobile/src/api`). So do the team, activity, templates, alert preferences and the profile; there is no on-device data store any more. The app keeps its own copy of the pricing rules for instant previews; the server's total is the one stored. In development builds More has prototype tools: view as owner, manager or caretaker, add a sample guesthouse with rooms and a whole-house unit, preview the paywall and restart onboarding.
 
 Next (the full checklist to launch is `docs/ROADMAP.md`; detail per phase in `docs/backend-plan.md`):
-- Phase 11: error tracking, then end-to-end and load tests
+- Phase 12: end-to-end and load tests
+- The phase 11 gate: Sentry, Better Stack and Grafana Cloud accounts, then a test error from each surface and an uptime alert on the first deploy
 - The phase 10 gate: the store listings, then their links on the site; a lawyer's review of the legal pages
 - The phase 9 gate: a sandbox card payment and refund with Payments.lk keys; legal advice and Payable's approval before payouts
 - The phase 8 gate: SES sandbox credentials, then production access and the sending domain's DNS records
