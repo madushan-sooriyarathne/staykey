@@ -98,6 +98,18 @@ func sweeps(st *store.Postgres, fs files.Store, alerts Alerts, feeds *ical.Fetch
 			}
 			return err
 		}},
+		// Prepares the batch of StayKey payouts on each payout Monday, once. It runs hourly so an
+		// API that was down at midnight still prepares it that day.
+		"prepare_payouts": {time.Hour, func(ctx context.Context, now time.Time) error {
+			if !st.PayoutsAvailable() {
+				return nil
+			}
+			b, prepared, err := st.PreparePayouts(ctx, now)
+			if prepared {
+				log.Info("payouts prepared", "batch", b.ID, "period_end", b.PeriodEnd.Format(time.DateOnly), "payouts", b.Payouts)
+			}
+			return err
+		}},
 		"expire_requests": {time.Minute, func(ctx context.Context, now time.Time) error {
 			n, err := st.DeclineExpiredRequests(ctx, now)
 			if n > 0 {

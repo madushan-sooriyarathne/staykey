@@ -60,7 +60,9 @@ func run() error {
 		collectMode = billing.Merchant{SecretKey: k}.Mode()
 	}
 	db, err := store.NewPostgres(ctx, cfg.DatabaseURL, store.WithSecrets(box), store.WithLinks(links),
-		store.WithCards(store.CardConfig{CollectMode: collectMode, PayoutsEnabled: cfg.Cards.PayoutsEnabled}))
+		store.WithCards(store.CardConfig{
+			CollectMode: collectMode, PayoutsEnabled: cfg.Cards.PayoutsEnabled, PayoutFeeBPS: cfg.Cards.PayoutFeeBPS,
+		}))
 	if err != nil {
 		return err
 	}
