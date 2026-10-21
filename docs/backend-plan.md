@@ -2,7 +2,7 @@
 
 As of 5 Oct 2026. Live, editable copy: https://claude.ai/code/artifact/5f501309-733d-4bcd-ab38-da01f0ab768d
 
-Status: phases 1 Foundations, 2 Properties and setup, 3 Bookings core, 4 Team, activity and messages and 5 Calendar sync and booking page are done, and phases 6 Billing and hardening, 7 Gaps noted in the handover and 8 Email through AWS SES are built, with their gates waiting for sandbox accounts, the AWS account and the live domain (see `docs/HANDOVER.md`).
+Status: phases 1 Foundations, 2 Properties and setup, 3 Bookings core, 4 Team, activity and messages and 5 Calendar sync and booking page are done, and phases 6 Billing and hardening, 7 Gaps noted in the handover, 8 Email through AWS SES and 9 Guest card payments through Payments.lk are built, with their gates waiting for sandbox accounts, the AWS account, the live domain and, for StayKey payouts, legal advice and Payable's approval (see `docs/HANDOVER.md`).
 
 ## Goal and scope
 
@@ -16,7 +16,7 @@ In scope:
 - Background jobs for request expiry, unpaid cancellations, iCal sync and notifications.
 - Moving every app screen from `apps/mobile/src/data/store.ts` to the API.
 
-Out of scope for now: the Next.js dashboard (V1.1), a channel manager, guest card payments, and multi-currency settlement.
+Out of scope for now: the Next.js dashboard (V1.1), a channel manager, and multi-currency settlement. Guest card payments arrived in phase 9, in rupees only.
 
 ## Key decisions
 
@@ -116,6 +116,17 @@ Booking statuses (same as the app): requested, awaiting_payment, confirmed, chec
 | web_checkouts | account_id, plan, period, amount, currency, status, provider_id, provider_order_id, period_start, period_end, paid_at | One prepaid web period through Payments.lk. |
 | idempotency_keys | account_id, key, request_hash, response jsonb, expires_at | |
 
+### Card payments and payouts (phase 9)
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| card_connections | account_id (PK), secret_key_sealed, key_last4, mode, status, events_since | The owner's own Payments.lk key, sealed with the account id. `accounts.card_mode` picks own or payouts. |
+| card_checkouts | account_id, booking_id, collected_by, purpose, amount, currency, charged_cents, rate, provider_checkout_id, status | One hosted checkout; its id is the reference and idempotency key. |
+| card_events, card_cursors | source, event_id; source, events_since | Each polled event acted on once per source; StayKey's own cursor. |
+| payout_profiles | account_id (PK), legal_name, nic_sealed, bank_name, branch, account_name, account_number_sealed, terms_version, bank_changed_at | A bank change holds payouts for 72 hours. |
+| payout_batches, payouts | period_end (unique); account_id, batch_id, amount, status | One batch per payout Monday. |
+| payout_entries | account_id, booking_id, payment_id, kind, amount, available_on, payout_id | The ledger in signed rupee cents; balances are sums. |
+
 ### How the ledger blocks double bookings
 
 Creating a booking or block runs in one transaction that inserts a `unit_nights` row for every night on the units it holds: a room holds itself, and a whole-house unit holds each room it links. A room and its house then clash on the primary key, while two rooms sold on the same night don't. A clash fails the unique key and the API returns 409 with the conflicting stay. Cancelling or declining deletes the rows. A checkout hold inserts rows with `hold_expires_at`; a job clears expired holds every minute.
@@ -136,6 +147,7 @@ REST under `/v1`, spec-first in `packages/api-spec/openapi.yaml`, Go handlers (o
 | Activity and insights | `GET /activity`, `POST /activity/read`, `GET /insights?period&property` | Activity, Insights |
 | Messaging | `GET/PATCH /templates/{key}`, `GET/PUT /notification-prefs`, `POST /push-tokens` | Templates, Notifications |
 | Billing | `GET /subscription` | Subscription, paywall |
+| Cards and payouts | `GET /card-payments`, `PUT /card-payments/mode`, `PUT/DELETE /card-payments/connection`, `GET/PUT /card-payments/payout-profile`, `GET /payouts`, `GET /payouts/{id}`, `POST /public/bookings/{id}/card-checkout`, `.../card-checkout/check` | Card payments, Payouts, booking page and stay page |
 | Public | `GET /public/properties/{slug}`, `/availability`, `POST /public/quote`, `POST /public/holds`, `POST /public/bookings`, `POST /public/bookings/{ref}/slip` | Booking page, widget |
 | iCal export | `GET /ical/{slug}-{token}.ics` | OTAs |
 | Webhooks | `POST /webhooks/revenuecat`, `POST /webhooks/payhere` | Billing |
