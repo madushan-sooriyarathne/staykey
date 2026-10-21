@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 import { useUnreadCount } from "@/api/activity";
+import { useCardPayments } from "@/api/cards";
 import { useMe } from "@/api/me";
 import { useSubscription } from "@/api/subscription";
 import { Tag } from "@/components/brand";
@@ -50,6 +51,7 @@ export default function MoreScreen() {
   const [switching, setSwitching] = useState(false);
   const clearDraft = useOnboarding((s) => s.clear);
   const can = useCan();
+  const cards = useCardPayments({ enabled: can("billing") && !PROTOTYPE }).data;
   const name = me?.user.name || ownerName || "You";
   const accounts = me?.accounts ?? [];
   const current = accounts.find((a) => a.id === accountId);
@@ -160,6 +162,14 @@ export default function MoreScreen() {
               icon={I.card}
               title="Card payments"
               onPress={() => router.push("/card-payments")}
+            />
+          ) : null}
+          {can("billing") && cards?.mode === "payouts" ? (
+            <ListRow
+              testID="more-payouts"
+              icon={I.cash}
+              title="Payouts"
+              onPress={() => router.push("/payouts")}
             />
           ) : null}
           <ListRow

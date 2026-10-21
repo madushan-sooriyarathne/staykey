@@ -1,4 +1,5 @@
 import type { CardMode } from "@staykey/api-client";
+import { router } from "expo-router";
 import { useState } from "react";
 import { Linking, View } from "react-native";
 import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
@@ -56,6 +57,7 @@ export default function CardPaymentsScreen() {
     });
   };
   const conn = cards.connection;
+  const profile = cards.payoutProfile;
   const own = cards.mode === "own" || (cards.mode === "off" && !cards.payoutsAvailable);
 
   return (
@@ -82,7 +84,9 @@ export default function CardPaymentsScreen() {
             title="StayKey payouts"
             description="StayKey takes the payment and pays you by bank transfer every two weeks, less a 3% processing charge."
             selected={cards.mode === "payouts"}
-            onPress={() => choose("payouts")}
+            onPress={() =>
+              cards.payoutProfile ? choose("payouts") : router.push("/payout-details")
+            }
           />
         ) : null}
       </View>
@@ -153,6 +157,55 @@ export default function CardPaymentsScreen() {
               />
             </View>
           ) : null}
+        </Animated.View>
+      ) : null}
+
+      {cards.payoutsAvailable && !own ? (
+        <Animated.View
+          entering={FadeInDown.duration(220)}
+          exiting={FadeOut.duration(120)}
+          style={{ gap: 12 }}
+        >
+          <SectionHeader title="Your payouts" />
+          {profile ? (
+            <Card>
+              <KV label="Paid to" value={profile.accountName} />
+              <KV label="Bank" value={`${profile.bankName}, ${profile.branch}`} />
+              <KV label="Account" value={`Ending ${profile.accountLast4}`} />
+              <KV label="NIC" value={`Ending ${profile.nicLast4}`} />
+              {profile.heldUntil ? (
+                <KV label="Payouts" value={<Tag tone="ember" label="Held for 72 hours" />} />
+              ) : null}
+              <View style={{ paddingTop: 8, flexDirection: "row", gap: 8 }}>
+                <Button
+                  compact
+                  variant="ghost"
+                  title="Change details"
+                  icon={I.edit}
+                  onPress={() => router.push("/payout-details")}
+                />
+                <Button
+                  compact
+                  variant="ghost"
+                  title="See payouts"
+                  icon={I.cash}
+                  onPress={() => router.push("/payouts")}
+                />
+              </View>
+            </Card>
+          ) : (
+            <View style={{ gap: 10 }}>
+              <InfoNote icon={I.bank}>
+                Add your NIC and a bank account in your own name, and StayKey can take card payments
+                for you. No registered business needed.
+              </InfoNote>
+              <Button
+                testID="add-payout-details"
+                title="Add payout details"
+                onPress={() => router.push("/payout-details")}
+              />
+            </View>
+          )}
         </Animated.View>
       ) : null}
 
