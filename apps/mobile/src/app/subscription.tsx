@@ -16,6 +16,7 @@ import { Tag } from "@/components/brand";
 import { Button } from "@/components/controls";
 import { Glow } from "@/components/glow";
 import { Appear, Card, KV, List, ListRow, Page, ui } from "@/components/kit";
+import { LegalLinks } from "@/components/legal-links";
 import { font } from "@/components/ui";
 import { formatDay, toISO } from "@/data/dates";
 import { useProperties } from "@/data/hooks";
@@ -140,6 +141,7 @@ export default function SubscriptionScreen() {
       <Text style={[ui.faint, { textAlign: "center", paddingHorizontal: 12 }]}>
         If a plan lapses, your page asks guests to message you on WhatsApp and your data stays safe.
       </Text>
+      <LegalLinks />
     </Page>
   );
 }

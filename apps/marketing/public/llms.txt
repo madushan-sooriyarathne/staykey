@@ -1,0 +1,19 @@
+# StayKey
+
+> StayKey is a mobile app for villa and guesthouse owners in Sri Lanka. It gives them their own booking page (yourvilla.staykey.direct), a widget for their website, and one calendar that syncs with Airbnb and Booking.com, all set up from a phone. StayKey takes no commission on bookings.
+
+- Who it is for: owners and managers of villas, guesthouses and small boutique stays in Sri Lanka, from one villa up to about 20 rooms.
+- What guests can do: check live availability, book or send a request, and pay by bank transfer, at the property, or by card through the owner's own Payments.lk account.
+- What owners get: bookings, requests, payments and bank slips in one app; calendar sync by iCal; team roles for managers and caretakers; guest emails and WhatsApp messages from templates.
+- Price: a flat plan by number of bookable units, free until the first direct booking for up to 60 days. Current prices: https://staykey.direct/pricing
+- Platforms: iOS and Android.
+- Company: Advertaro (Private) Limited, Mount Lavinia, Sri Lanka.
+
+## Pages
+
+- [Home](https://staykey.direct/): what StayKey does and how it works
+- [Pricing](https://staykey.direct/pricing): plans and how to pay
+- [Support](https://staykey.direct/support): help topics, WhatsApp and email
+- [Privacy policy](https://staykey.direct/privacy)
+- [Terms of service](https://staykey.direct/terms)
+- [Delete your account](https://staykey.direct/delete-account)

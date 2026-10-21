@@ -84,7 +84,10 @@
         "STAYKEY_SES_SNS_TOPIC_ARN",
         "STAYKEY_VERIFY_EMAIL_URL",
         "STAYKEY_FORWARD_SECRET",
-        "STAYKEY_API_URL"
+        "STAYKEY_API_URL",
+        "STAYKEY_APP_STORE_URL",
+        "STAYKEY_PLAY_STORE_URL",
+        "STAYKEY_APP_STORE_ID"
       ]
     }
   }
