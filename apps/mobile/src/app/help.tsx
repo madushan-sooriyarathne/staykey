@@ -1,8 +1,8 @@
 import { colors, radius } from "@staykey/tokens";
 import Constants from "expo-constants";
 import { SymbolView } from "expo-symbols";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { useRef, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text } from "react-native";
 import Animated, { FadeInDown, FadeOut, LinearTransition } from "react-native-reanimated";
 import { Field, PressScale } from "@/components/controls";
 import { I } from "@/components/icons";
@@ -10,6 +10,7 @@ import { Appear, List, ListRow, Page, SectionHeader, ui } from "@/components/kit
 import { font } from "@/components/ui";
 import { email, openWhatsApp } from "@/lib/contact";
 import { haptics } from "@/lib/haptics";
+import { sendTestError } from "@/lib/sentry";
 import { openSite, SITE_LINKS, SUPPORT_EMAIL, SUPPORT_WHATSAPP } from "@/lib/site";
 
 const TOPICS = [
@@ -130,10 +131,32 @@ export default function Help() {
           onPress={() => openSite(SITE_LINKS.deleteAccount)}
         />
       </List>
+      <VersionLine />
+    </Page>
+  );
+}
+
+const TAPS_FOR_TEST_ERROR = 7;
+
+/** The app version. Seven taps send a test error, so support can check reporting works. */
+function VersionLine() {
+  const taps = useRef(0);
+  const handlePress = () => {
+    taps.current += 1;
+    if (taps.current < TAPS_FOR_TEST_ERROR) return;
+    taps.current = 0;
+    const eventId = sendTestError();
+    Alert.alert(
+      eventId ? "Test error sent" : "Error reporting is off",
+      eventId ? `Event ${eventId}` : "This build doesn't send error reports.",
+    );
+  };
+  return (
+    <Pressable onPress={handlePress} accessibilityRole="text">
       <Text style={[ui.faint, { textAlign: "center" }]}>
         Version {Constants.expoConfig?.version ?? "1.0.0"}
       </Text>
-    </Page>
+    </Pressable>
   );
 }
 
