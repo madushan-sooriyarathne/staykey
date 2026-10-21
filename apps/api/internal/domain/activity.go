@@ -171,6 +171,24 @@ func CardKeyRefused() Activity {
 		Subtitle: "Card payments are paused until you connect a new key in Card payments"}
 }
 
+// PayoutSent is a payout StayKey's team has paid into the owner's bank account.
+func PayoutSent(amount int64, periodEnd time.Time) Activity {
+	return Activity{Kind: ActivityBilling, Title: "Payout of " + FormatMoney(amount, CardCurrency) + " sent",
+		Subtitle: "Card payments up to " + periodEnd.Format("2 Jan") + ", in your bank in 1 to 2 working days"}
+}
+
+// PayoutReturned is a payout that didn't reach the owner's bank, put back in their balance.
+func PayoutReturned(amount int64) Activity {
+	return Activity{Kind: ActivityBilling, Title: "Payout of " + FormatMoney(amount, CardCurrency) + " didn't go through",
+		Subtitle: "It's back in your balance for the next payout. Check your bank details in Card payments"}
+}
+
+// PayoutBankChanged is a change to the bank account payouts go to, which holds the next payout.
+func PayoutBankChanged(heldUntil time.Time) Activity {
+	return Activity{Kind: ActivityBilling, Title: "Payout bank account changed",
+		Subtitle: "Payouts are held until " + billingDate(heldUntil) + ". Write to support@staykey.direct if this wasn't you"}
+}
+
 // SlipRejected is a bank slip someone on the team turned down.
 func SlipRejected(b Booking, actor string) Activity {
 	return stayActivity(b, ActivitySlip, "Bank slip from "+b.Guest.Name+" rejected",
