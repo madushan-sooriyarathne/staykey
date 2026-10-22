@@ -1,0 +1,33 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "production": {
+      "node": "22.23.3",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.staykey.direct",
+        "EXPO_PUBLIC_APP_ENV": "production"
+      }
+    },
+    "preview": {
+      "extends": "production",
+      "autoIncrement": false,
+      "distribution": "internal"
+    },
+    "development": {
+      "extends": "production",
+      "autoIncrement": false,
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "development"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
