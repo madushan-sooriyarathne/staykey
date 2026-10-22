@@ -67,6 +67,18 @@ func (s *Postgres) Close() { s.pool.Close() }
 // Ping checks that the database is reachable.
 func (s *Postgres) Ping(ctx context.Context) error { return s.pool.Ping(ctx) }
 
+// BypassesRowSecurity reports whether the store connects as a superuser or a BYPASSRLS role.
+// Either skips the tenant_wall policies without an error, so production refuses to start on one.
+func (s *Postgres) BypassesRowSecurity(ctx context.Context) (bool, error) {
+	var bypass bool
+	err := s.pool.QueryRow(ctx,
+		"SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = current_user").Scan(&bypass)
+	if err != nil {
+		return false, fmt.Errorf("read database role: %w", err)
+	}
+	return bypass, nil
+}
+
 // Pool exposes the pool for migrations and tests.
 func (s *Postgres) Pool() *pgxpool.Pool { return s.pool }
 

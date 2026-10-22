@@ -75,6 +75,17 @@ func run() error {
 		return err
 	}
 	defer db.Close()
+	if cfg.IsProduction() {
+		// The pool opens lazily so the API can start while the database is briefly away; only a
+		// role that definitely skips row-level security stops it.
+		bypass, err := db.BypassesRowSecurity(ctx)
+		switch {
+		case err != nil:
+			log.Warn("couldn't check the database role", "error", err)
+		case bypass:
+			return errors.New("DATABASE_URL connects as a superuser or BYPASSRLS role, which skips row-level security; connect as an ordinary role (scripts/db-app-role.sql)")
+		}
+	}
 
 	fileStore, media, err := newFileStore(cfg)
 	if err != nil {
