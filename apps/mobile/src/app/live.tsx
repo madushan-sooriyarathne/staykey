@@ -22,6 +22,7 @@ import { Glow } from "@/components/glow";
 import { font } from "@/components/ui";
 import { useOnboarding } from "@/features/onboarding/store";
 import { haptics } from "@/lib/haptics";
+import { deferPushPrompt, registerForPush } from "@/lib/push";
 import { useSession } from "@/lib/session";
 
 /** The one celebration in onboarding. Sharing comes first; alerts are asked for before the OS prompt. */
@@ -218,6 +219,7 @@ function AlertsCard() {
                 title="Not now"
                 onPress={() => {
                   haptics.select();
+                  deferPushPrompt();
                   setState("later");
                 }}
               />
@@ -226,9 +228,11 @@ function AlertsCard() {
               <Button
                 title="Turn on alerts"
                 onPress={() => {
-                  // TODO: expo-notifications requestPermissionsAsync, then register the push token.
-                  haptics.success();
-                  setState("on");
+                  haptics.select();
+                  void registerForPush().then((granted) => {
+                    if (granted) haptics.success();
+                    setState(granted ? "on" : "later");
+                  });
                 }}
               />
             </View>
