@@ -92,14 +92,14 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [x] Metadata, sitemap and social images for search and sharing
 - [ ] **Gate:** a visitor finds the price, installs the app and reaches support from the site
 
-### Phase 11 Error tracking (next, see `docs/phase-11-plan.md`)
+### Phase 11 Error tracking (built, see `docs/phase-11-plan.md`)
 
-- [ ] Error tracking in the API, booking app, marketing site and owner app (Sentry by default), with releases and no personal data in reports
-- [ ] Uptime monitoring for the API, booking pages and marketing site, with alerts to the owner of StayKey
-- [ ] Log retention and search for the API
-- [ ] **Gate:** an error thrown on purpose in each surface shows up with its release, and stopping the API raises an alert
+- [x] Error tracking in the API, booking app, marketing site and owner app (Sentry by default), with releases and no personal data in reports. Production only, to keep the free quota
+- [x] Uptime monitoring for the API, booking pages and marketing site, with alerts to the owner of StayKey (health routes, job heartbeats, and the monitors in `infra/better-stack.md`)
+- [x] Log retention and search for the API (JSON logs with request ids; `infra/log-shipper` to Grafana Cloud, `docs/RUNBOOK.md`)
+- [ ] **Gate:** an error thrown on purpose in each surface shows up with its release, and stopping the API raises an alert (checked locally with a stand-in Sentry; runs on the first production deploy)
 
-### Phase 12 End-to-end and load tests
+### Phase 12 End-to-end and load tests (next, see `docs/phase-12-plan.md`)
 
 - [ ] Playwright on web against a seeded API: booking page, checkout, stay page and slip, widget, web billing; run in CI
 - [ ] Maestro flows on iOS and Android: sign-in, onboarding, new booking, approve a request, record a payment
@@ -120,7 +120,7 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [ ] Apple Developer and Google Play Console accounts
 - [ ] DNS for `staykey.direct` with wildcard subdomains for booking pages, plus `api`, `cdn` and `app`
 - [ ] AWS account with SES: the sending domain verified and production access (out of the sandbox), for phase 8
-- [ ] Error tracking and uptime provider (Sentry and a monitor by default), for phase 11
+- [ ] Sentry, Better Stack and Grafana Cloud accounts (free plans), with the DSNs, ops secret and heartbeat URLs set on the first deploy (`docs/RUNBOOK.md`)
 - [x] GitHub repository
 - [ ] CI green on `main` (`.github/workflows/ci.yml`)
 

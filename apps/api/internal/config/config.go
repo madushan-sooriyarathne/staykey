@@ -9,11 +9,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"staykey.direct/api/internal/observe"
 )
 
 // Config holds the API's runtime settings.
 type Config struct {
-	Env         string // "development" or "production"
+	Env         string  // "development" or "production"
+	Observe     Observe // errors to Sentry in production, uptime heartbeats
 	Port        string
 	DatabaseURL string
 
@@ -100,6 +103,17 @@ type Cards struct {
 	PayoutsEnabled   bool
 	// PayoutFeeBPS is StayKey's processing charge on the payments it collects, in basis points.
 	PayoutFeeBPS int
+}
+
+// Observe holds the error reporting and uptime settings. SentryDSN is used only in production.
+// Release names the deployed build, usually its git commit. Heartbeats maps a job to its
+// Better Stack heartbeat URL. OpsSecret unlocks POST /internal/test-error; without it the route
+// doesn't exist.
+type Observe struct {
+	SentryDSN  string
+	Release    string
+	Heartbeats map[string]string
+	OpsSecret  string
 }
 
 // SES holds the Amazon SES v2 settings. From is an address on the verified domain;
@@ -208,6 +222,20 @@ func Load() (Config, error) {
 		return Config{}, errors.New("STAYKEY_ICAL_ALLOW_PRIVATE can't be true in production")
 	}
 	cfg.ICalAllowPrivate = !cfg.IsProduction() && allowPrivate != "false"
+
+	beats, err := observe.ParseHeartbeats(os.Getenv("STAYKEY_HEARTBEAT_URLS"))
+	if err != nil {
+		return Config{}, fmt.Errorf("STAYKEY_HEARTBEAT_URLS: %w", err)
+	}
+	cfg.Observe = Observe{
+		SentryDSN:  os.Getenv("STAYKEY_SENTRY_DSN"),
+		Release:    getenv("STAYKEY_RELEASE", "dev"),
+		Heartbeats: beats,
+		OpsSecret:  os.Getenv("STAYKEY_OPS_SECRET"),
+	}
+	if s := cfg.Observe.OpsSecret; s != "" && len(s) < 24 {
+		return Config{}, errors.New("STAYKEY_OPS_SECRET must be at least 24 characters")
+	}
 
 	payoutsEnabled := getenv("STAYKEY_PAYOUTS_ENABLED", "false")
 	if payoutsEnabled != "true" && payoutsEnabled != "false" {

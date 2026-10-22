@@ -128,6 +128,9 @@ type Options struct {
 	// ForwardSecret lets the booking page and the marketing site pass on the visitor's address
 	// in X-StayKey-Guest-IP, for rate limits. Empty ignores those headers.
 	ForwardSecret string
+	// OpsSecret unlocks POST /internal/test-error, which checks error reporting on a deployed
+	// API. Without it the route doesn't exist.
+	OpsSecret string
 	// Subscribers reads store plans from RevenueCat; ExternalPurchases mirrors web periods to it.
 	// RevenueCatWebhookAuth is the Authorization value set in RevenueCat's dashboard. Nil or
 	// empty leaves those routes answering 503.
