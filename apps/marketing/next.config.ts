@@ -1,7 +1,12 @@
+import path from "node:path";
 import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The Docker image runs the standalone server; tracing from the repo root takes in the
+  // workspace packages.
+  output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, "../.."),
   transpilePackages: ["@staykey/api-client", "@staykey/observe", "@staykey/tokens"],
   // Inlined at build time, so the browser knows whether this is production without a request.
   env: {

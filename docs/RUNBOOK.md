@@ -129,3 +129,29 @@ The API and `cmd/migrate` connect as `staykey`, an ordinary role that owns the d
 ## Store review sign-in
 
 App Store and Google Play reviewers can't receive a text, so the API can let one number sign in with a fixed code and no SMS. Set `STAYKEY_REVIEW_PHONE` and `STAYKEY_REVIEW_CODE` together on `staykey-api`: a fictional number such as `+1 201 555 0142` (555 01xx numbers are reserved for fiction, so the number never belongs to a real person) and a 6-digit code that isn't one digit repeated. The code goes through the usual limits (5 codes an hour, 5 tries each), and each request writes "store reviewer sign-in code requested" to the log. Give the number and code to the reviewers in App Store Connect and the Play Console, and unset both once the apps are approved if you prefer.
+
+## First deploy
+
+Three Fly apps in `sin`, each with its config beside its code: `apps/api/fly.toml`, `apps/booking/fly.toml` and `apps/marketing/fly.toml`. The configs hold no secrets; everything below marked secret goes in with `fly secrets set -a <app>`.
+
+1. **Apps:** `fly apps create staykey-api`, `staykey-booking` and `staykey-marketing`.
+2. **Database:** a managed Postgres 17 cluster in `sin` (16 breaks the river migration). Create the `staykey` role and database as "Database role" above says, and build `DATABASE_URL` from them.
+3. **API secrets** (`staykey-api`):
+   - `DATABASE_URL`
+   - `STAYKEY_AUTH_SECRET`: `openssl rand -base64 48`
+   - `STAYKEY_DATA_KEY`: `openssl rand -base64 32`. Keep a copy somewhere safe; losing it makes stored bank details and payout details unreadable
+   - `STAYKEY_SMS_PROVIDER=ozone` with `STAYKEY_OZONE_USER_ID`, `STAYKEY_OZONE_API_KEY` and `STAYKEY_OZONE_SENDER_ID`
+   - `STAYKEY_R2_ENDPOINT`, `STAYKEY_R2_BUCKET`, `STAYKEY_R2_ACCESS_KEY_ID`, `STAYKEY_R2_SECRET_ACCESS_KEY` and `STAYKEY_MEDIA_URL` (`https://media.staykey.direct`)
+   - `STAYKEY_FORWARD_SECRET` and `STAYKEY_OPS_SECRET`: `openssl rand -base64 32` each, the same values on all three apps
+   - `STAYKEY_REVIEW_PHONE` and `STAYKEY_REVIEW_CODE` before the store submissions ("Store review sign-in" above)
+   - As each account arrives: `STAYKEY_SENTRY_DSN`, `STAYKEY_HEARTBEAT_URLS`, `STAYKEY_EXPO_ACCESS_TOKEN`, the RevenueCat, Payments.lk and SES settings (`apps/api/.env.example` lists them all)
+4. **Booking and marketing secrets:** `STAYKEY_FORWARD_SECRET` and `STAYKEY_OPS_SECRET` on both. On `staykey-marketing`, once they exist, `STAYKEY_APPLE_TEAM_ID` and `STAYKEY_ANDROID_CERT_SHA256` for the app link files, and the store links (`STAYKEY_APP_STORE_URL`, `STAYKEY_PLAY_STORE_URL`, `STAYKEY_APP_STORE_ID`), which also go in as `--build-arg` since the home page is prerendered with them.
+5. **Deploy, in this order**, with the commands at the top of each `fly.toml`: the API (its release command runs the migrations before any machine changes), then the booking app, then the marketing site, whose build reads prices from the live API. `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG` and `SENTRY_PROJECT` are build arguments for both web apps once Sentry exists; the Sentry token goes in as `--build-secret SENTRY_AUTH_TOKEN=...`.
+6. **Certificates and DNS:**
+   - `fly certs add api.staykey.direct -a staykey-api`
+   - `fly certs add staykey.direct -a staykey-marketing` and `fly certs add www.staykey.direct -a staykey-marketing`
+   - `fly certs add "*.staykey.direct" -a staykey-booking`, which needs the `_acme-challenge` CNAME that `fly certs show` prints
+   - Point each name at its app as `fly certs show` says. The named records (`api`, `www`, the apex, `media`) win over the wildcard, which sends every other subdomain, `cdn` and `uptime` included, to the booking app. On Cloudflare, keep the Fly records DNS only (grey cloud) so Fly can issue certificates.
+7. **Check:** `/healthz` on `api.staykey.direct` (with `"database":"up"`), `uptime.staykey.direct` and `staykey.direct`; `https://cdn.staykey.direct/widget.js` serves the embed loader; then "Sending a test error" above for each surface.
+
+`/migrate` and `/payouts` live in the API image beside `/api`, so the payout routine runs on a machine with the API's secrets: `fly ssh console -a staykey-api -C "/payouts list"`.

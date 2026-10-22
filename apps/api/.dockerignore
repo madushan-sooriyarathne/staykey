@@ -1,0 +1,6 @@
+bin
+.media
+.env*
+*_test.go
+fly.toml
+Dockerfile

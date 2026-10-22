@@ -1,0 +1,39 @@
+# staykey.direct (and www, which redirects to it). First deploy and secrets: docs/RUNBOOK.md,
+# "First deploy". From the repo root, once the API is up (the home page is prerendered with its
+# prices):
+#
+#   fly deploy . --config apps/marketing/fly.toml --dockerfile apps/marketing/Dockerfile \
+#     --build-arg STAYKEY_RELEASE=$(git rev-parse --short HEAD) \
+#     --build-secret SENTRY_AUTH_TOKEN=<token>
+#
+# Store links are read at build time for the prerendered home page and at run time for /download,
+# so set them in both places once the listings exist. Nothing secret lives in this file.
+
+app = "staykey-marketing"
+primary_region = "sin"
+
+[build.args]
+  STAYKEY_ENVIRONMENT = "production"
+  STAYKEY_API_URL = "https://api.staykey.direct"
+
+[env]
+  STAYKEY_API_URL = "https://api.staykey.direct"
+  STAYKEY_ENVIRONMENT = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
