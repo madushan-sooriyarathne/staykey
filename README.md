@@ -172,7 +172,8 @@ Next (the full checklist to launch is `docs/ROADMAP.md`; detail per phase in `do
 - The phase 9 gate: a sandbox card payment and refund with Payments.lk keys; legal advice and Payable's approval before payouts
 - The phase 8 gate: SES sandbox credentials, then production access and the sending domain's DNS records
 - The phase 6 gate: a sandbox purchase in the stores and a Payments.lk sandbox payment, once those accounts exist
-- An international SMS gateway, hosting and the store submissions
+- The first deploy to Fly.io, following `docs/RUNBOOK.md` (the images and `fly.toml` files are in), then `bunx eas-cli init` and the store submissions
+- An international SMS gateway
 
 Trying card payments locally: in the app, open More, Card payments, choose your own Payments.lk account and paste a sandbox key (`sk_test_...`), then switch cards on in a property's payment methods (with a rupee rate if it isn't priced in LKR). The booking page then offers "Card"; Payments.lk events are polled every minute, so no tunnel is needed. For StayKey payouts, also set `STAYKEY_COLLECT_PAYMENTSLK_SECRET_KEY` (a second sandbox key) and `STAYKEY_PAYOUTS_ENABLED=true`, add the payout details in Card payments and choose StayKey payouts. To run a payout locally, move a paid stay's check-in into the past and run `go run ./cmd/payouts prepare -at 2026-11-02T08:00:00+05:30` in `apps/api`, then `list`, `export <batch>` and `paid <batch> -ref <bank ref>`.
 

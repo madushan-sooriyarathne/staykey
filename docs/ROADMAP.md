@@ -1,6 +1,6 @@
 # StayKey roadmap to launch
 
-As of 18 Oct 2026. Phases 1 to 5 are done; phases 6 Billing and hardening, 7 Gaps noted in the handover and 8 Email through AWS SES are built, with their gates waiting for sandbox accounts, the AWS account and the live domain. Sign-in codes reach Sri Lankan numbers through oZone Sender. Phases 9 to 12 are next, in order: guest card payments through Payments.lk, the marketing site, error tracking, then end-to-end and load tests. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
+As of 22 Oct 2026. Phases 1 to 5 are done; phases 6 Billing and hardening, 7 Gaps noted in the handover and 8 Email through AWS SES are built, with their gates waiting for sandbox accounts, the AWS account and the live domain. Sign-in codes reach Sri Lankan numbers through oZone Sender. Phases 9 to 12 are next, in order: guest card payments through Payments.lk, the marketing site, error tracking, then end-to-end and load tests. This file lists everything left before StayKey goes live. Tick items as they land, and keep it in step with `docs/HANDOVER.md` and `docs/backend-plan.md`, which hold the detail for each phase.
 
 The shortest route to a first paying owner is now the accounts in section 2: Payments.lk, RevenueCat and the stores, then hosting.
 
@@ -122,18 +122,21 @@ The shortest route to a first paying owner is now the accounts in section 2: Pay
 - [ ] AWS account with SES: the sending domain verified and production access (out of the sandbox), for phase 8
 - [ ] Sentry, Better Stack and Grafana Cloud accounts (free plans), with the DSNs, ops secret and heartbeat URLs set on the first deploy (`docs/RUNBOOK.md`)
 - [x] GitHub repository
-- [ ] CI green on `main` (`.github/workflows/ci.yml`)
+- [x] CI green on `main` (`.github/workflows/ci.yml`)
 
 ## 3. Launch readiness
 
+- [x] Deploy configs: Docker images and `fly.toml` for the API (migrations as the release command), booking app (also serving `cdn.staykey.direct/widget.js`) and marketing site, with the first deploy written down in `docs/RUNBOOK.md`
+- [x] The API refuses a database role that skips row-level security in production; `scripts/db-app-role.sql` creates the ordinary role
+- [x] `eas.json` with development, preview and production profiles, and `expo-dev-client`; `bunx eas-cli init` still has to add the project id under the StayKey Expo account
 - [ ] Sign in on a real phone (the open phase 1 check; possible now with `STAYKEY_SMS_PROVIDER=ozone`)
 - [ ] Production secrets set: `STAYKEY_AUTH_SECRET`, `STAYKEY_DATA_KEY`, `STAYKEY_SMS_PROVIDER` with the `STAYKEY_OZONE_*` credentials, the R2 keys. Keep a safe copy of the data key, since losing it makes stored bank details unreadable
 - [ ] EAS builds for iOS and Android, store listings, screenshots, app privacy details
-- [ ] A reviewer test account with a working sign-in for Apple and Google review
+- [ ] A reviewer test account with a working sign-in for Apple and Google review (the API side is in: `STAYKEY_REVIEW_PHONE` and `STAYKEY_REVIEW_CODE`, `docs/RUNBOOK.md`; set them on the first deploy and give them to the reviewers)
 - [ ] Terms of service, privacy policy and payout terms, reviewed against Sri Lanka's Personal Data Protection Act; then set `LEGAL_REVIEWED` in `apps/marketing/src/lib/company.ts`
 - [ ] Support channel and a plan for onboarding the first owners (support@staykey.direct and WhatsApp +94 71 688 0657 are on the site and in the app)
 - [ ] App Store and Google Play listing links on the site (`STAYKEY_APP_STORE_URL`, `STAYKEY_PLAY_STORE_URL`, `STAYKEY_APP_STORE_ID`), with the stores' official badges
-- [ ] The app's real icon and splash screen (both are still Expo's placeholders)
+- [ ] The app's real icon and splash screen (an interim set from the site's "S." mark replaces Expo's placeholders; swap in final artwork when it exists)
 
 ## After launch (not needed to go live)
 
