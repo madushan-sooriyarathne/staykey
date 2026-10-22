@@ -1,0 +1,46 @@
+# The API. First deploy and the secrets it needs: docs/RUNBOOK.md, "First deploy".
+#
+#   cd apps/api && fly deploy --env STAYKEY_RELEASE=$(git rev-parse --short HEAD)
+#
+# Nothing secret lives in this file.
+
+app = "staykey-api"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Migrations run once per deploy, before any machine gets the new image.
+[deploy]
+  release_command = "/migrate up"
+  strategy = "rolling"
+
+[env]
+  APP_ENV = "production"
+  PORT = "8080"
+  STAYKEY_CLIENT_IP_HEADER = "Fly-Client-IP"
+  STAYKEY_PUBLIC_URL = "https://api.staykey.direct"
+
+# River runs the jobs inside the API, so a machine always stays up.
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "3s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

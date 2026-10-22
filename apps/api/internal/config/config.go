@@ -31,6 +31,9 @@ type Config struct {
 	// "ozone" texts them through oZone Sender. Other countries are not supported yet.
 	SMSProvider string
 	Ozone       Ozone
+	// ReviewPhone and ReviewCode let App Store and Google Play reviewers sign in without a text.
+	ReviewPhone string
+	ReviewCode  string
 	// ClientIPHeader names the header a trusted proxy puts the client address in, for example
 	// Fly-Client-IP. Empty uses the connection's address.
 	ClientIPHeader string
@@ -167,6 +170,8 @@ func Load() (Config, error) {
 		Env:            getenv("APP_ENV", "development"),
 		Port:           getenv("PORT", "8080"),
 		ClientIPHeader: os.Getenv("STAYKEY_CLIENT_IP_HEADER"),
+		ReviewPhone:    os.Getenv("STAYKEY_REVIEW_PHONE"),
+		ReviewCode:     os.Getenv("STAYKEY_REVIEW_CODE"),
 		PublicURL:      os.Getenv("STAYKEY_PUBLIC_URL"),
 		InviteURL:      getenv("STAYKEY_INVITE_URL", "https://staykey.direct/join"),
 

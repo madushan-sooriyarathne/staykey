@@ -19,31 +19,40 @@ Notifications.setNotificationHandler({
 
 let warned = false;
 let failed = false;
+let deferred = false;
+
+/** "Not now" on the go-live screen: the app doesn't ask on its own again until it next starts. */
+export function deferPushPrompt() {
+  deferred = true;
+}
 
 /**
- * Asks for permission and registers this device's Expo push token with the signed-in session,
- * so the team's alerts reach it. Skipped on web, and in builds without an EAS project id, which
- * Expo needs to issue a token.
+ * Asks for permission, unless the prompt was put off, and registers this device's Expo push
+ * token with the signed-in session, so the team's alerts reach it. Resolves to whether alerts
+ * are allowed, and never rejects. Skipped on web; builds without an EAS project id, which Expo
+ * needs to issue a token, ask but don't register.
  */
-export async function registerForPush(): Promise<void> {
-  if (Platform.OS === "web") return;
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-  if (typeof projectId !== "string" || projectId === "") {
-    if (!warned)
-      console.warn("Push alerts are off: run `bunx eas-cli init` to add an EAS project id.");
-    warned = true;
-    return;
-  }
+export async function registerForPush(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+  let granted = false;
   try {
+    // Android 13 shows the permission prompt only once a channel exists.
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
         name: "Alerts",
         importance: Notifications.AndroidImportance.HIGH,
       });
     }
-    let { granted } = await Notifications.getPermissionsAsync();
-    if (!granted) granted = (await Notifications.requestPermissionsAsync()).granted;
-    if (!granted) return;
+    granted = (await Notifications.getPermissionsAsync()).granted;
+    if (!granted && !deferred) granted = (await Notifications.requestPermissionsAsync()).granted;
+    if (!granted) return false;
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    if (typeof projectId !== "string" || projectId === "") {
+      if (!warned)
+        console.warn("Push alerts are off: run `bunx eas-cli init` to add an EAS project id.");
+      warned = true;
+      return true;
+    }
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
     await unwrap(
       api.POST("/v1/push-tokens", {
@@ -56,6 +65,7 @@ export async function registerForPush(): Promise<void> {
     if (!failed) console.warn("Couldn't register for push alerts", error);
     failed = true;
   }
+  return granted;
 }
 
 /** Where a tapped alert goes: the stay it is about, otherwise Activity. */

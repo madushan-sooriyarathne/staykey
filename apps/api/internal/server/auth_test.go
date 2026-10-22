@@ -259,3 +259,52 @@ func TestInternationalNumberRefused(t *testing.T) {
 		t.Fatalf("international number response = %+v", body)
 	}
 }
+
+const reviewPhone = "+1 201 555 0142"
+
+func withReviewer(c *auth.Config) {
+	c.ReviewPhone = reviewPhone
+	c.ReviewCode = "482913"
+}
+
+func TestReviewerSignsInWithTheFixedCodeAndNoText(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, withReviewer)
+
+	// A +1 number would be refused by the SMS router, so a 200 here means no text was sent.
+	e.requestCode(reviewPhone)
+	rec := e.do(call{method: http.MethodPost, path: "/v1/auth/verify", body: oapi.VerifyRequest{Phone: reviewPhone, Code: "482913"}})
+
+	e.expect(rec, http.StatusOK)
+}
+
+func TestOtherNumbersKeepRandomCodesWithAReviewerSet(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, withReviewer)
+
+	code := e.requestCode("+94 77 123 4567")
+
+	if code == "482913" {
+		t.Error("an ordinary number got the reviewer's code")
+	}
+}
+
+func TestReviewerSettingsAreChecked(t *testing.T) {
+	t.Parallel()
+	secret := []byte("test-secret-that-is-at-least-32-bytes-long")
+	cases := map[string]auth.Config{
+		"phone without code": {ReviewPhone: reviewPhone},
+		"code without phone": {ReviewCode: "482913"},
+		"short code":         {ReviewPhone: reviewPhone, ReviewCode: "4829"},
+		"one digit repeated": {ReviewPhone: reviewPhone, ReviewCode: "111111"},
+		"bad phone":          {ReviewPhone: "555 0142", ReviewCode: "482913"},
+	}
+	for name, cfg := range cases {
+		t.Run(name, func(t *testing.T) {
+			cfg.Secret = secret
+			if _, err := auth.New(nil, nil, cfg); err == nil {
+				t.Error("auth.New accepted the reviewer settings, want an error")
+			}
+		})
+	}
+}
