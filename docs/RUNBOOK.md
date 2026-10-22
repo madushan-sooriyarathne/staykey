@@ -125,3 +125,7 @@ DSNs are public by design (the browser and the app carry them), so rotating one 
 ## Database role
 
 The API and `cmd/migrate` connect as `staykey`, an ordinary role that owns the database. Superusers and `BYPASSRLS` roles skip row-level security without an error, so the API refuses to start in production on one ("connects as a superuser or BYPASSRLS role"). Create the role once with the provider's admin user, as `scripts/db-app-role.sql` describes, and build `DATABASE_URL` from it. If a deploy fails with that message, `DATABASE_URL` points at the admin user.
+
+## Store review sign-in
+
+App Store and Google Play reviewers can't receive a text, so the API can let one number sign in with a fixed code and no SMS. Set `STAYKEY_REVIEW_PHONE` and `STAYKEY_REVIEW_CODE` together on `staykey-api`: a fictional number such as `+1 201 555 0142` (555 01xx numbers are reserved for fiction, so the number never belongs to a real person) and a 6-digit code that isn't one digit repeated. The code goes through the usual limits (5 codes an hour, 5 tries each), and each request writes "store reviewer sign-in code requested" to the log. Give the number and code to the reviewers in App Store Connect and the Play Console, and unset both once the apps are approved if you prefer.
