@@ -43,6 +43,11 @@ func (s *Service) RequestCode(ctx context.Context, phone string, ip netip.Addr) 
 	if err != nil {
 		return CodeSent{}, err
 	}
+	// The reviewer's code goes through the same challenge, limits and attempts as any other.
+	review := s.cfg.ReviewPhone != "" && phone == s.cfg.ReviewPhone
+	if review {
+		code = s.cfg.ReviewCode
+	}
 	challenge := OTPChallenge{
 		ID:        domain.NewID(),
 		Phone:     phone,
@@ -65,9 +70,13 @@ func (s *Service) RequestCode(ctx context.Context, phone string, ip netip.Addr) 
 		return CodeSent{}, err
 	}
 
-	body := fmt.Sprintf("Your StayKey code is %s. It expires in %d minutes.", code, int(s.cfg.CodeTTL.Minutes()))
-	if err := s.sms.Send(ctx, phone, body); err != nil {
-		return CodeSent{}, fmt.Errorf("send code: %w", err)
+	if review {
+		s.cfg.Logger.Warn("store reviewer sign-in code requested")
+	} else {
+		body := fmt.Sprintf("Your StayKey code is %s. It expires in %d minutes.", code, int(s.cfg.CodeTTL.Minutes()))
+		if err := s.sms.Send(ctx, phone, body); err != nil {
+			return CodeSent{}, fmt.Errorf("send code: %w", err)
+		}
 	}
 
 	sent := CodeSent{Phone: phone, ExpiresAt: challenge.ExpiresAt, ResendAfter: s.cfg.ResendAfter}

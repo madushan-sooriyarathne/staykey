@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,6 +42,12 @@ type Config struct {
 	// ExposeDevCodes returns each code in the response so a development build can show it.
 	// Never set in production.
 	ExposeDevCodes bool
+
+	// ReviewPhone signs in with ReviewCode and gets no SMS, for App Store and Google Play
+	// reviewers, who can't receive a text. Both or neither; a fictional number (+1 ... 555 01xx)
+	// keeps it from ever belonging to a real person.
+	ReviewPhone string
+	ReviewCode  string
 
 	Now    func() time.Time
 	Logger *slog.Logger
@@ -75,6 +82,25 @@ func (c *Config) applyDefaults() {
 	if c.Logger == nil {
 		c.Logger = slog.Default()
 	}
+}
+
+// checkReview normalizes ReviewPhone and refuses a half-set or guessable reviewer sign-in.
+func (c *Config) checkReview() error {
+	if c.ReviewPhone == "" && c.ReviewCode == "" {
+		return nil
+	}
+	if c.ReviewPhone == "" || c.ReviewCode == "" {
+		return errors.New("STAYKEY_REVIEW_PHONE and STAYKEY_REVIEW_CODE must be set together")
+	}
+	phone, err := domain.NormalizePhone(c.ReviewPhone)
+	if err != nil {
+		return fmt.Errorf("STAYKEY_REVIEW_PHONE: %w", err)
+	}
+	if !codePattern.MatchString(c.ReviewCode) || strings.Count(c.ReviewCode, c.ReviewCode[:1]) == len(c.ReviewCode) {
+		return errors.New("STAYKEY_REVIEW_CODE must be 6 digits, not all the same")
+	}
+	c.ReviewPhone = phone
+	return nil
 }
 
 // OTPChallenge is one code sent to one number.
@@ -192,6 +218,9 @@ type Service struct {
 func New(store Store, sms SMSSender, cfg Config) (*Service, error) {
 	if len(cfg.Secret) < 32 {
 		return nil, errors.New("auth secret must be at least 32 bytes")
+	}
+	if err := cfg.checkReview(); err != nil {
+		return nil, err
 	}
 	cfg.applyDefaults()
 	return &Service{

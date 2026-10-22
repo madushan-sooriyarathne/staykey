@@ -131,6 +131,8 @@ func run() error {
 		Secret: []byte(cfg.AuthSecret),
 		// Development builds show the code on screen, so a phone can sign in without SMS.
 		ExposeDevCodes: !cfg.IsProduction(),
+		ReviewPhone:    cfg.ReviewPhone,
+		ReviewCode:     cfg.ReviewCode,
 		Logger:         log,
 	})
 	if err != nil {
