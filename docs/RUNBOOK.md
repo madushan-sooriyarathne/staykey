@@ -121,3 +121,7 @@ DSNs are public by design (the browser and the app carry them), so rotating one 
 - **Sentry:** one organization, EU data region if offered, and four projects: `staykey-api` (Go), `staykey-booking` and `staykey-marketing` (Next.js), `staykey-app` (React Native). Turn on spike protection, and keep the default "new issue" email alert. Leave tracing, profiling, replay and logs off.
 - **Better Stack:** as `infra/better-stack.md`.
 - **Grafana Cloud:** a free stack, then an access policy with `logs:write` for the shipper. The Loki URL and user id are on the stack's Loki details page.
+
+## Database role
+
+The API and `cmd/migrate` connect as `staykey`, an ordinary role that owns the database. Superusers and `BYPASSRLS` roles skip row-level security without an error, so the API refuses to start in production on one ("connects as a superuser or BYPASSRLS role"). Create the role once with the provider's admin user, as `scripts/db-app-role.sql` describes, and build `DATABASE_URL` from it. If a deploy fails with that message, `DATABASE_URL` points at the admin user.
