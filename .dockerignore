@@ -1,0 +1,15 @@
+# For the booking and marketing images, which build from the repo root. The API builds from
+# apps/api with its own .dockerignore.
+.git
+**/node_modules
+**/.next
+**/.turbo
+**/.expo
+**/dist
+**/bin
+**/.media
+**/.env
+**/.env*.local
+apps/mobile/ios
+apps/mobile/android
+graphify-out
